@@ -449,6 +449,18 @@ class PreferKey {
   /// 远程服务器 ID
   static const String remoteServerId = 'remoteServerId';
 
+  /// WebDAV 自动同步
+  static const String webDavAutoSync = 'webDavAutoSync';
+
+  /// WebDAV 启动时同步
+  static const String webDavStartupSync = 'webDavStartupSync';
+
+  /// WebDAV 同步间隔（分钟）
+  static const String webDavSyncInterval = 'webDavSyncInterval';
+
+  /// WebDAV 冲突解决策略
+  static const String webDavConflictResolution = 'webDavConflictResolution';
+
   // ========== 备份和恢复 ==========
   /// 备份路径
   static const String backupPath = 'backupUri';

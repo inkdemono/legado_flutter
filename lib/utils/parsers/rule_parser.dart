@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:html/parser.dart' as html_parser;
 import 'package:html/dom.dart' as html_dom;
 import 'package:json_path/json_path.dart';
@@ -16,6 +15,7 @@ import '../js_engine.dart';
 import '../js_extensions.dart';
 import 'elements_single.dart';
 import 'analyze_by_regex.dart';
+import 'regex_cache.dart';
 
 /// 规则片段类型
 enum _RuleFragmentType {
@@ -55,19 +55,28 @@ class RuleParser {
   // 变量存储（用于@get:和@put:）
   static final Map<String, String> _variables = {};
 
+  // 规则片段缓存（缓存解析后的规则片段）
+  static final Map<String, List<_RuleFragment>> _ruleFragmentCache = {};
+  static const int _maxRuleFragmentCacheSize = 200;
+
+  /// 清除规则片段缓存
+  static void clearRuleFragmentCache() {
+    _ruleFragmentCache.clear();
+  }
+
   /// 处理规则（变量替换、put规则、正则替换等）
   /// 参考项目：AnalyzeRule.splitSourceRule 和 SourceRule.makeUpRule
   static String _processRule(String rule, Map<String, String> variables) {
     String result = rule;
 
     // 1. 处理 @put:{key:value} 规则
-    final putPattern = RegExp(r'@put:\s*(\{[^}]+\})', caseSensitive: false);
+    final putPattern = RegexCache.instance.getOrCompile(r'@put:\s*(\{[^}]+\})', caseSensitive: false);
     result = result.replaceAllMapped(putPattern, (match) {
       try {
         // 解析JSON对象
         final jsonStr = match.group(1)!;
         // 简单的JSON解析（只支持简单的key:value格式）
-        final keyValuePattern = RegExp(r'"([^"]+)":\s*"([^"]*)"');
+        final keyValuePattern = RegexCache.instance.getOrCompile(r'"([^"]+)":\s*"([^"]*)"');
         keyValuePattern.allMatches(jsonStr).forEach((m) {
           final key = m.group(1)!;
           final value = m.group(2) ?? '';
@@ -87,7 +96,7 @@ class RuleParser {
     });
 
     // 3. 处理 @get:{key} 规则
-    final getPattern = RegExp(r'@get:\s*\{([^}]+)\}', caseSensitive: false);
+    final getPattern = RegexCache.instance.getOrCompile(r'@get:\s*\{([^}]+)\}', caseSensitive: false);
     result = result.replaceAllMapped(getPattern, (match) {
       final key = match.group(1)!.trim();
       return variables[key] ?? _variables[key] ?? '';
@@ -393,7 +402,7 @@ class RuleParser {
         bool hasJsCode = false;
 
         // 检查 {{...}} 是否是变量替换
-        final varPattern = RegExp(r'\{\{([^}]+)\}\}');
+        final varPattern = RegexCache.instance.getOrCompile(r'\{\{([^}]+)\}\}');
         for (final match in varPattern.allMatches(actualRule)) {
           final key = match.group(1)?.trim();
           if (key != null && variables.containsKey(key)) {
@@ -421,19 +430,72 @@ class RuleParser {
 
     // 有明确的 JavaScript 标记或包含 {{...}} 且不是变量替换，进行分割处理
     // 匹配 <js>...</js> 或 @js:... 或 {{...}}（但排除变量替换）
-    final jsPattern = RegExp(
+    final jsPattern = RegexCache.instance.getOrCompile(
       r'<js>([\w\W]*?)</js>|@js:([\w\W]*?)(?=\s|$)|(?<!\\)\{\{([\w\W]*?)\}\}',
       caseSensitive: false,
     );
 
-    // 分割规则片段
-    final ruleFragments = <_RuleFragment>[];
-    int lastEnd = 0;
+    // 检查是否可以使用缓存（规则不包含{{...}}变量引用时可以缓存）
+    final canUseCache = !actualRule.contains('{{');
+    List<_RuleFragment> ruleFragments;
 
-    for (final match in jsPattern.allMatches(actualRule)) {
-      // 添加 JavaScript 之前的普通规则片段
-      if (match.start > lastEnd) {
-        final normalRule = actualRule.substring(lastEnd, match.start).trim();
+    if (canUseCache && _ruleFragmentCache.containsKey(actualRule)) {
+      ruleFragments = _ruleFragmentCache[actualRule]!;
+    } else {
+      // 分割规则片段
+      ruleFragments = <_RuleFragment>[];
+      int lastEnd = 0;
+
+      for (final match in jsPattern.allMatches(actualRule)) {
+        // 添加 JavaScript 之前的普通规则片段
+        if (match.start > lastEnd) {
+          final normalRule = actualRule.substring(lastEnd, match.start).trim();
+          if (normalRule.isNotEmpty) {
+            ruleFragments.add(_RuleFragment(
+              type: _RuleFragmentType.normal,
+              content: normalRule,
+            ));
+          }
+        }
+
+        // 提取 JavaScript 代码
+        String? jsCode;
+        if (match.group(1) != null) {
+          // <js>...</js> 格式
+          jsCode = match.group(1);
+        } else if (match.group(2) != null) {
+          // @js:... 格式
+          jsCode = match.group(2);
+        } else if (match.group(3) != null) {
+          // {{...}} 格式，检查是否是变量替换
+          final key = match.group(3)?.trim();
+          if (key != null && variables.containsKey(key)) {
+            // 是变量替换，作为普通文本处理
+            ruleFragments.add(_RuleFragment(
+              type: _RuleFragmentType.normal,
+              content: variables[key]!,
+            ));
+            lastEnd = match.end;
+            continue;
+          } else {
+            // 不是变量替换，作为 JavaScript 代码
+            jsCode = match.group(3);
+          }
+        }
+
+        if (jsCode != null && jsCode.isNotEmpty) {
+          ruleFragments.add(_RuleFragment(
+            type: _RuleFragmentType.javascript,
+            content: jsCode,
+          ));
+        }
+
+        lastEnd = match.end;
+      }
+
+      // 添加最后一个普通规则片段
+      if (lastEnd < actualRule.length) {
+        final normalRule = actualRule.substring(lastEnd).trim();
         if (normalRule.isNotEmpty) {
           ruleFragments.add(_RuleFragment(
             type: _RuleFragmentType.normal,
@@ -442,49 +504,12 @@ class RuleParser {
         }
       }
 
-      // 提取 JavaScript 代码
-      String? jsCode;
-      if (match.group(1) != null) {
-        // <js>...</js> 格式
-        jsCode = match.group(1);
-      } else if (match.group(2) != null) {
-        // @js:... 格式
-        jsCode = match.group(2);
-      } else if (match.group(3) != null) {
-        // {{...}} 格式，检查是否是变量替换
-        final key = match.group(3)?.trim();
-        if (key != null && variables.containsKey(key)) {
-          // 是变量替换，作为普通文本处理
-          ruleFragments.add(_RuleFragment(
-            type: _RuleFragmentType.normal,
-            content: variables[key]!,
-          ));
-          lastEnd = match.end;
-          continue;
-        } else {
-          // 不是变量替换，作为 JavaScript 代码
-          jsCode = match.group(3);
+      // 缓存结果（仅当规则不包含变量引用时）
+      if (canUseCache) {
+        if (_ruleFragmentCache.length >= _maxRuleFragmentCacheSize) {
+          _ruleFragmentCache.remove(_ruleFragmentCache.keys.first);
         }
-      }
-
-      if (jsCode != null && jsCode.isNotEmpty) {
-        ruleFragments.add(_RuleFragment(
-          type: _RuleFragmentType.javascript,
-          content: jsCode,
-        ));
-      }
-
-      lastEnd = match.end;
-    }
-
-    // 添加最后一个普通规则片段
-    if (lastEnd < actualRule.length) {
-      final normalRule = actualRule.substring(lastEnd).trim();
-      if (normalRule.isNotEmpty) {
-        ruleFragments.add(_RuleFragment(
-          type: _RuleFragmentType.normal,
-          content: normalRule,
-        ));
+        _ruleFragmentCache[actualRule] = List.from(ruleFragments);
       }
     }
 
@@ -2167,7 +2192,7 @@ class RuleParser {
         try {
           AppLog.instance
               .put('parseContentRule: 应用sourceRegex规则: $sourceRegexValue');
-          final regex = RegExp(sourceRegexValue, multiLine: true);
+          final regex = RegexCache.instance.getOrCompile(sourceRegexValue, multiLine: true);
           final matches = regex.allMatches(processedContent);
           if (matches.isNotEmpty) {
             // 提取所有匹配的内容
@@ -2191,9 +2216,11 @@ class RuleParser {
       // 参考项目：formatKeepImg 会处理图片的src属性，确保是绝对URL
       if (baseUrl != null && baseUrl.isNotEmpty) {
         // 匹配img标签，支持单引号和双引号
-        final imgPattern1 = RegExp(r'<img([^>]*?)src=["]([^"]*?)"([^>]*?)>',
+        final imgPattern1 = RegexCache.instance.getOrCompile(
+            r'<img([^>]*?)src=["]([^"]*?)"([^>]*?)>',
             caseSensitive: false);
-        final imgPattern2 = RegExp(r"<img([^>]*?)src=[']([^']*?)'([^>]*?)>",
+        final imgPattern2 = RegexCache.instance.getOrCompile(
+            r"<img([^>]*?)src=[']([^']*?)'([^>]*?)>",
             caseSensitive: false);
 
         processedContent =
@@ -2237,47 +2264,8 @@ class RuleParser {
       // 参考项目：如果内容包含 &，进行HTML解码
       // 参考项目：if (content.indexOf('&') > -1) { content = StringEscapeUtils.unescapeHtml4(content) }
       if (processedContent.contains('&')) {
-        // #region agent log
-        final ampCount = '&'.allMatches(processedContent).length;
-        final entities = <String, int>{};
-        for (final entity in [
-          '&amp;',
-          '&lt;',
-          '&gt;',
-          '&quot;',
-          '&#39;',
-          '&nbsp;',
-          '&mdash;',
-          '&ldquo;',
-          '&rdquo;',
-          '&copy;'
-        ]) {
-          final count = entity.allMatches(processedContent).length;
-          if (count > 0) entities[entity] = count;
-        }
-        try {
-          final f = File(
-              '/Users/zhangmingxun/Desktop/legado_flutter/.cursor/debug.log');
-          f.writeAsStringSync(
-              '${jsonEncode({
-                    "location": "rule_parser.dart:2246",
-                    "message": "HTML实体解码前",
-                    "data": {
-                      "ampCount": ampCount,
-                      "entities": entities,
-                      "contentLength": processedContent.length
-                    },
-                    "timestamp": DateTime.now().millisecondsSinceEpoch,
-                    "sessionId": "debug-session",
-                    "hypothesisId": "B"
-                  })}\n',
-              mode: FileMode.append);
-        } catch (_) {}
-        // #endregion
-
         // 使用HTML解析器解码HTML实体
         // 注意：这里只解码常见的HTML实体，如 &amp; -> &, &lt; -> <, &gt; -> >
-        final beforeLength = processedContent.length;
         processedContent = processedContent
             .replaceAll('&amp;', '&')
             .replaceAll('&lt;', '<')
@@ -2287,7 +2275,7 @@ class RuleParser {
             .replaceAll('&nbsp;', ' ');
         // 处理数字实体，如 &#123; 或 &#x1F;
         processedContent =
-            processedContent.replaceAllMapped(RegExp(r'&#(\d+);'), (match) {
+            processedContent.replaceAllMapped(RegexCache.instance.getOrCompile(r'&#(\d+);'), (match) {
           final code = int.tryParse(match.group(1) ?? '');
           if (code != null) {
             return String.fromCharCode(code);
@@ -2295,36 +2283,13 @@ class RuleParser {
           return match.group(0) ?? '';
         });
         processedContent = processedContent
-            .replaceAllMapped(RegExp(r'&#x([0-9a-fA-F]+);'), (match) {
+            .replaceAllMapped(RegexCache.instance.getOrCompile(r'&#x([0-9a-fA-F]+);'), (match) {
           final code = int.tryParse(match.group(1) ?? '', radix: 16);
           if (code != null) {
             return String.fromCharCode(code);
           }
           return match.group(0) ?? '';
         });
-
-        // #region agent log
-        final remainingAmpCount = '&'.allMatches(processedContent).length;
-        final changedLength = beforeLength - processedContent.length;
-        try {
-          final f = File(
-              '/Users/zhangmingxun/Desktop/legado_flutter/.cursor/debug.log');
-          f.writeAsStringSync(
-              '${jsonEncode({
-                    "location": "rule_parser.dart:2284",
-                    "message": "HTML实体解码后",
-                    "data": {
-                      "remainingAmpCount": remainingAmpCount,
-                      "changedLength": changedLength,
-                      "contentLength": processedContent.length
-                    },
-                    "timestamp": DateTime.now().millisecondsSinceEpoch,
-                    "sessionId": "debug-session",
-                    "hypothesisId": "B"
-                  })}\n',
-              mode: FileMode.append);
-        } catch (_) {}
-        // #endregion
 
         AppLog.instance
             .put('parseContentRule: HTML解码后，内容长度=${processedContent.length}');
@@ -2338,7 +2303,7 @@ class RuleParser {
           AppLog.instance
               .put('parseContentRule: 应用imageStyle规则: $imageStyleValue');
           // imageStyle 规则应该是一个CSS样式字符串，应用到所有img标签
-          final imgPattern = RegExp(r'<img([^>]*)>', caseSensitive: false);
+          final imgPattern = RegexCache.instance.getOrCompile(r'<img([^>]*)>', caseSensitive: false);
           processedContent =
               processedContent.replaceAllMapped(imgPattern, (match) {
             final imgAttrs = match.group(1) ?? '';
@@ -2360,62 +2325,7 @@ class RuleParser {
         }
       }
 
-      // #region agent log
-      final imgBeforeClean = RegExp(r'<img[^>]*>', caseSensitive: false)
-          .allMatches(processedContent)
-          .length;
-      final contentPreviewBeforeClean = processedContent.length > 200
-          ? processedContent.substring(0, 200)
-          : processedContent;
-      try {
-        final f = File(
-            '/Users/zhangmingxun/Desktop/legado_flutter/.cursor/debug.log');
-        f.writeAsStringSync(
-            '${jsonEncode({
-                  "location": "rule_parser.dart:2321",
-                  "message": "cleanHtml前",
-                  "data": {
-                    "imgCount": imgBeforeClean,
-                    "contentLength": processedContent.length,
-                    "contentPreview": contentPreviewBeforeClean
-                  },
-                  "timestamp": DateTime.now().millisecondsSinceEpoch,
-                  "sessionId": "debug-session",
-                  "hypothesisId": "C"
-                })}\n',
-            mode: FileMode.append);
-      } catch (_) {}
-      // #endregion
-
       processedContent = HtmlParser.cleanHtml(processedContent);
-
-      // #region agent log
-      final imgAfterClean = RegExp(r'<img[^>]*>', caseSensitive: false)
-          .allMatches(processedContent)
-          .length;
-      final contentPreviewAfterClean = processedContent.length > 200
-          ? processedContent.substring(0, 200)
-          : processedContent;
-      try {
-        final f = File(
-            '/Users/zhangmingxun/Desktop/legado_flutter/.cursor/debug.log');
-        f.writeAsStringSync(
-            '${jsonEncode({
-                  "location": "rule_parser.dart:2330",
-                  "message": "cleanHtml后",
-                  "data": {
-                    "imgCount": imgAfterClean,
-                    "imgRemoved": imgBeforeClean - imgAfterClean,
-                    "contentLength": processedContent.length,
-                    "contentPreview": contentPreviewAfterClean
-                  },
-                  "timestamp": DateTime.now().millisecondsSinceEpoch,
-                  "sessionId": "debug-session",
-                  "hypothesisId": "C"
-                })}\n',
-            mode: FileMode.append);
-      } catch (_) {}
-      // #endregion
 
       // 应用正则替换（书源规则中的替换）
       // 参考项目：replaceRegex是在所有页面内容合并后统一应用的，而不是每页单独应用
@@ -2505,28 +2415,6 @@ class RuleParser {
   static String _applyReplaceRegexInternal(String content, String replaceRule) {
     if (replaceRule.isEmpty) return content;
 
-    // #region agent log
-    try {
-      final f =
-          File('/Users/zhangmingxun/Desktop/legado_flutter/.cursor/debug.log');
-      f.writeAsStringSync(
-          '${jsonEncode({
-                "location": "rule_parser.dart:2386",
-                "message": "replaceRegex入口",
-                "data": {
-                  "replaceRule": replaceRule,
-                  "contentLength": content.length,
-                  "contentPreview": content.substring(
-                      0, content.length > 100 ? 100 : content.length)
-                },
-                "timestamp": DateTime.now().millisecondsSinceEpoch,
-                "sessionId": "debug-session",
-                "hypothesisId": "A"
-              })}\n',
-          mode: FileMode.append);
-    } catch (_) {}
-    // #endregion
-
     try {
       String sourceRegex;
       String replacement;
@@ -2544,25 +2432,6 @@ class RuleParser {
           }
         } else {
           // 格式错误，返回原内容
-          // #region agent log
-          try {
-            final f = File(
-                '/Users/zhangmingxun/Desktop/legado_flutter/.cursor/debug.log');
-            f.writeAsStringSync(
-                '${jsonEncode({
-                      "location": "rule_parser.dart:2410",
-                      "message": "replaceRegex格式错误-##格式",
-                      "data": {
-                        "replaceRule": replaceRule,
-                        "partsLength": parts.length
-                      },
-                      "timestamp": DateTime.now().millisecondsSinceEpoch,
-                      "sessionId": "debug-session",
-                      "hypothesisId": "A"
-                    })}\n',
-                mode: FileMode.append);
-          } catch (_) {}
-          // #endregion
           return content;
         }
       } else if (replaceRule.contains('@')) {
@@ -2576,48 +2445,11 @@ class RuleParser {
         return content;
       }
 
-      // #region agent log
-      try {
-        final f = File(
-            '/Users/zhangmingxun/Desktop/legado_flutter/.cursor/debug.log');
-        f.writeAsStringSync(
-            '${jsonEncode({
-                  "location": "rule_parser.dart:2429",
-                  "message": "replaceRegex解析完成",
-                  "data": {
-                    "sourceRegex": sourceRegex,
-                    "replacement": replacement,
-                    "replaceFirst": replaceFirst
-                  },
-                  "timestamp": DateTime.now().millisecondsSinceEpoch,
-                  "sessionId": "debug-session",
-                  "hypothesisId": "A"
-                })}\n',
-            mode: FileMode.append);
-      } catch (_) {}
-      // #endregion
-
-      // 编译正则表达式
+      // 编译正则表达式（使用缓存）
       RegExp pattern;
       try {
-        pattern = RegExp(sourceRegex, multiLine: true);
+        pattern = RegexCache.instance.getOrCompile(sourceRegex, multiLine: true);
       } catch (e) {
-        // #region agent log
-        try {
-          final f = File(
-              '/Users/zhangmingxun/Desktop/legado_flutter/.cursor/debug.log');
-          f.writeAsStringSync(
-              '${jsonEncode({
-                    "location": "rule_parser.dart:2441",
-                    "message": "replaceRegex正则编译失败",
-                    "data": {"sourceRegex": sourceRegex, "error": e.toString()},
-                    "timestamp": DateTime.now().millisecondsSinceEpoch,
-                    "sessionId": "debug-session",
-                    "hypothesisId": "A"
-                  })}\n',
-              mode: FileMode.append);
-        } catch (_) {}
-        // #endregion
         AppLog.instance
             .put('_applyReplaceRegexInternal: 正则表达式错误: $sourceRegex, 错误: $e');
         return content;
@@ -2634,100 +2466,20 @@ class RuleParser {
               _processReplacementGroups(replacement, match);
           final replaced =
               matchedText.replaceFirst(pattern, processedReplacement);
-          // #region agent log
-          try {
-            final f = File(
-                '/Users/zhangmingxun/Desktop/legado_flutter/.cursor/debug.log');
-            f.writeAsStringSync(
-                '${jsonEncode({
-                      "location": "rule_parser.dart:2462",
-                      "message": "replaceRegex替换第一个匹配",
-                      "data": {
-                        "matchedText": matchedText,
-                        "processedReplacement": processedReplacement
-                      },
-                      "timestamp": DateTime.now().millisecondsSinceEpoch,
-                      "sessionId": "debug-session",
-                      "hypothesisId": "A"
-                    })}\n',
-                mode: FileMode.append);
-          } catch (_) {}
-          // #endregion
           return content.replaceFirst(matchedText, replaced);
         }
         return content;
       } else {
         // 替换所有匹配（支持分组引用）
-        var matchCount = 0;
         final result = content.replaceAllMapped(pattern, (match) {
-          matchCount++;
           if (match is RegExpMatch) {
-            final processed = _processReplacementGroups(replacement, match);
-            // #region agent log
-            if (matchCount <= 3) {
-              try {
-                final f = File(
-                    '/Users/zhangmingxun/Desktop/legado_flutter/.cursor/debug.log');
-                f.writeAsStringSync(
-                    '${jsonEncode({
-                          "location": "rule_parser.dart:2479",
-                          "message": "replaceRegex替换匹配项",
-                          "data": {
-                            "matchIndex": matchCount,
-                            "matched": match.group(0),
-                            "processed": processed
-                          },
-                          "timestamp": DateTime.now().millisecondsSinceEpoch,
-                          "sessionId": "debug-session",
-                          "hypothesisId": "A"
-                        })}\n',
-                    mode: FileMode.append);
-              } catch (_) {}
-            }
-            // #endregion
-            return processed;
+            return _processReplacementGroups(replacement, match);
           }
           return replacement;
         });
-        // #region agent log
-        try {
-          final f = File(
-              '/Users/zhangmingxun/Desktop/legado_flutter/.cursor/debug.log');
-          f.writeAsStringSync(
-              '${jsonEncode({
-                    "location": "rule_parser.dart:2491",
-                    "message": "replaceRegex完成",
-                    "data": {
-                      "totalMatches": matchCount,
-                      "originalLength": content.length,
-                      "resultLength": result.length
-                    },
-                    "timestamp": DateTime.now().millisecondsSinceEpoch,
-                    "sessionId": "debug-session",
-                    "hypothesisId": "A"
-                  })}\n',
-              mode: FileMode.append);
-        } catch (_) {}
-        // #endregion
         return result;
       }
     } catch (e) {
-      // #region agent log
-      try {
-        final f = File(
-            '/Users/zhangmingxun/Desktop/legado_flutter/.cursor/debug.log');
-        f.writeAsStringSync(
-            '${jsonEncode({
-                  "location": "rule_parser.dart:2500",
-                  "message": "replaceRegex异常",
-                  "data": {"error": e.toString()},
-                  "timestamp": DateTime.now().millisecondsSinceEpoch,
-                  "sessionId": "debug-session",
-                  "hypothesisId": "A"
-                })}\n',
-            mode: FileMode.append);
-      } catch (_) {}
-      // #endregion
       AppLog.instance.put('_applyReplaceRegexInternal: 替换失败: $e');
       return content;
     }
@@ -2737,11 +2489,11 @@ class RuleParser {
   static String _cleanWhitespace(String text) {
     // 参考项目：清理多余空白，但保留换行符
     // 将多个连续空格/制表符替换为单个空格（但保留换行符）
-    text = text.replaceAll(RegExp(r'[ \t]+'), ' ');
+    text = text.replaceAll(RegexCache.instance.getOrCompile(r'[ \t]+'), ' ');
     // 移除行首行尾空白（但保留换行符）
-    text = text.replaceAll(RegExp(r'^[ \t]+|[ \t]+$', multiLine: true), '');
+    text = text.replaceAll(RegexCache.instance.getOrCompile(r'^[ \t]+|[ \t]+$', multiLine: true), '');
     // 移除多余空行（连续多个换行符合并为一个）
-    text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+    text = text.replaceAll(RegexCache.instance.getOrCompile(r'\n{3,}'), '\n\n');
     // 移除行首行尾的空白（包括换行符），但保留内容中的换行符
     return text.trim();
   }
@@ -2770,7 +2522,7 @@ class RuleParser {
         // 如果不是JSON，尝试从HTML中提取JSON
         // 查找 <script> 标签中的JSON数据
         final scriptPattern =
-            RegExp(r'<script[^>]*>(.*?)</script>', dotAll: true);
+            RegexCache.instance.getOrCompile(r'<script[^>]*>(.*?)</script>', dotAll: true);
         final matches = scriptPattern.allMatches(html);
         for (final match in matches) {
           final scriptContent = match.group(1)?.trim() ?? '';

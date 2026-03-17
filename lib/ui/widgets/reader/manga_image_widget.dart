@@ -65,7 +65,8 @@ class MangaImageWidget extends StatelessWidget {
     }
 
     return ColorFiltered(
-      colorFilter: colorFilter ?? const ColorFilter.mode(Colors.transparent, BlendMode.dst),
+      colorFilter: colorFilter ??
+          const ColorFilter.mode(Colors.transparent, BlendMode.dst),
       child: ExtendedImage.network(
         imageUrl,
         fit: fit,
@@ -100,4 +101,3 @@ class MangaImageWidget extends StatelessWidget {
     );
   }
 }
-

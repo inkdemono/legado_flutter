@@ -6,8 +6,9 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:http/http.dart' as http;
+import 'dart:typed_data' show Uint8List;
 import '../../../utils/app_log.dart';
+import '../../../services/network/network_service.dart';
 import '../../../utils/helpers/source/source_verification_help.dart';
 import '../../../utils/helpers/source/source_help.dart';
 import '../../../core/constants/app_status.dart';
@@ -490,45 +491,19 @@ class _BrowserPageState extends State<BrowserPage> {
     );
   }
 
-  /// 保存图片
+  /// 保存图片（使用 NetworkService 统一请求、重试与错误处理）
   Future<void> _saveImage(String imageUrl) async {
     try {
-      // 下载图片（带重试机制）
-      http.Response? response;
-      int retryCount = 0;
-      const maxRetries = 3;
-      
-      while (retryCount < maxRetries) {
-        try {
-          response = await http.get(Uri.parse(imageUrl)).timeout(
-            const Duration(seconds: 30),
-            onTimeout: () {
-              throw Exception('下载超时');
-            },
-          );
-          if (response.statusCode == 200) {
-            break;
-          } else if (response.statusCode >= 500 && retryCount < maxRetries - 1) {
-            // 服务器错误，重试
-            retryCount++;
-            await Future.delayed(Duration(seconds: retryCount));
-            continue;
-          } else {
-            throw Exception('下载图片失败: ${response.statusCode}');
-          }
-        } catch (e) {
-          if (retryCount < maxRetries - 1) {
-            retryCount++;
-            await Future.delayed(Duration(seconds: retryCount));
-            continue;
-          }
-          rethrow;
-        }
+      final response = await NetworkService.instance.get(
+        imageUrl,
+        retryCount: 2,
+      );
+      if (response.statusCode != 200 || response.data == null) {
+        throw Exception('下载图片失败: ${response.statusCode}');
       }
-      
-      if (response == null || response.statusCode != 200) {
-        throw Exception('下载图片失败');
-      }
+      final bytes = response.data is List<int>
+          ? Uint8List.fromList(response.data as List<int>)
+          : response.data as Uint8List;
 
       // 获取保存路径（优先使用配置的路径）
       String savePath = AppConfig.getString(PreferKey.imageSavePath);
@@ -555,7 +530,7 @@ class _BrowserPageState extends State<BrowserPage> {
 
       // 保存图片
       final file = File('$savePath/$finalFileName');
-      await file.writeAsBytes(response.bodyBytes);
+      await file.writeAsBytes(bytes);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

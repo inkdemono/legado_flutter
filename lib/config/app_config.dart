@@ -1427,6 +1427,42 @@ class AppConfig {
     return setString(PreferKey.webDavDeviceName, deviceName);
   }
 
+  /// WebDAV 自动同步
+  static bool getWebDavAutoSync() {
+    return getBool('webdav_auto_sync', defaultValue: false);
+  }
+
+  static Future<bool> setWebDavAutoSync(bool value) {
+    return setBool('webdav_auto_sync', value);
+  }
+
+  /// WebDAV 启动时同步
+  static bool getWebDavStartupSync() {
+    return getBool('webdav_startup_sync', defaultValue: false);
+  }
+
+  static Future<bool> setWebDavStartupSync(bool value) {
+    return setBool('webdav_startup_sync', value);
+  }
+
+  /// WebDAV 同步间隔（分钟）
+  static int getWebDavSyncInterval() {
+    return getInt(PreferKey.webDavSyncInterval, defaultValue: 30);
+  }
+
+  static Future<bool> setWebDavSyncInterval(int minutes) {
+    return setInt(PreferKey.webDavSyncInterval, minutes);
+  }
+
+  /// WebDAV 冲突解决策略
+  static String getWebDavConflictResolution() {
+    return getString(PreferKey.webDavConflictResolution, defaultValue: 'keepNewer');
+  }
+
+  static Future<bool> setWebDavConflictResolution(String strategy) {
+    return setString(PreferKey.webDavConflictResolution, strategy);
+  }
+
   // ========== 调试和日志相关配置 ==========
   /// 启用评论（仅调试模式）
   /// 参考项目：AppConfig.enableReview

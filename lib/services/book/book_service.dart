@@ -42,18 +42,18 @@ class BookService extends BaseService {
   BookService._init();
 
   /// 统一的网络请求接口 (支持多协议)
-  /// 
+  ///
   /// 自动检测URL的协议类型,选择合适的处理方式:
   /// - HTTP/HTTPS: 常规网页解析
   /// - JSON/API: JSON响应直接解析
   /// - WebView: 处理严格反爬网站
-  /// 
+  ///
   /// [url] 请求URL (可包含协议标记 @json, @webview)
   /// [source] 书源配置
   /// [method] HTTP方法 (GET/POST)
   /// [headers] 额外的请求头
   /// [data] POST数据
-  /// 
+  ///
   /// 返回: HTTP响应文本
   Future<String> _request(
     String url,
@@ -244,8 +244,7 @@ class BookService extends BaseService {
           );
 
           final html = responseText;
-          AppLog.instance.put(
-              '搜索响应: 内容长度=${html.length}, URL=$fullUrl');
+          AppLog.instance.put('搜索响应: 内容长度=${html.length}, URL=$fullUrl');
 
           // 输出响应内容的前500个字符用于调试
           if (html.isNotEmpty) {
@@ -380,8 +379,8 @@ class BookService extends BaseService {
         );
 
         // 记录到 AppLog
-        AppLog.instance.put(
-            'getBookInfo: 内容长度=${html.length}, URL=${book.bookUrl}');
+        AppLog.instance
+            .put('getBookInfo: 内容长度=${html.length}, URL=${book.bookUrl}');
 
         final bookInfo = await RuleParser.parseBookInfoRule(
           html,
@@ -2200,27 +2199,23 @@ class BookService extends BaseService {
         final fileContent = await ChapterContentService.instance
             .getChapterContent(book, chapter);
         if (fileContent != null && fileContent.isNotEmpty) {
-          AppLog.instance.put(
-            '从文件存储读取: ${chapter.title} (${fileContent.length}字)'
-          );
+          AppLog.instance
+              .put('从文件存储读取: ${chapter.title} (${fileContent.length}字)');
           return fileContent;
         }
         // localPath存在但文件不存在,继续从网络获取
-        AppLog.instance.put(
-          '警告: localPath存在但文件不存在: ${chapter.title}'
-        );
+        AppLog.instance.put('警告: localPath存在但文件不存在: ${chapter.title}');
       }
-      
+
       // 2. 尝试从文件系统读取(向后兼容旧缓存)
-      final fileContent = await ChapterContentService.instance
-          .getChapterContent(book, chapter);
+      final fileContent =
+          await ChapterContentService.instance.getChapterContent(book, chapter);
       if (fileContent != null && fileContent.isNotEmpty) {
         AppLog.instance.put(
-          '从文件系统读取(无localPath): ${chapter.title} (${fileContent.length}字)'
-        );
+            '从文件系统读取(无localPath): ${chapter.title} (${fileContent.length}字)');
         // 更新localPath
-        final localPath = ChapterContentService.instance
-            .getChapterLocalPath(book, chapter);
+        final localPath =
+            ChapterContentService.instance.getChapterLocalPath(book, chapter);
         chapter.localPath = localPath;
         // 异步更新数据库,不阻塞返回
         _updateChapterLocalPath(chapter.bookUrl, chapter.url, localPath)
@@ -2232,9 +2227,8 @@ class BookService extends BaseService {
       final cachedContent =
           await CacheService.instance.getCachedChapterContent(book, chapter);
       if (cachedContent != null && cachedContent.isNotEmpty) {
-        AppLog.instance.put(
-          '从旧缓存读取: ${chapter.title} (${cachedContent.length}字)'
-        );
+        AppLog.instance
+            .put('从旧缓存读取: ${chapter.title} (${cachedContent.length}字)');
         return cachedContent;
       }
     }
@@ -2630,15 +2624,16 @@ class BookService extends BaseService {
         // ✅ 新策略: 保存到文件存储
         final localPath = await ChapterContentService.instance
             .saveChapterContent(book, chapter, content);
-        
+
         if (localPath != null) {
           // 更新内存中的chapter对象
           chapter.localPath = localPath;
           // 异步更新数据库,不阻塞返回
           _updateChapterLocalPath(chapter.bookUrl, chapter.url, localPath)
-              .catchError((e) => AppLog.instance.put('更新localPath失败', error: e));
+              .catchError(
+                  (e) => AppLog.instance.put('更新localPath失败', error: e));
         }
-        
+
         // 同时保存到旧缓存(向后兼容)
         await CacheService.instance.saveChapterContent(book, chapter, content);
       } else if (book == null) {
@@ -3050,7 +3045,7 @@ class BookService extends BaseService {
   }
 
   /// 更新章节的localPath字段
-  /// 
+  ///
   /// 将章节内容文件路径更新到数据库
   Future<void> _updateChapterLocalPath(
     String bookUrl,

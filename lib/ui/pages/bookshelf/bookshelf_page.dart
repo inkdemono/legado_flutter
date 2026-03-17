@@ -29,6 +29,8 @@ import 'bookshelf_manage_dialog.dart';
 import 'cache_export_dialog.dart';
 import 'log_dialog.dart';
 import 'remote_book_dialog.dart';
+import 'widgets/bookshelf_empty_state.dart';
+import 'widgets/bookshelf_add_book_sheet.dart';
 
 /// 书架页面
 class BookshelfPage extends ConsumerStatefulWidget {
@@ -244,65 +246,16 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
 
   /// 显示添加书籍对话框
   void _showAddBookDialog() {
-    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
       ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: theme.dividerColor,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.search, color: Colors.blue),
-                ),
-                title: const Text('搜索在线书籍', style: TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: const Text('从书源搜索并添加书籍'),
-                onTap: () {
-                  Navigator.pop(context);
-                  // 切换到发现页面
-                  ref.read(mainPageIndexProvider.notifier).switchToExplore();
-                },
-              ),
-              const SizedBox(height: 8),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.folder, color: Colors.orange),
-                ),
-                title: const Text('导入本地书籍', style: TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: const Text('从本地文件导入TXT/EPUB书籍'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _importLocalBooks();
-                },
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        ),
+      builder: (context) => BookshelfAddBookSheet(
+        onSearchOnline: () {
+          ref.read(mainPageIndexProvider.notifier).switchToExplore();
+        },
+        onImportLocal: _importLocalBooks,
       ),
     );
   }
@@ -594,57 +547,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
 
   /// 构建空状态
   Widget _buildEmptyState() {
-    final theme = Theme.of(context);
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer.withOpacity(0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.library_books_outlined,
-              size: 80,
-              color: theme.colorScheme.primary.withOpacity(0.5),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            '书架空空如也',
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.8),
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 48),
-            child: Text(
-              '快去搜搜想看的书，或者导入本地书籍吧',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.5),
-              ),
-            ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: _showAddBookDialog,
-            icon: const Icon(Icons.add),
-            label: const Text('添加书籍'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return BookshelfEmptyState(onAddBook: _showAddBookDialog);
   }
 
   /// 构建书籍列表

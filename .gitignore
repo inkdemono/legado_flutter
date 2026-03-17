@@ -119,3 +119,17 @@ credentials.json
 *.p12
 *.key
 gemini重构建议
+
+
+# 其他
+.claude
+.qoder
+.dart_tool
+/参考项目
+/参考项目/*
+/示例书源（未校验）
+/示例书源（未校验）/*
+/docs
+/docs/*
+/编译打包指南
+/编译打包指南/*

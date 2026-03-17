@@ -1,4 +1,5 @@
 import '../app_log.dart';
+import 'regex_cache.dart';
 
 /// 正则表达式解析器（参考项目：AnalyzeByRegex）
 /// 支持链式正则匹配：regex1&&regex2&&regex3
@@ -22,7 +23,7 @@ class AnalyzeByRegex {
     }
 
     try {
-      final regex = RegExp(regs[index], multiLine: true);
+      final regex = RegexCache.instance.getOrCompile(regs[index], multiLine: true);
       final match = regex.firstMatch(res);
 
       if (match == null) {
@@ -75,7 +76,7 @@ class AnalyzeByRegex {
     }
 
     try {
-      final regex = RegExp(regs[index], multiLine: true);
+      final regex = RegexCache.instance.getOrCompile(regs[index], multiLine: true);
       final firstMatch = regex.firstMatch(res);
 
       if (firstMatch == null) {

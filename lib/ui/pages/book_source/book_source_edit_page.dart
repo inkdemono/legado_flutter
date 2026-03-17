@@ -524,9 +524,7 @@ class _BookSourceEditPageState extends State<BookSourceEditPage>
             labelText: '书源地址 *',
             hintText: 'https://example.com',
             border: const OutlineInputBorder(),
-            helperText: widget.bookSource != null 
-                ? '修改地址将创建新书源并删除旧书源' 
-                : null,
+            helperText: widget.bookSource != null ? '修改地址将创建新书源并删除旧书源' : null,
             helperMaxLines: 2,
           ),
           validator: (value) {
@@ -986,7 +984,7 @@ class _BookSourceEditPageState extends State<BookSourceEditPage>
           // URL 已修改：删除旧书源，添加新书源
           await BookSourceService.instance.deleteBookSource(oldUrl);
           await BookSourceService.instance.addBookSource(bookSource);
-          
+
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('书源地址已修改，已创建新书源并删除旧书源')),
@@ -1272,13 +1270,13 @@ class _BookSourceEditPageState extends State<BookSourceEditPage>
     try {
       final source = _buildBookSource();
       final jsonStr = jsonEncode(source.toJson());
-      
+
       // 使用 share_plus 包分享
       await Share.share(
         jsonStr,
         subject: '书源分享: ${source.bookSourceName}',
       );
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('书源已分享')),

@@ -72,6 +72,18 @@ class LocalConfigService extends BaseService {
     await prefs.setBool('privacyPolicyOk', value);
   }
 
+  /// 应用是否发生过崩溃（启动时提示用户查看崩溃日志）
+  /// 参考项目：LocalConfig.appCrash
+  bool get appCrash {
+    if (_prefs == null) return false;
+    return _prefs!.getBool('appCrash') ?? false;
+  }
+
+  Future<void> setAppCrash(bool value) async {
+    final prefs = await _getPrefs();
+    await prefs.setBool('appCrash', value);
+  }
+
   // ========== 帮助版本检查 ==========
 
   /// 检查帮助版本是否为最新

@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import '../../core/base/base_service.dart';
 import '../../utils/crash_handler.dart';
+import 'local_config_service.dart';
 
 /// 崩溃日志服务
 /// 增强版，集成 CrashHandler 功能
@@ -75,6 +76,10 @@ class CrashLogService extends BaseService {
         buffer.writeln('=' * 50);
 
         await file.writeAsString(buffer.toString());
+        // 标记发生过崩溃，下次启动时提示用户（参考项目：CrashHandler -> LocalConfig.appCrash）
+        try {
+          await LocalConfigService.instance.setAppCrash(true);
+        } catch (_) {}
       },
       operationName: '保存崩溃日志',
       logError: false, // 崩溃日志保存失败不记录，避免循环

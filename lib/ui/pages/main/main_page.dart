@@ -108,13 +108,6 @@ class _MainPageState extends ConsumerState<MainPage> {
     final currentIndex = ref.watch(mainPageIndexProvider);
     final updateCount = ref.watch(bookUpdateCountProvider);
 
-    final pages = const [
-      BookshelfPage(),
-      ExplorePage(),
-      RssPage(),
-      MyPage(),
-    ];
-
     return PopScope(
       canPop: false,
       onPopInvoked: (didPop) async {
@@ -129,7 +122,12 @@ class _MainPageState extends ConsumerState<MainPage> {
       child: Scaffold(
         body: IndexedStack(
           index: currentIndex,
-          children: pages,
+          children: const [
+            BookshelfPage(),
+            ExplorePage(),
+            RssPage(),
+            MyPage(),
+          ],
         ),
         bottomNavigationBar: NavigationBar(
           selectedIndex: currentIndex,

@@ -1,9 +1,9 @@
 import 'dart:io';
+import 'dart:typed_data' show Uint8List;
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter_html/flutter_html.dart';
-import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import '../../../data/models/rss_source.dart';
 import '../../../data/models/rss_article.dart';
@@ -504,12 +504,17 @@ class _RssReadPageState extends State<RssReadPage> {
     );
   }
 
-  /// 保存图片
+  /// 保存图片（使用 NetworkService 统一请求与错误处理）
   Future<void> _saveImage(String imageUrl) async {
     try {
-      final response = await http.get(Uri.parse(imageUrl));
-      if (response.statusCode == 200) {
-        final bytes = response.bodyBytes;
+      final response = await NetworkService.instance.get(
+        imageUrl,
+        retryCount: 2,
+      );
+      if (response.statusCode == 200 && response.data != null) {
+        final bytes = response.data is List<int>
+            ? Uint8List.fromList(response.data as List<int>)
+            : response.data as Uint8List;
         final directory = await getApplicationDocumentsDirectory();
         final imageDir = Directory('${directory.path}/images');
         if (!await imageDir.exists()) {

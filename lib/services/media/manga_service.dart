@@ -44,7 +44,8 @@ class MangaService extends BaseService {
       final html = await NetworkService.getResponseText(response);
 
       // 提取图片URL（不清理HTML标签）
-      return await _extractImageUrls(html, source.ruleContent!, source.bookSourceUrl);
+      return await _extractImageUrls(
+          html, source.ruleContent!, source.bookSourceUrl);
     } catch (e) {
       AppLog.instance.put('获取章节图片失败: ${chapter.title}', error: e);
       return [];
@@ -52,7 +53,8 @@ class MangaService extends BaseService {
   }
 
   /// 从HTML中提取图片URL
-  Future<List<String>> _extractImageUrls(String html, ContentRule rule, String baseUrl) async {
+  Future<List<String>> _extractImageUrls(
+      String html, ContentRule rule, String baseUrl) async {
     final imageUrls = <String>[];
 
     try {
@@ -97,13 +99,13 @@ class MangaService extends BaseService {
             book: null,
             baseUrl: baseUrl,
           );
-          
+
           // 执行 JavaScript 代码
           final jsResult = await JSEngine.evalJS(
             rule.webJs!,
             bindings: jsExtensions.createBindings(),
           );
-          
+
           // 如果返回字符串，使用返回的结果
           if (jsResult is String && jsResult.isNotEmpty) {
             processedHtml = jsResult;
@@ -145,7 +147,7 @@ class MangaService extends BaseService {
         // CSS选择器
         contentElement = HtmlParser.selectElement(document, rule.content!);
       }
-      
+
       if (contentElement != null) {
         // 获取元素的HTML内容（包含标签）
         contentHtml = contentElement.innerHtml;
@@ -159,21 +161,21 @@ class MangaService extends BaseService {
       // 使用HTML解析器提取所有img标签
       final contentDoc = html_parser.parse(contentHtml);
       final imgElements = contentDoc.querySelectorAll('img');
-      
+
       for (final img in imgElements) {
         // 优先使用src属性
         String? imgUrl = img.attributes['src'];
-        
+
         // 如果没有src，尝试data-src
         if (imgUrl == null || imgUrl.isEmpty) {
           imgUrl = img.attributes['data-src'];
         }
-        
+
         // 如果还没有，尝试data-original
         if (imgUrl == null || imgUrl.isEmpty) {
           imgUrl = img.attributes['data-original'];
         }
-        
+
         if (imgUrl != null && imgUrl.isNotEmpty) {
           // 处理相对路径
           final fullUrl = NetworkService.joinUrl(baseUrl, imgUrl);
@@ -189,4 +191,3 @@ class MangaService extends BaseService {
     return imageUrls;
   }
 }
-

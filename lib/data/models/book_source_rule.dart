@@ -61,7 +61,7 @@ class SearchRule {
       checkKeyWord: json['checkKeyWord'],
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'bookList': bookList,
@@ -137,7 +137,7 @@ class BookInfoRule {
       canReName: json['canReName'],
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'init': init,
@@ -208,7 +208,7 @@ class TocRule {
       formatJs: json['formatJs'],
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'preUpdateJs': preUpdateJs,
@@ -275,7 +275,7 @@ class ContentRule {
       imageDecode: json['imageDecode'],
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'content': content,
@@ -344,7 +344,7 @@ class ExploreRule {
       bookUrl: json['bookUrl'],
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'bookList': bookList,
@@ -359,4 +359,3 @@ class ExploreRule {
     };
   }
 }
-
