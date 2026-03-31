@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>备份恢复设置 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #1677ff;
+            --success: #2ba471;
+            --warning: #fa8c16;
+            --danger: #e34d59;
+            --bg: #eef3f8;
+            --card: #ffffff;
+            --text: #1f2329;
+            --sub: #646a73;
+            --hint: #8f959e;
+            --line: #e5e6eb;
+        }
+        body {
+            background: radial-gradient(circle at top, #28456b, #111827 62%);
+        }
+        .design-header p { color: rgba(255,255,255,0.65); font-size: 14px; }
+        .phone-frame {
+            width: 375px; height: 812px; border-radius: 40px; overflow: hidden;
+            background: var(--bg); position: relative; box-shadow: 0 26px 60px rgba(0,0,0,0.32);
+        }
+        .status-bar, .app-bar {
+            background: rgba(255,255,255,0.92); backdrop-filter: blur(18px);
+            display: flex; align-items: center;
+        }
+        .status-bar { height: 44px; justify-content: space-between; padding: 10px 24px 0; font-size: 14px; font-weight: 600; }
+        .app-bar { height: 56px; padding: 0 12px; border-bottom: 1px solid rgba(229,230,235,0.9); }
+        .back-btn, .action-btn {
+            width: 40px; height: 40px; border-radius: 20px; display: flex; align-items: center; justify-content: center;
+            color: var(--text); font-size: 20px;
+        }
+        .app-bar-title { flex: 1; font-size: 18px; font-weight: 700; color: var(--text); }
+        .content-area {
+            height: calc(100% - 44px - 56px);
+            overflow-y: auto;
+            padding: 18px 16px 24px;
+            background:
+                radial-gradient(circle at top right, rgba(22,119,255,0.08), transparent 28%),
+                linear-gradient(180deg, #f8fbff, #eef3f8 200px);
+        }
+        .hero {
+            padding: 20px;
+            border-radius: 24px;
+            background: linear-gradient(135deg, #0f62fe, #3f8cff 55%, #89b6ff);
+            color: #fff;
+            box-shadow: 0 12px 28px rgba(22,119,255,0.24);
+            margin-bottom: 16px;
+        }
+        .hero-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+        .hero-sub { font-size: 13px; line-height: 1.5; color: rgba(255,255,255,0.82); }
+        .hero-row { display: flex; gap: 10px; margin-top: 16px; }
+        .hero-chip {
+            flex: 1; padding: 12px; border-radius: 16px; background: rgba(255,255,255,0.14);
+            border: 1px solid rgba(255,255,255,0.16);
+        }
+        .hero-chip-label { font-size: 11px; color: rgba(255,255,255,0.74); }
+        .hero-chip-value { margin-top: 4px; font-size: 14px; font-weight: 600; }
+        .section {
+            background: var(--card); border-radius: 22px; padding: 16px; margin-bottom: 14px;
+            box-shadow: 0 6px 18px rgba(31,35,41,0.06);
+        }
+        .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .section-title { font-size: 16px; font-weight: 700; color: var(--text); }
+        .section-meta { font-size: 12px; color: var(--hint); }
+        .field { margin-bottom: 12px; }
+        .field:last-child { margin-bottom: 0; }
+        .field-label { font-size: 12px; color: var(--sub); margin-bottom: 6px; }
+        .field-box {
+            min-height: 54px; border-radius: 16px; border: 1px solid var(--line); background: #f8fafc;
+            padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        }
+        .field-text { color: var(--text); font-size: 14px; }
+        .field-placeholder { color: var(--hint); font-size: 14px; }
+        .field-tail {
+            padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #edf5ff; color: var(--primary);
+        }
+        .status-card {
+            padding: 14px; border-radius: 18px; display: flex; gap: 12px; align-items: flex-start;
+            background: linear-gradient(135deg, #edf8f3, #f7fffb);
+            border: 1px solid #caead9;
+            margin-bottom: 14px;
+        }
+        .status-icon {
+            width: 40px; height: 40px; border-radius: 14px; background: var(--success); color: #fff;
+            display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;
+        }
+        .status-title { font-size: 14px; font-weight: 700; color: var(--text); }
+        .status-desc { font-size: 12px; color: var(--sub); line-height: 1.5; margin-top: 4px; }
+        .hint-list { display: grid; gap: 10px; }
+        .hint-item {
+            display: flex; gap: 12px; padding: 12px; border-radius: 16px; background: #fafbfd; border: 1px solid #eef1f4;
+        }
+        .hint-badge {
+            width: 28px; height: 28px; border-radius: 50%; background: #fff3e8; color: var(--warning);
+            display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0;
+        }
+        .hint-title { font-size: 13px; font-weight: 600; color: var(--text); }
+        .hint-desc { font-size: 12px; color: var(--hint); line-height: 1.45; margin-top: 3px; }
+        .footer-actions {
+            position: sticky; bottom: 0; padding-top: 14px; background: linear-gradient(180deg, rgba(238,243,248,0), var(--bg) 38%);
+        }
+        .action-row { display: flex; gap: 10px; }
+        .btn {
+            height: 52px; border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700;
+        }
+        .btn.secondary { flex: 1; background: #fff; border: 1px solid var(--line); color: var(--text); }
+        .btn.primary { flex: 1.4; background: linear-gradient(135deg, #1677ff, #4096ff); color: #fff; box-shadow: 0 10px 22px rgba(22,119,255,0.24); }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>备份恢复设置</h1>
+            <p>补充“我的”模块中尚未设计的 WebDAV 配置表单页，强调连接状态、配置安全性和主操作层级。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="status-bar"><span>9:41</span><span>5G 100%</span></div>
+                <div class="app-bar">
+                    <div class="back-btn">‹</div>
+                    <div class="app-bar-title">备份恢复设置</div>
+                    <div class="action-btn">⤴</div>
+                </div>
+                <div class="content-area">
+                    <div class="hero">
+                        <div class="hero-title">跨设备同步中心</div>
+                        <div class="hero-sub">统一管理 WebDAV 地址、设备标识和备份目录。设计上把“能否成功连通”放在保存之前，减少误操作。</div>
+                        <div class="hero-row">
+                            <div class="hero-chip">
+                                <div class="hero-chip-label">同步方式</div>
+                                <div class="hero-chip-value">WebDAV</div>
+                            </div>
+                            <div class="hero-chip">
+                                <div class="hero-chip-label">最近备份</div>
+                                <div class="hero-chip-value">今天 08:24</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="status-card">
+                        <div class="status-icon">✓</div>
+                        <div>
+                            <div class="status-title">连接校验通过</div>
+                            <div class="status-desc">服务器响应正常，已识别备份目录 `legado/device-shanghai`，建议直接保存并执行一次增量备份。</div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-header">
+                            <div class="section-title">服务器配置</div>
+                            <div class="section-meta">必填</div>
+                        </div>
+                        <div class="field">
+                            <div class="field-label">WebDAV 服务器地址</div>
+                            <div class="field-box">
+                                <div class="field-text">https://dav.jianguoyun.com/dav/</div>
+                                <div class="field-tail">HTTPS</div>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <div class="field-label">用户名</div>
+                            <div class="field-box">
+                                <div class="field-text">reader_sync</div>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <div class="field-label">密码</div>
+                            <div class="field-box">
+                                <div class="field-text">••••••••••••</div>
+                                <div class="field-tail">显示</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-header">
+                            <div class="section-title">目录与设备</div>
+                            <div class="section-meta">可选</div>
+                        </div>
+                        <div class="field">
+                            <div class="field-label">备份目录</div>
+                            <div class="field-box">
+                                <div class="field-text">legado</div>
+                            </div>
+                        </div>
+                        <div class="field">
+                            <div class="field-label">设备名称</div>
+                            <div class="field-box">
+                                <div class="field-text">device-shanghai</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-header">
+                            <div class="section-title">设计提示</div>
+                            <div class="section-meta">信息层</div>
+                        </div>
+                        <div class="hint-list">
+                            <div class="hint-item">
+                                <div class="hint-badge">1</div>
+                                <div>
+                                    <div class="hint-title">先测试，再保存</div>
+                                    <div class="hint-desc">主按钮不直接覆盖配置，而是提供清晰的“双动作”路径，适合网络敏感的设置页。</div>
+                                </div>
+                            </div>
+                            <div class="hint-item">
+                                <div class="hint-badge">2</div>
+                                <div>
+                                    <div class="hint-title">错误状态可复用</div>
+                                    <div class="hint-desc">连接失败时，这个绿色状态卡可替换为红色告警卡，无需改整体布局。</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="footer-actions">
+                        <div class="action-row">
+                            <div class="btn secondary">测试连接</div>
+                            <div class="btn primary">保存配置</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -16,10 +16,11 @@ import 'package:crypto/crypto.dart';
 import 'package:path_provider/path_provider.dart';
 import '../string_utils.dart';
 import '../file_utils.dart';
-import '../app_log.dart';
+import '../cache_manager.dart';
 import '../network_utils.dart';
 import '../../data/models/book.dart';
 import '../../data/models/book_chapter.dart';
+import '../../data/models/book_source.dart';
 
 /// 书籍帮助工具类
 /// 参考项目：io.legado.app.help.book.BookHelp
@@ -204,10 +205,6 @@ class BookHelp {
 
   /// 格式化书名（去除特殊字符）
   /// 参考项目：BookHelp.formatBookName
-  static final RegExp _nameRegex = RegExp(
-    r'[(（\erta Mo Mo Mo Mo《<erta Mo Mo Mo《Mo Mo Mo][Mo Mo Mo Mo)](Mo[(Mo](Mo Mo[(Mo Mo](Mo Mo Mo]',
-  );
-
   static String formatBookName(String name) {
     // 移除书名号等特殊字符
     return name
@@ -242,8 +239,6 @@ class BookHelp {
   static Directory? _downloadDir;
   static const String _cacheFolderName = 'book_cache';
   static const String _cacheImageFolderName = 'images';
-  static const String _cacheEpubFolderName = 'epub';
-
   /// 初始化缓存目录
   static Future<void> _ensureInitialized() async {
     if (_downloadDir != null) return;
@@ -379,11 +374,35 @@ class BookHelp {
     return '$cachePath/$bookFolder/$_cacheImageFolderName/$srcMd5.$suffix';
   }
 
+  /// 获取图片缓存文件
+  /// 返回 File 对象
+  static Future<File> getImage(Book book, String src) async {
+    final imagePath = await getImagePath(book, src);
+    return File(imagePath);
+  }
+
   /// 检查图片是否已缓存
   /// 参考项目：BookHelp.isImageExist
   static Future<bool> isImageExist(Book book, String src) async {
     final imagePath = await getImagePath(book, src);
     return File(imagePath).existsSync();
+  }
+
+  /// 保存图片到缓存
+  /// 参考项目：BookHelp.saveImage
+  static Future<void> saveImage(
+    BookSource? bookSource,
+    Book book,
+    String src,
+    String? referer,
+  ) async {
+    // TODO: 实现从网络下载图片并保存
+    // 目前仅创建空文件，由调用方填充内容
+    final imagePath = await getImagePath(book, src);
+    final file = File(imagePath);
+    if (!await file.exists()) {
+      await file.parent.create(recursive: true);
+    }
   }
 
   /// 保存图片到缓存
@@ -478,5 +497,16 @@ class BookHelp {
   static Future<int> getTotalCacheSize() async {
     final cachePath = await getCachePath();
     return await FileUtils.getDirectorySize(cachePath);
+  }
+
+  /// 清除指定书源相关的变量缓存
+  static Future<void> clearCacheForSource(String sourceKey) async {
+    CacheManager.instance.clearSourceVariables();
+    await CacheManager.instance.deleteSourceVariables(sourceKey);
+  }
+
+  /// 清除无效的书源变量缓存
+  static Future<void> clearInvalidCache() async {
+    CacheManager.instance.clearSourceVariables();
   }
 }

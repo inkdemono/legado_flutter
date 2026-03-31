@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>书源批量删除 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --text: #1f2329;
+            --sub: #4e5969;
+            --hint: #86909c;
+            --danger: #f53f3f;
+            --line: #e5e6eb;
+        }
+        body { background: linear-gradient(135deg, #151821, #2b263d 58%, #0f172a); }
+        .phone-frame {
+            background:
+                linear-gradient(180deg, rgba(0,0,0,0.24), rgba(0,0,0,0.52)),
+                linear-gradient(135deg, #f4f6fb, #e6e9f4);
+        }
+        .dialog {
+            position: absolute; left: 24px; right: 24px; top: 132px;
+            border-radius: 28px; overflow: hidden; background: rgba(255,255,255,0.97);
+            box-shadow: 0 24px 60px rgba(17,24,39,0.20); backdrop-filter: blur(18px);
+        }
+        .head { padding: 18px; border-bottom: 1px solid var(--line); }
+        .title { font-size: 18px; font-weight: 800; color: var(--text); }
+        .sub { margin-top: 6px; font-size: 13px; color: var(--sub); line-height: 1.6; }
+        .list { padding: 14px 18px 8px; display: grid; gap: 8px; }
+        .item {
+            padding: 10px 12px; border-radius: 16px; background: #f7f9fc; font-size: 13px; color: var(--text);
+        }
+        .more { padding: 0 18px 16px; font-size: 12px; color: var(--hint); font-style: italic; }
+        .footer { display: flex; gap: 10px; padding: 0 18px 18px; }
+        .btn {
+            flex: 1; height: 48px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700;
+        }
+        .btn.ghost { background: #f2f3f5; color: var(--sub); }
+        .btn.danger { background: linear-gradient(135deg, #f53f3f, #fb7185); color: #fff; }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>书源批量删除</h1>
+            <p>补充“我的”模块书源管理里的批量删除确认弹窗，承接数量确认与待删书源预览列表。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="dialog">
+                    <div class="head">
+                        <div class="title">批量删除</div>
+                        <div class="sub">确定要删除 12 个书源吗？此操作不可恢复。</div>
+                    </div>
+                    <div class="list">
+                        <div class="item">• 起点中文网</div>
+                        <div class="item">• 笔趣阁精选源</div>
+                        <div class="item">• 搜书吧镜像</div>
+                        <div class="item">• 轻小说站聚合</div>
+                        <div class="item">• 科幻订阅源</div>
+                    </div>
+                    <div class="more">... 还有 7 个书源</div>
+                    <div class="footer">
+                        <div class="btn ghost">取消</div>
+                        <div class="btn danger">删除</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

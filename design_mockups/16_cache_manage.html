@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>缓存管理 - Legado Flutter UI设计稿</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #1677ff;
+            --bg-color: #f7f8fa;
+            --card-bg: #ffffff;
+            --text-primary: #1f2329;
+            --text-secondary: #4e5969;
+            --text-hint: #86909c;
+            --divider: #e5e6eb;
+        }
+
+        body {
+            background: #1a1a2e;
+        }
+
+        .phone-frame {
+            width: 375px;
+            height: 812px;
+            background: var(--bg-color);
+            border-radius: 40px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .status-bar {
+            height: 44px;
+            background: var(--card-bg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            padding-top: 10px;
+        }
+
+        /* App Bar */
+        .app-bar {
+            background: var(--card-bg);
+            padding: 0 8px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--divider);
+        }
+
+        .back-btn {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--text-primary);
+        }
+
+        .app-bar-title {
+            flex: 1;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .app-bar-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .action-btn {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: var(--text-primary);
+        }
+
+        /* Stats Card */
+        .stats-card {
+            background: linear-gradient(135deg, #34d399 0%, #14b8a6 100%);
+            margin: 16px;
+            border-radius: 16px;
+            padding: 20px;
+            color: white;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+        }
+
+        .stat-item {
+            flex: 1;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        /* Content */
+        .content-area {
+            height: calc(100% - 44px - 56px - 120px - 80px);
+            overflow-y: auto;
+            background: var(--bg-color);
+            padding: 0 16px 16px;
+        }
+
+        /* Cache Item */
+        .cache-item {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .cache-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #34d399 0%, #14b8a6 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .cache-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .cache-title {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .cache-progress {
+            height: 4px;
+            background: #e5e6eb;
+            border-radius: 2px;
+            margin-bottom: 4px;
+            overflow: hidden;
+        }
+
+        .cache-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #34d399 0%, #14b8a6 100%);
+            border-radius: 2px;
+        }
+
+        .cache-meta {
+            font-size: 12px;
+            color: var(--text-hint);
+        }
+
+        .cache-action {
+            padding: 6px 12px;
+            background: #FFF0F0;
+            color: #F5222D;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-text {
+            font-size: 16px;
+            color: var(--text-hint);
+        }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-around;
+            padding-top: 8px;
+            border-top: 1px solid var(--divider);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .nav-icon {
+            font-size: 24px;
+            color: var(--text-hint);
+        }
+
+        .nav-item.active .nav-icon {
+            color: var(--primary-color);
+        }
+
+        .nav-label {
+            font-size: 11px;
+            color: var(--text-hint);
+        }
+
+        .nav-item.active .nav-label {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        /* Dark Mode */
+        .phone-frame.dark {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-primary: #E0E0E0;
+            --text-secondary: #A0A0A0;
+            --text-hint: #4e5969;
+            --divider: #1f2329;
+        }
+
+        .phone-frame.dark .app-bar,
+        .phone-frame.dark .status-bar {
+            background: var(--card-bg);
+        }
+
+        .phone-frame.dark .cache-progress {
+            background: #333;
+        }
+
+        .phone-frame.dark .cache-action {
+            background: #3A1A1A;
+        }
+
+        .phone-frame.dark .bottom-nav {
+            background: rgba(30,30,30,0.95);
+        }
+
+        .label {
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>💾 缓存管理 - Cache Manage</h1>
+            <p>Legado Flutter UI设计稿 | 章节缓存管理</p>
+        </div>
+
+        <div class="phones-container">
+            <!-- 有缓存 - 日间模式 -->
+            <div>
+                <div class="phone-frame">
+                    <div class="status-bar">
+                        <span>9:41</span>
+                        <span>📶 🔋</span>
+                    </div>
+
+                    <div class="app-bar">
+                        <div class="back-btn">‹</div>
+                        <div class="app-bar-title">缓存管理</div>
+                        <div class="app-bar-actions">
+                            <div class="action-btn">🔄</div>
+                            <div class="action-btn">☰</div>
+                        </div>
+                    </div>
+
+                    <div class="stats-card">
+                        <div class="stats-row">
+                            <div class="stat-item">
+                                <div class="stat-value">12</div>
+                                <div class="stat-label">书籍数</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">4,532</div>
+                                <div class="stat-label">总章节</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">2,156</div>
+                                <div class="stat-label">已缓存</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="content-area">
+                        <div class="cache-item">
+                            <div class="cache-icon">📖</div>
+                            <div class="cache-info">
+                                <div class="cache-title">斗破苍穹</div>
+                                <div class="cache-progress">
+                                    <div class="cache-progress-bar" style="width: 75%;"></div>
+                                </div>
+                                <div class="cache-meta">1,648 / 2,200 章</div>
+                            </div>
+                            <div class="cache-action">清除</div>
+                        </div>
+
+                        <div class="cache-item">
+                            <div class="cache-icon">📖</div>
+                            <div class="cache-info">
+                                <div class="cache-title">诡秘之主</div>
+                                <div class="cache-progress">
+                                    <div class="cache-progress-bar" style="width: 100%;"></div>
+                                </div>
+                                <div class="cache-meta">1,432 / 1,432 章</div>
+                            </div>
+                            <div class="cache-action">清除</div>
+                        </div>
+
+                        <div class="cache-item">
+                            <div class="cache-icon">📖</div>
+                            <div class="cache-info">
+                                <div class="cache-title">凡人修仙传</div>
+                                <div class="cache-progress">
+                                    <div class="cache-progress-bar" style="width: 50%;"></div>
+                                </div>
+                                <div class="cache-meta">500 / 1,000 章</div>
+                            </div>
+                            <div class="cache-action">清除</div>
+                        </div>
+
+                        <div class="cache-item">
+                            <div class="cache-icon">📖</div>
+                            <div class="cache-info">
+                                <div class="cache-title">庆余年</div>
+                                <div class="cache-progress">
+                                    <div class="cache-progress-bar" style="width: 30%;"></div>
+                                </div>
+                                <div class="cache-meta">180 / 600 章</div>
+                            </div>
+                            <div class="cache-action">清除</div>
+                        </div>
+                    </div>
+
+                    <div class="bottom-nav">
+                        <div class="nav-item">
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">书架</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🔍</span>
+                            <span class="nav-label">发现</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🎬</span>
+                            <span class="nav-label">媒体</span>
+                        </div>
+                        <div class="nav-item active">
+                            <span class="nav-icon">👤</span>
+                            <span class="nav-label">我的</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="label">缓存管理（日间模式）</p>
+            </div>
+
+            <!-- 夜间模式 -->
+            <div>
+                <div class="phone-frame dark">
+                    <div class="status-bar">
+                        <span>9:41</span>
+                        <span>📶 🔋</span>
+                    </div>
+
+                    <div class="app-bar">
+                        <div class="back-btn">‹</div>
+                        <div class="app-bar-title">缓存管理</div>
+                        <div class="app-bar-actions">
+                            <div class="action-btn">🔄</div>
+                            <div class="action-btn">☰</div>
+                        </div>
+                    </div>
+
+                    <div class="stats-card">
+                        <div class="stats-row">
+                            <div class="stat-item">
+                                <div class="stat-value">12</div>
+                                <div class="stat-label">书籍数</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">4,532</div>
+                                <div class="stat-label">总章节</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">2,156</div>
+                                <div class="stat-label">已缓存</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="content-area">
+                        <div class="cache-item">
+                            <div class="cache-icon">📖</div>
+                            <div class="cache-info">
+                                <div class="cache-title">斗破苍穹</div>
+                                <div class="cache-progress">
+                                    <div class="cache-progress-bar" style="width: 75%;"></div>
+                                </div>
+                                <div class="cache-meta">1,648 / 2,200 章</div>
+                            </div>
+                            <div class="cache-action">清除</div>
+                        </div>
+
+                        <div class="cache-item">
+                            <div class="cache-icon">📖</div>
+                            <div class="cache-info">
+                                <div class="cache-title">诡秘之主</div>
+                                <div class="cache-progress">
+                                    <div class="cache-progress-bar" style="width: 100%;"></div>
+                                </div>
+                                <div class="cache-meta">1,432 / 1,432 章</div>
+                            </div>
+                            <div class="cache-action">清除</div>
+                        </div>
+                    </div>
+
+                    <div class="bottom-nav">
+                        <div class="nav-item">
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">书架</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🔍</span>
+                            <span class="nav-label">发现</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🎬</span>
+                            <span class="nav-label">媒体</span>
+                        </div>
+                        <div class="nav-item active">
+                            <span class="nav-icon">👤</span>
+                            <span class="nav-label">我的</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="label">缓存管理（夜间模式）</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

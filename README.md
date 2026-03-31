@@ -1,5 +1,5 @@
 # Legado Flutter
-
+阅读3.0(Legado)规则说明 https://mgz0227.github.io/The-tutorial-of-Legado/
 基于 Flutter 开发的跨平台开源小说阅读器，旨在还原并增强 [Legado (阅读)](https://github.com/gedoor/legado) 的核心功能与使用体验。
 
 主要使用 Cursor 和 Qoder 开发。本人对 flutter 并不是很熟悉。

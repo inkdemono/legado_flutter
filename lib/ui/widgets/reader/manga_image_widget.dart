@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:extended_image/extended_image.dart';
 import '../../../data/models/manga_color_filter_config.dart';
@@ -14,8 +15,37 @@ class MangaImageWidget extends StatelessWidget {
     this.fit = BoxFit.contain,
   });
 
+  ({String url, Map<String, String>? headers}) _parseImageSpec(String raw) {
+    final trimmed = raw.trim();
+    final headerStart = trimmed.lastIndexOf(',{');
+    if (headerStart <= 0) {
+      return (url: trimmed, headers: null);
+    }
+
+    final urlPart = trimmed.substring(0, headerStart).trim();
+    final headerPart = trimmed.substring(headerStart + 1).trim();
+    try {
+      final decoded = jsonDecode(headerPart);
+      if (decoded is Map<String, dynamic>) {
+        final headersRaw = decoded['headers'];
+        if (headersRaw is Map<String, dynamic>) {
+          return (
+            url: urlPart,
+            headers: headersRaw.map(
+              (key, value) => MapEntry(key, value.toString()),
+            ),
+          );
+        }
+      }
+    } catch (_) {}
+
+    return (url: trimmed, headers: null);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final imageSpec = _parseImageSpec(imageUrl);
+
     // 获取配置
     final colorFilterConfig = MangaColorFilterConfig.fromJsonString(
       AppConfig.getMangaColorFilter(),
@@ -68,7 +98,8 @@ class MangaImageWidget extends StatelessWidget {
       colorFilter: colorFilter ??
           const ColorFilter.mode(Colors.transparent, BlendMode.dst),
       child: ExtendedImage.network(
-        imageUrl,
+        imageSpec.url,
+        headers: imageSpec.headers,
         fit: fit,
         cache: true,
         mode: ExtendedImageMode.gesture,

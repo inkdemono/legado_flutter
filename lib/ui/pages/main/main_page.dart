@@ -6,9 +6,11 @@ import '../../../providers/main_page_index_provider.dart';
 import '../../../providers/scroll_control_provider.dart';
 import '../../../providers/book_update_count_provider.dart';
 import '../../../config/app_config.dart';
+import '../../../services/startup_flow_service.dart';
+import '../../widgets/td/td_widgets.dart';
 import '../bookshelf/bookshelf_page.dart';
-import '../explore/explore_page.dart';
-import '../rss/rss_page.dart';
+import '../discover/discover_page.dart';
+import '../media/media_page.dart';
 import '../my/my_page.dart';
 
 class MainPage extends ConsumerStatefulWidget {
@@ -21,6 +23,7 @@ class MainPage extends ConsumerStatefulWidget {
 class _MainPageState extends ConsumerState<MainPage> {
   DateTime? _lastExitTime;
   static const Duration _exitInterval = Duration(seconds: 2);
+  bool _startupFlowCompleted = false;
 
   @override
   void initState() {
@@ -28,19 +31,29 @@ class _MainPageState extends ConsumerState<MainPage> {
     // 延迟执行，确保页面已构建
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _setDefaultHomePage();
+      _runStartupFlow();
     });
+  }
+
+  /// 运行启动流程（隐私协议、版本更新等检查）
+  Future<void> _runStartupFlow() async {
+    if (_startupFlowCompleted) return;
+    _startupFlowCompleted = true;
+    if (!mounted) return;
+    await StartupFlowService.run(context, ref, () => mounted);
   }
 
   /// 设置默认首页
   void _setDefaultHomePage() {
     final defaultPage = AppConfig.getDefaultHomePage();
     final indexNotifier = ref.read(mainPageIndexProvider.notifier);
-    
+
     switch (defaultPage) {
       case 'explore':
+      case 'rss':  // RSS已合并到发现页面
         indexNotifier.setIndex(1);
         break;
-      case 'rss':
+      case 'media':
         indexNotifier.setIndex(2);
         break;
       case 'my':
@@ -56,7 +69,7 @@ class _MainPageState extends ConsumerState<MainPage> {
   /// 处理返回按钮
   Future<bool> _onWillPop() async {
     final currentIndex = ref.read(mainPageIndexProvider);
-    
+
     // 如果不在书架页面，先返回书架页面
     if (currentIndex != 0) {
       ref.read(mainPageIndexProvider.notifier).setIndex(0);
@@ -65,7 +78,7 @@ class _MainPageState extends ConsumerState<MainPage> {
 
     // 在书架页面，检查是否双击退出
     final now = DateTime.now();
-    if (_lastExitTime == null || 
+    if (_lastExitTime == null ||
         now.difference(_lastExitTime!) > _exitInterval) {
       _lastExitTime = now;
       if (mounted) {
@@ -86,7 +99,7 @@ class _MainPageState extends ConsumerState<MainPage> {
   void _onDestinationSelected(int index) {
     final indexNotifier = ref.read(mainPageIndexProvider.notifier);
     final currentIndex = ref.read(mainPageIndexProvider);
-    
+
     // 检查是否是重新选择同一个Tab
     if (currentIndex == index) {
       // Tab重新选择，触发滚动到顶部
@@ -110,7 +123,7 @@ class _MainPageState extends ConsumerState<MainPage> {
 
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) async {
+      onPopInvokedWithResult: (didPop, result) async {
         if (!didPop) {
           final shouldPop = await _onWillPop();
           if (shouldPop && mounted) {
@@ -124,41 +137,34 @@ class _MainPageState extends ConsumerState<MainPage> {
           index: currentIndex,
           children: const [
             BookshelfPage(),
-            ExplorePage(),
-            RssPage(),
+            DiscoverPage(),  // 合并后的发现页面（包含订阅）
+            MediaPage(),     // 新的媒体页面
             MyPage(),
           ],
         ),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: currentIndex,
-          onDestinationSelected: _onDestinationSelected,
-          destinations: [
-            NavigationDestination(
-              icon: Badge(
-                label: Text(updateCount > 99 ? '99+' : updateCount.toString()),
-                isLabelVisible: updateCount > 0,
-                child: const Icon(Icons.library_books_outlined),
-              ),
-              selectedIcon: Badge(
-                label: Text(updateCount > 99 ? '99+' : updateCount.toString()),
-                isLabelVisible: updateCount > 0,
-                child: const Icon(Icons.library_books),
-              ),
+        bottomNavigationBar: TDThemedBottomNavBar(
+          currentIndex: currentIndex,
+          onChanged: _onDestinationSelected,
+          items: [
+            TDThemedNavItem(
+              icon: Icons.library_books_outlined,
+              selectedIcon: Icons.library_books,
               label: '书架',
+              badgeCount: updateCount > 0 ? updateCount : null,
             ),
-            const NavigationDestination(
-              icon: Icon(Icons.explore_outlined),
-              selectedIcon: Icon(Icons.explore),
+            const TDThemedNavItem(
+              icon: Icons.explore_outlined,
+              selectedIcon: Icons.explore,
               label: '发现',
             ),
-            const NavigationDestination(
-              icon: Icon(Icons.rss_feed_outlined),
-              selectedIcon: Icon(Icons.rss_feed),
-              label: '订阅',
+            const TDThemedNavItem(
+              icon: Icons.perm_media_outlined,
+              selectedIcon: Icons.perm_media,
+              label: '媒体',
             ),
-            const NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
+            const TDThemedNavItem(
+              icon: Icons.person_outline,
+              selectedIcon: Icons.person,
               label: '我的',
             ),
           ],
@@ -167,4 +173,3 @@ class _MainPageState extends ConsumerState<MainPage> {
     );
   }
 }
-

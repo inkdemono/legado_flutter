@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>书源导入 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #f6f8fb;
+            --card: #fff;
+            --text: #1f2329;
+            --sub: #4e5969;
+            --hint: #86909c;
+            --line: #e5e6eb;
+            --primary: #1677ff;
+        }
+        body { background: linear-gradient(135deg, #111b25, #18314f 60%, #0f172a); }
+        .phone-frame {
+            background:
+                radial-gradient(circle at top, rgba(22,119,255,0.10), transparent 30%),
+                linear-gradient(180deg, #fbfdff, var(--bg));
+        }
+        .sheet {
+            position: absolute; left: 10px; right: 10px; top: 70px; bottom: 10px;
+            border-radius: 30px; overflow: hidden; background: rgba(255,255,255,0.96); backdrop-filter: blur(18px);
+            box-shadow: 0 24px 60px rgba(17,24,39,0.16);
+        }
+        .head {
+            padding: 16px 18px; border-bottom: 1px solid var(--line);
+        }
+        .title { font-size: 20px; font-weight: 800; color: var(--text); }
+        .sub { margin-top: 6px; font-size: 13px; color: var(--sub); line-height: 1.6; }
+        .toolbar {
+            display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-bottom: 1px solid var(--line);
+        }
+        .checkbox {
+            width: 22px; height: 22px; border-radius: 6px; background: var(--primary); box-shadow: inset 0 0 0 4px #fff;
+        }
+        .toolbar-text { font-size: 14px; color: var(--text); font-weight: 700; }
+        .list {
+            height: calc(100% - 72px - 59px - 82px); overflow-y: auto; padding: 12px 18px 8px;
+            display: grid; gap: 10px;
+        }
+        .item {
+            display: flex; align-items: flex-start; gap: 12px; padding: 14px; border-radius: 20px; background: var(--card);
+            box-shadow: 0 8px 20px rgba(15,23,32,0.05);
+        }
+        .mark {
+            width: 22px; height: 22px; border-radius: 6px; border: 2px solid #1677ff; background: #1677ff; box-shadow: inset 0 0 0 4px #fff; flex-shrink: 0;
+        }
+        .info { flex: 1; }
+        .name { font-size: 15px; font-weight: 800; color: var(--text); }
+        .url { margin-top: 5px; font-size: 12px; color: var(--hint); line-height: 1.5; }
+        .footer {
+            position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 10px; padding: 16px 18px 18px;
+            border-top: 1px solid var(--line); background: rgba(255,255,255,0.96);
+        }
+        .btn {
+            flex: 1; height: 48px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;
+        }
+        .btn.ghost { background: #f2f3f5; color: var(--sub); }
+        .btn.primary { background: linear-gradient(135deg, #1677ff, #69b1ff); color: #fff; }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>书源导入</h1>
+            <p>补充“我的”模块书源管理里的导入弹层，承接 JSON 解析后书源列表预览、全选和分批导入动作。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="sheet">
+                    <div class="head">
+                        <div class="title">导入书源</div>
+                        <div class="sub">已解析到 5 个有效书源，默认全部选中，导入后会自动过滤不合规内容。</div>
+                    </div>
+                    <div class="toolbar">
+                        <div class="checkbox"></div>
+                        <div class="toolbar-text">全选（已选择 5/5）</div>
+                    </div>
+                    <div class="list">
+                        <div class="item">
+                            <div class="mark"></div>
+                            <div class="info">
+                                <div class="name">起点中文网</div>
+                                <div class="url">https://book.qidian.com/</div>
+                            </div>
+                        </div>
+                        <div class="item">
+                            <div class="mark"></div>
+                            <div class="info">
+                                <div class="name">笔趣阁精选源</div>
+                                <div class="url">https://api.example.com/source/bqg</div>
+                            </div>
+                        </div>
+                        <div class="item">
+                            <div class="mark"></div>
+                            <div class="info">
+                                <div class="name">搜书吧镜像</div>
+                                <div class="url">https://mirror.example.org/source/ssb</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="footer">
+                        <div class="btn ghost">取消</div>
+                        <div class="btn primary">导入</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

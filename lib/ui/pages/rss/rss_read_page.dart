@@ -1,6 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data' show Uint8List;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter_html/flutter_html.dart';
@@ -13,7 +14,55 @@ import '../../../services/rss_read_record_service.dart';
 import '../../../services/network/network_service.dart';
 import '../../../utils/parsers/rule_parser.dart';
 import '../../../utils/app_log.dart';
+import '../../../utils/js_engine.dart';
 import '../../../config/app_config.dart';
+
+@visibleForTesting
+bool rssUrlMatchesRule(String url, String rule) {
+  if (url.startsWith(rule)) {
+    return true;
+  }
+
+  try {
+    return RegExp(rule).hasMatch(url);
+  } catch (_) {
+    return false;
+  }
+}
+
+@visibleForTesting
+bool rssShouldFilterResource(
+  String url, {
+  required List<String> whitelist,
+  required List<String> blacklist,
+}) {
+  if (blacklist.any((rule) => rssUrlMatchesRule(url, rule))) {
+    return true;
+  }
+
+  if (whitelist.isNotEmpty &&
+      !whitelist.any((rule) => rssUrlMatchesRule(url, rule))) {
+    return true;
+  }
+
+  return false;
+}
+
+@visibleForTesting
+bool rssJsResultIsTrue(String? value) {
+  final normalized = value?.trim().toLowerCase();
+  return normalized == 'true' || normalized == '1';
+}
+
+@visibleForTesting
+bool rssShouldOpenOriginalPage({
+  required String? ruleContent,
+  required String? description,
+}) {
+  final hasRuleContent = ruleContent != null && ruleContent.trim().isNotEmpty;
+  final hasDescription = description != null && description.trim().isNotEmpty;
+  return !hasRuleContent && !hasDescription;
+}
 
 /// RSS阅读页面
 class RssReadPage extends StatefulWidget {
@@ -36,6 +85,7 @@ class _RssReadPageState extends State<RssReadPage> {
   bool _isStarred = false;
   bool _checkingStar = true;
   bool _useWebView = false; // 是否使用WebView模式
+  bool _showOriginalPage = false;
 
   @override
   void initState() {
@@ -112,8 +162,13 @@ class _RssReadPageState extends State<RssReadPage> {
     // 检查是否有内容规则
     final ruleContent = widget.source.ruleContent;
     if (ruleContent == null || ruleContent.isEmpty) {
-      // 没有内容规则，使用描述或链接
+      final showOriginalPage = rssShouldOpenOriginalPage(
+        ruleContent: ruleContent,
+        description: widget.article.description,
+      );
       setState(() {
+        _showOriginalPage = showOriginalPage;
+        _useWebView = showOriginalPage;
         _content = widget.article.description ?? '暂无内容';
         _isLoading = false;
       });
@@ -193,6 +248,9 @@ class _RssReadPageState extends State<RssReadPage> {
 
   @override
   Widget build(BuildContext context) {
+    final shouldShowWebView =
+        _useWebView && (_showOriginalPage || (_content != null && _content!.isNotEmpty));
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -226,36 +284,59 @@ class _RssReadPageState extends State<RssReadPage> {
                 if (await canLaunchUrl(uri)) {
                   await launchUrl(uri, mode: LaunchMode.externalApplication);
                 } else {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('无法打开链接')),
-                    );
-                  }
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('打开链接失败: $e')),
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    const SnackBar(content: Text('无法打开链接')),
                   );
                 }
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  SnackBar(content: Text('打开链接失败: $e')),
+                );
               }
             },
             tooltip: '浏览器打开',
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _useWebView && _content != null && _content!.isNotEmpty
-              ? _buildWebViewContent()
+      body: shouldShowWebView
+          ? _buildWebViewContent()
+          : _isLoading
+              ? const Center(child: CircularProgressIndicator())
               : _buildTextContent(),
     );
   }
 
   /// 构建WebView内容显示
   Widget _buildWebViewContent() {
+    final baseUrl = NetworkService.joinUrl(widget.article.origin, widget.article.link);
+
+    if (_showOriginalPage) {
+      final controller = _createWebViewController()
+        ..loadRequest(
+          Uri.parse(baseUrl),
+          headers: NetworkService.parseHeaders(widget.source.header),
+        );
+
+      return Stack(
+        children: [
+          WebViewWidget(controller: controller),
+          if (_isLoading)
+            Container(
+              color: Colors.black.withValues(alpha: 0.1),
+              child: const Center(child: CircularProgressIndicator()),
+            ),
+        ],
+      );
+    }
+
     // 构建HTML内容
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final primaryColorHex =
+        '#${primaryColor.r.toInt().toRadixString(16).padLeft(2, '0')}${primaryColor.g.toInt().toRadixString(16).padLeft(2, '0')}${primaryColor.b.toInt().toRadixString(16).padLeft(2, '0')}';
+    final customStyle = widget.source.style?.trim();
     final htmlContent = '''
 <!DOCTYPE html>
 <html>
@@ -275,9 +356,10 @@ class _RssReadPageState extends State<RssReadPage> {
       height: auto;
     }
     a {
-      color: ${Theme.of(context).colorScheme.primary.value.toRadixString(16)};
+      color: $primaryColorHex;
     }
   </style>
+  ${customStyle != null && customStyle.isNotEmpty ? '<style>$customStyle</style>' : ''}
 </head>
 <body>
   ${widget.article.pubDate != null && widget.article.pubDate!.isNotEmpty 
@@ -291,10 +373,28 @@ class _RssReadPageState extends State<RssReadPage> {
 </html>
 ''';
 
-    // 获取基础URL
-    final baseUrl = NetworkService.joinUrl(widget.article.origin, widget.article.link);
-    
-    // 创建WebViewController
+    final controller = _createWebViewController();
+
+    // 加载HTML内容
+    if (widget.source.loadWithBaseUrl) {
+      controller.loadHtmlString(htmlContent, baseUrl: baseUrl);
+    } else {
+      controller.loadHtmlString(htmlContent);
+    }
+
+    return Stack(
+      children: [
+        WebViewWidget(controller: controller),
+        if (_isLoading)
+          Container(
+            color: Colors.black.withValues(alpha: 0.1),
+            child: const Center(child: CircularProgressIndicator()),
+          ),
+      ],
+    );
+  }
+
+  WebViewController _createWebViewController() {
     late final WebViewController controller;
     controller = WebViewController()
       ..setJavaScriptMode(widget.source.enableJs ? JavaScriptMode.unrestricted : JavaScriptMode.disabled)
@@ -312,6 +412,8 @@ class _RssReadPageState extends State<RssReadPage> {
             });
             // 注入图片长按脚本（延迟执行以确保页面加载完成）
             Future.delayed(const Duration(milliseconds: 100), () {
+              _applyContentFilters(controller);
+              _runInjectJs(controller);
               _injectImageLongPressScript(controller);
             });
           },
@@ -322,6 +424,9 @@ class _RssReadPageState extends State<RssReadPage> {
                 SnackBar(content: Text('加载错误: ${error.description}')),
               );
             }
+          },
+          onNavigationRequest: (NavigationRequest request) async {
+            return await _handleNavigationRequest(request);
           },
         ),
       )
@@ -336,29 +441,144 @@ class _RssReadPageState extends State<RssReadPage> {
         },
       );
 
-    // 设置User Agent
     final userAgent = AppConfig.getUserAgent();
     if (userAgent.isNotEmpty) {
       controller.setUserAgent(userAgent);
     }
 
-    // 加载HTML内容
-    if (widget.source.loadWithBaseUrl) {
-      controller.loadHtmlString(htmlContent, baseUrl: baseUrl);
-    } else {
-      controller.loadHtmlString(htmlContent);
+    return controller;
+  }
+
+  Future<NavigationDecision> _handleNavigationRequest(
+    NavigationRequest request,
+  ) async {
+    final url = request.url;
+    if (await _shouldOverrideUrlLoading(url)) {
+      return NavigationDecision.prevent;
     }
 
-    return Stack(
-      children: [
-        WebViewWidget(controller: controller),
-        if (_isLoading)
-          Container(
-            color: Colors.black.withOpacity(0.1),
-            child: const Center(child: CircularProgressIndicator()),
-          ),
-      ],
-    );
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      return NavigationDecision.navigate;
+    }
+
+    switch (uri.scheme) {
+      case 'http':
+      case 'https':
+      case 'jsbridge':
+        return NavigationDecision.navigate;
+      case 'legado':
+      case 'yuedu':
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return NavigationDecision.prevent;
+      default:
+        await _showOpenExternalDialog(url);
+        return NavigationDecision.prevent;
+    }
+  }
+
+  Future<bool> _shouldOverrideUrlLoading(String url) async {
+    final js = widget.source.shouldOverrideUrlLoading;
+    if (js == null || js.trim().isEmpty) {
+      return false;
+    }
+
+    try {
+      final result = await JSEngine.evalJS(
+        js,
+        bindings: {
+          'url': url,
+          'sourceUrl': widget.source.sourceUrl,
+        },
+      );
+      return rssJsResultIsTrue(result?.toString());
+    } catch (e) {
+      AppLog.instance.put('RSS url跳转拦截js执行失败', error: e);
+      return false;
+    }
+  }
+
+  void _runInjectJs(WebViewController controller) {
+    final injectJs = widget.source.injectJs;
+    if (injectJs == null || injectJs.trim().isEmpty) {
+      return;
+    }
+
+    controller.runJavaScript(injectJs).catchError((Object e) {
+      AppLog.instance.put('RSS injectJs 执行失败', error: e);
+    });
+  }
+
+  void _applyContentFilters(WebViewController controller) {
+    final whitelist = _splitRules(widget.source.contentWhitelist);
+    final blacklist = _splitRules(widget.source.contentBlacklist);
+    if (whitelist.isEmpty && blacklist.isEmpty) {
+      return;
+    }
+
+    final js = '''
+      (function() {
+        var whitelist = ${jsonEncode(whitelist)};
+        var blacklist = ${jsonEncode(blacklist)};
+
+        function matches(url, rule) {
+          if (!url || !rule) return false;
+          if (url.indexOf(rule) === 0) return true;
+          try {
+            return new RegExp(rule).test(url);
+          } catch (e) {
+            return false;
+          }
+        }
+
+        function shouldRemove(url) {
+          if (!url) return false;
+          for (var i = 0; i < blacklist.length; i++) {
+            if (matches(url, blacklist[i])) return true;
+          }
+          if (whitelist.length > 0) {
+            for (var j = 0; j < whitelist.length; j++) {
+              if (matches(url, whitelist[j])) return false;
+            }
+            return true;
+          }
+          return false;
+        }
+
+        function resourceUrl(node) {
+          return node.src ||
+            node.href ||
+            node.getAttribute('data-src') ||
+            node.getAttribute('data-original') ||
+            node.getAttribute('poster') ||
+            '';
+        }
+
+        var nodes = document.querySelectorAll('img,script,iframe,link,source,video,audio');
+        for (var i = 0; i < nodes.length; i++) {
+          var node = nodes[i];
+          if (shouldRemove(resourceUrl(node)) && node.parentNode) {
+            node.parentNode.removeChild(node);
+          }
+        }
+      })();
+    ''';
+
+    controller.runJavaScript(js).catchError((Object e) {
+      AppLog.instance.put('RSS 内容白黑名单过滤失败', error: e);
+    });
+  }
+
+  List<String> _splitRules(String? raw) {
+    if (raw == null || raw.trim().isEmpty) {
+      return const [];
+    }
+
+    return raw
+        .split(',')
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .toList();
   }
 
   /// 注入图片长按脚本
@@ -398,6 +618,34 @@ class _RssReadPageState extends State<RssReadPage> {
         }, true);
       })();
     ''');
+  }
+
+  Future<void> _showOpenExternalDialog(String url) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('跳转到其他应用'),
+        content: Text('是否要打开: $url'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              final uri = Uri.tryParse(url);
+              if (uri != null) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+            child: const Text('打开'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// 构建文本内容显示
@@ -490,11 +738,10 @@ class _RssReadPageState extends State<RssReadPage> {
                     await launchUrl(uri, mode: LaunchMode.externalApplication);
                   }
                 } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('打开失败: $e')),
-                    );
-                  }
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    SnackBar(content: Text('打开失败: $e')),
+                  );
                 }
               },
             ),
@@ -540,4 +787,3 @@ class _RssReadPageState extends State<RssReadPage> {
     }
   }
 }
-

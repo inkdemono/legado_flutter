@@ -114,6 +114,12 @@ class Book {
   @JsonKey(name: 'customIntro')
   String? customIntro;
 
+  /// 详情页HTML缓存（运行期复用，不持久化）
+  String? infoHtml;
+
+  /// 目录页HTML缓存（运行期复用，不持久化）
+  String? tocHtml;
+
   /// 自定义字符集名称(仅适用于本地书籍)
   @JsonKey(name: 'charset')
   String? charset;
@@ -203,6 +209,8 @@ class Book {
     this.customCoverUrl,
     this.intro,
     this.customIntro,
+    this.infoHtml,
+    this.tocHtml,
     this.charset,
     this.type = BookType.text,
     this.group = 0,
@@ -244,6 +252,8 @@ class Book {
       customCoverUrl: json['customCoverUrl'],
       intro: json['intro'],
       customIntro: json['customIntro'],
+      infoHtml: json['infoHtml'],
+      tocHtml: json['tocHtml'],
       charset: json['charset'],
       type: json['type'] ?? BookType.text,
       group: json['group'] ?? 0,
@@ -335,6 +345,8 @@ class Book {
     String? customCoverUrl,
     String? intro,
     String? customIntro,
+    String? infoHtml,
+    String? tocHtml,
     String? charset,
     int? type,
     int? group,
@@ -368,6 +380,8 @@ class Book {
       customCoverUrl: customCoverUrl ?? this.customCoverUrl,
       intro: intro ?? this.intro,
       customIntro: customIntro ?? this.customIntro,
+      infoHtml: infoHtml ?? this.infoHtml,
+      tocHtml: tocHtml ?? this.tocHtml,
       charset: charset ?? this.charset,
       type: type ?? this.type,
       group: group ?? this.group,

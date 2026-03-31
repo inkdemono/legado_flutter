@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../data/models/book.dart';
+import '../../../../utils/parsers/html_parser.dart';
 
 /// 书籍简介组件
 class BookInfoIntro extends StatelessWidget {
@@ -16,12 +17,13 @@ class BookInfoIntro extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final backgroundColor = isDark ? Colors.grey[900] : Colors.white;
     final intro = book.displayIntro;
+    final cleanIntro = intro == null ? '' : HtmlParser.cleanHtml(intro).trim();
 
     return Container(
       color: backgroundColor,
       padding: const EdgeInsets.only(left: 8, right: 8, top: 8, bottom: 8),
       child: SelectableText(
-        intro ?? '',
+        cleanIntro,
         style: TextStyle(
           fontSize: 14,
           color: theme.textTheme.bodyMedium?.color ?? 

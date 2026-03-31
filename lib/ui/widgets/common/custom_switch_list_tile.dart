@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'custom_switch.dart';
+import '../td/td_widgets.dart';
 
 /// 自定义开关列表项组件
-/// 用于替换 Material 的 SwitchListTile，使用统一的 CustomSwitch
+/// 用于替换 Material 的 SwitchListTile，使用统一的 TDThemedSwitch
 class CustomSwitchListTile extends StatelessWidget {
   /// 标题
   final Widget? title;
@@ -82,7 +82,7 @@ class CustomSwitchListTile extends StatelessWidget {
       leading: secondary,
       title: title,
       subtitle: subtitle,
-      trailing: CustomSwitch(
+      trailing: TDThemedSwitch(
         value: value,
         onChanged: enabled ? onChanged : null,
       ),

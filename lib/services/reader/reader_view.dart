@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'models/page_range.dart';
 import 'reading_position_manager.dart';
 import 'reader_painter.dart';
@@ -23,12 +22,12 @@ class ReaderView extends StatefulWidget {
   final bool showAdvancedInfo;
 
   const ReaderView({
-    Key? key,
+    super.key,
     required this.controller,
     this.chapterTitle,
     this.onTapCenter,
     this.showAdvancedInfo = false,
-  }) : super(key: key);
+  });
 
   @override
   State<ReaderView> createState() => _ReaderViewState();
@@ -212,14 +211,14 @@ class SimpleReaderView extends StatefulWidget {
   final VoidCallback? onTapCenter;
 
   const SimpleReaderView({
-    Key? key,
+    super.key,
     required this.fullContent,
     required this.pages,
     required this.config,
     this.initialPage = 0,
     this.onPageChanged,
     this.onTapCenter,
-  }) : super(key: key);
+  });
 
   @override
   State<SimpleReaderView> createState() => _SimpleReaderViewState();

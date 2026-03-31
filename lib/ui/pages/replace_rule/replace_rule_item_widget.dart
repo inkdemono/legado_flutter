@@ -1,257 +1,281 @@
 import 'package:flutter/material.dart';
 import '../../../data/models/replace_rule.dart';
 import '../../widgets/common/custom_switch.dart';
+import '../../widgets/home/home_shell.dart';
 
 /// 替换规则项组件
 class ReplaceRuleItemWidget extends StatelessWidget {
+  static const List<List<Color>> _iconGradients = [
+    [Color(0xFF34D399), Color(0xFF14B8A6)],
+    [Color(0xFF4F7CFF), Color(0xFF7C5CFF)],
+    [Color(0xFFFB7185), Color(0xFFFF7AA5)],
+    [Color(0xFF38BDF8), Color(0xFF0EA5E9)],
+  ];
+
   final ReplaceRule rule;
+  final int index;
   final bool isBatchMode;
+  final bool showDragHandle;
   final bool isSelected;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
   final ValueChanged<bool> onToggleEnabled;
-  final VoidCallback onDelete;
-  final VoidCallback onEdit;
+  final VoidCallback? onDelete;
   final VoidCallback? onMoveToTop;
   final VoidCallback? onMoveToBottom;
 
   const ReplaceRuleItemWidget({
     super.key,
     required this.rule,
+    required this.index,
     required this.isBatchMode,
+    this.showDragHandle = true,
     required this.isSelected,
     required this.onTap,
     this.onLongPress,
     required this.onToggleEnabled,
-    required this.onDelete,
-    required this.onEdit,
+    this.onDelete,
     this.onMoveToTop,
     this.onMoveToBottom,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: InkWell(
-        onTap: onTap,
-        onLongPress: onLongPress,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              // 批量选择复选框
-              if (isBatchMode)
-                Checkbox(
-                  value: isSelected,
-                  onChanged: (value) {
-                    if (value != null) {
-                      onTap();
-                    }
-                  },
-                ),
-              // 规则信息
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+    final theme = Theme.of(context);
+    final colors = _iconGradients[index % _iconGradients.length];
+    final radius = BorderRadius.circular(18);
+    final borderColor = isSelected
+        ? theme.colorScheme.primary.withValues(alpha: 0.28)
+        : HomePalette.lineColor(context);
+
+    Widget buildMetaChip(String label, {Color? color, Color? backgroundColor}) {
+      final chipColor = color ?? HomePalette.secondaryText(context);
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: backgroundColor ?? chipColor.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: chipColor,
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: radius,
+          onTap: onTap,
+          onLongPress: onLongPress,
+          child: Ink(
+            decoration: BoxDecoration(
+              color: HomePalette.card(context),
+              borderRadius: radius,
+              border: Border.all(color: borderColor),
+              boxShadow: HomePalette.cardShadow(context),
+            ),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(14, 14, isBatchMode ? 14 : 12, 14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (isBatchMode)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2, right: 8),
+                      child: Checkbox(
+                        value: isSelected,
+                        onChanged: (_) => onTap(),
+                      ),
+                    )
+                  else if (showDragHandle)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2, right: 10),
+                      child: ReorderableDragStartListener(
+                        index: index,
+                        child: Icon(
+                          Icons.drag_indicator_rounded,
+                          color: HomePalette.tertiaryText(context),
+                          size: 20,
+                        ),
+                      ),
+                    )
+                  else
+                    const SizedBox(width: 30),
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      gradient: LinearGradient(colors: colors),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.find_replace_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                rule.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: HomePalette.primaryText(context),
+                                ),
+                              ),
+                            ),
+                            if (rule.group != null &&
+                                rule.group!.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              buildMetaChip(
+                                rule.group!,
+                                color: const Color(0xFF1677FF),
+                              ),
+                            ],
+                            if (!rule.enabled) ...[
+                              const SizedBox(width: 8),
+                              buildMetaChip(
+                                '已禁用',
+                                color: HomePalette.tertiaryText(context),
+                                backgroundColor: HomePalette.mutedCard(context),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: HomePalette.mutedCard(context),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                           child: Text(
-                            rule.name,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                            rule.pattern,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.3,
+                              fontFamily: 'monospace',
+                              color: HomePalette.secondaryText(context),
                             ),
                           ),
                         ),
-                        if (rule.group != null && rule.group!.isNotEmpty)
-                          Container(
-                            margin: const EdgeInsets.only(right: 8),
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              rule.group!,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.blue[700],
-                              ),
+                        if (rule.replacement.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            '替换为: ${rule.replacement}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: HomePalette.secondaryText(context),
                             ),
                           ),
-                        if (!rule.enabled)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.grey,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text(
-                              '已禁用',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
+                        ],
+                        if (rule.scope != null && rule.scope!.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            '作用范围: ${rule.scope}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: const Color(0xFF1677FF),
                             ),
                           ),
+                        ],
+                        if (rule.scopeTitle ||
+                            rule.scopeContent ||
+                            !rule.isRegex) ...[
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              if (rule.scopeTitle) buildMetaChip('标题'),
+                              if (rule.scopeContent) buildMetaChip('正文'),
+                              if (!rule.isRegex) buildMetaChip('普通文本'),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '模式: ${rule.pattern}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                        fontFamily: 'monospace',
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                  ),
+                  if (!isBatchMode) ...[
+                    const SizedBox(width: 12),
+                    CustomSwitch(
+                      value: rule.enabled,
+                      onChanged: onToggleEnabled,
                     ),
-                    if (rule.replacement.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        '替换为: ${rule.replacement}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[500],
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    // 显示作用范围信息
-                    if (rule.scope != null && rule.scope!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.my_location, size: 12, color: Colors.blue[300]),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              '作用范围: ${rule.scope}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.blue[700],
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                    PopupMenuButton<String>(
+                      tooltip: '更多操作',
+                      padding: const EdgeInsets.only(left: 4),
+                      iconSize: 20,
+                      onSelected: (value) {
+                        switch (value) {
+                          case 'top':
+                            onMoveToTop?.call();
+                            break;
+                          case 'bottom':
+                            onMoveToBottom?.call();
+                            break;
+                          case 'delete':
+                            onDelete?.call();
+                            break;
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        if (onMoveToTop != null)
+                          const PopupMenuItem(
+                            value: 'top',
+                            child: Text('置顶'),
                           ),
-                        ],
+                        if (onMoveToBottom != null)
+                          const PopupMenuItem(
+                            value: 'bottom',
+                            child: Text('置底'),
+                          ),
+                        if (onDelete != null)
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Text('删除规则'),
+                          ),
+                      ],
+                      icon: Icon(
+                        Icons.more_horiz_rounded,
+                        color: HomePalette.tertiaryText(context),
                       ),
-                    ],
-                    // 显示作用类型
-                    if (rule.scopeTitle || rule.scopeContent) ...[
-                      const SizedBox(height: 4),
-                      Wrap(
-                        spacing: 8,
-                        children: [
-                          if (rule.scopeTitle)
-                            Chip(
-                              label: const Text('标题', style: TextStyle(fontSize: 10)),
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              visualDensity: VisualDensity.compact,
-                              padding: EdgeInsets.zero,
-                            ),
-                          if (rule.scopeContent)
-                            Chip(
-                              label: const Text('正文', style: TextStyle(fontSize: 10)),
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              visualDensity: VisualDensity.compact,
-                              padding: EdgeInsets.zero,
-                            ),
-                          if (!rule.isRegex)
-                            Chip(
-                              label: const Text('普通文本', style: TextStyle(fontSize: 10)),
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              visualDensity: VisualDensity.compact,
-                              padding: EdgeInsets.zero,
-                            ),
-                        ],
-                      ),
-                    ],
+                    ),
                   ],
-                ),
+                ],
               ),
-              // 操作按钮
-              if (!isBatchMode) ...[
-                CustomSwitch(
-                  value: rule.enabled,
-                  onChanged: onToggleEnabled,
-                ),
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert),
-                  onSelected: (value) {
-                    switch (value) {
-                      case 'edit':
-                        onEdit();
-                        break;
-                      case 'top':
-                        onMoveToTop?.call();
-                        break;
-                      case 'bottom':
-                        onMoveToBottom?.call();
-                        break;
-                      case 'delete':
-                        onDelete();
-                        break;
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(Icons.edit, size: 20),
-                          SizedBox(width: 8),
-                          Text('编辑'),
-                        ],
-                      ),
-                    ),
-                    if (onMoveToTop != null)
-                      const PopupMenuItem(
-                        value: 'top',
-                        child: Row(
-                          children: [
-                            Icon(Icons.vertical_align_top, size: 20),
-                            SizedBox(width: 8),
-                            Text('置顶'),
-                          ],
-                        ),
-                      ),
-                    if (onMoveToBottom != null)
-                      const PopupMenuItem(
-                        value: 'bottom',
-                        child: Row(
-                          children: [
-                            Icon(Icons.vertical_align_bottom, size: 20),
-                            SizedBox(width: 8),
-                            Text('置底'),
-                          ],
-                        ),
-                      ),
-                    const PopupMenuDivider(),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete, size: 20, color: Colors.red),
-                          SizedBox(width: 8),
-                          Text('删除', style: TextStyle(color: Colors.red)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 }
-

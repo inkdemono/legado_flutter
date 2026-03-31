@@ -2,7 +2,6 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 import 'package:sqflite/sqflite.dart';
-import 'package:dio/dio.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:html/dom.dart' as html_dom;
 import '../../core/base/base_service.dart';
@@ -18,7 +17,6 @@ import '../../utils/parsers/rule_parser.dart';
 import '../../utils/parsers/html_parser.dart';
 import '../../utils/app_log.dart';
 import '../../utils/concurrent_rate_limiter.dart';
-import '../../utils/extensions/string_extensions.dart';
 import '../../utils/js_engine.dart';
 import '../../utils/helpers/book_extensions.dart';
 import '../../utils/network_utils.dart';
@@ -112,6 +110,264 @@ class BookService extends BaseService {
     } catch (e) {
       return false;
     }
+  }
+
+  String _chapterIdentity(Map<String, String?> chapterData) {
+    final chapterUrl = chapterData['chapterUrl']?.trim() ?? '';
+    if (chapterUrl.isNotEmpty) return chapterUrl;
+    return chapterData['chapterName']?.trim() ?? '';
+  }
+
+  List<String> _buildImplicitTocPageCandidates(String tocUrl, int pageNumber) {
+    if (pageNumber < 2 || tocUrl.isEmpty) return const [];
+
+    final normalizedUrl = tocUrl.trim();
+    final candidates = <String>[];
+
+    void addCandidate(String value) {
+      if (value.isNotEmpty && !candidates.contains(value)) {
+        candidates.add(value);
+      }
+    }
+
+    if (normalizedUrl.endsWith('/')) {
+      addCandidate(NetworkService.joinUrl(normalizedUrl, 'index_$pageNumber.html'));
+      addCandidate(NetworkService.joinUrl(normalizedUrl, '$pageNumber.html'));
+      return candidates;
+    }
+
+    try {
+      final uri = Uri.parse(normalizedUrl);
+      if (uri.path.endsWith('.html')) {
+        final slashIndex = uri.path.lastIndexOf('/');
+        final directoryPath =
+            slashIndex >= 0 ? uri.path.substring(0, slashIndex + 1) : '/';
+        final pageUri = uri.replace(path: '${directoryPath}index_$pageNumber.html');
+        addCandidate(pageUri.toString());
+      }
+    } catch (_) {
+      // ignore invalid tocUrl and fall back to the original URL shape below.
+    }
+
+    addCandidate('$normalizedUrl/index_$pageNumber.html');
+    return candidates;
+  }
+
+  Future<List<Map<String, String?>>> _loadImplicitTocPages({
+    required String tocUrl,
+    required BookSource source,
+    required TocRule tocRule,
+    required Iterable<Map<String, String?>> seedChapters,
+    Map<String, String>? variables,
+  }) async {
+    if (tocUrl.isEmpty || tocRule.nextTocUrl?.isNotEmpty == true) {
+      return const [];
+    }
+
+    final existingIdentities =
+        seedChapters.map(_chapterIdentity).where((id) => id.isNotEmpty).toSet();
+    final collected = <Map<String, String?>>[];
+    const maxImplicitPages = 50;
+
+    for (int pageNumber = 2; pageNumber <= maxImplicitPages; pageNumber++) {
+      final candidates = _buildImplicitTocPageCandidates(tocUrl, pageNumber);
+      if (candidates.isEmpty) break;
+
+      List<Map<String, String?>>? matchedPage;
+
+      for (final candidateUrl in candidates) {
+        try {
+          final response = await _networkService.get(
+            candidateUrl,
+            headers: NetworkService.parseHeaders(source.header),
+            retryCount: 1,
+          );
+          if (response.statusCode != 200) {
+            continue;
+          }
+
+          final pageHtml = await NetworkService.getResponseText(response);
+          if (pageHtml.isEmpty) {
+            continue;
+          }
+
+          final pageResult = await RuleParser.parseTocRuleWithNextUrl(
+            pageHtml,
+            tocRule,
+            variables: variables,
+            baseUrl: candidateUrl,
+            getNextUrl: false,
+          );
+          final pageChapters =
+              pageResult['chapterList'] as List<Map<String, String?>>;
+          if (pageChapters.isEmpty) {
+            continue;
+          }
+
+          final newChapters = pageChapters.where((chapter) {
+            final identity = _chapterIdentity(chapter);
+            return identity.isNotEmpty && !existingIdentities.contains(identity);
+          }).toList();
+
+          if (newChapters.isEmpty) {
+            continue;
+          }
+
+          matchedPage = newChapters;
+          existingIdentities.addAll(
+            newChapters.map(_chapterIdentity).where((id) => id.isNotEmpty),
+          );
+          break;
+        } catch (_) {
+          continue;
+        }
+      }
+
+      if (matchedPage == null || matchedPage.isEmpty) {
+        break;
+      }
+
+      collected.addAll(matchedPage);
+    }
+
+    if (collected.isNotEmpty) {
+      AppLog.instance.put('目录隐式分页补全成功: 新增 ${collected.length} 个章节');
+    }
+
+    return collected;
+  }
+
+  String? _extractAjaxTocBookId(String html) {
+    final match = RegExp(
+      'id\\s*=\\s*["\\\']bookiddata["\\\'][^>]*data-sid\\s*=\\s*["\\\'](\\d+)["\\\']',
+      caseSensitive: false,
+    ).firstMatch(html);
+    return match?.group(1);
+  }
+
+  bool _supportsAjaxTocFallback(String tocUrl, String html) {
+    return tocUrl.contains('guishuji.com') &&
+        _extractAjaxTocBookId(html)?.isNotEmpty == true;
+  }
+
+  Map<String, String> _buildRuleVariables(Book book) {
+    final variables = <String, String>{};
+    book.variableMap.forEach((key, value) {
+      variables[key] = value?.toString() ?? '';
+    });
+    return variables;
+  }
+
+  String _repairChapterUrlWithBookVariables(String url, Book? book) {
+    if (url.isEmpty || book == null) return url;
+
+    final bid = '${book.variableMap['bid'] ?? ''}'.trim();
+    if (bid.isEmpty) return url;
+
+    return url.replaceAllMapped(
+      RegExp(r'([?&]comic_id=)(?:null)?(?=&|$)'),
+      (match) => '${match.group(1)}$bid',
+    );
+  }
+
+  Future<List<Map<String, String?>>> _loadAjaxTocPages({
+    required String tocUrl,
+    required String firstPageHtml,
+    required BookSource source,
+    required Iterable<Map<String, String?>> seedChapters,
+  }) async {
+    if (!_supportsAjaxTocFallback(tocUrl, firstPageHtml)) {
+      return const [];
+    }
+
+    final bookId = _extractAjaxTocBookId(firstPageHtml);
+    if (bookId == null || bookId.isEmpty) {
+      return const [];
+    }
+
+    final ajaxUrl = NetworkService.joinUrl(
+      tocUrl,
+      '/e/extend/bookpage/pages.php?id=$bookId',
+    );
+    final existingIdentities =
+        seedChapters.map(_chapterIdentity).where((id) => id.isNotEmpty).toSet();
+    final collected = <Map<String, String?>>[];
+
+    int? totalPages;
+    int pageNum = 1;
+
+    while (pageNum < 100) {
+      try {
+        final response = await _networkService.post(
+          ajaxUrl,
+          data: {'pageNum': pageNum},
+          headers: {
+            ...NetworkService.parseHeaders(source.header),
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Referer': tocUrl,
+          },
+          retryCount: 1,
+        );
+        final responseText = await NetworkService.getResponseText(response);
+        if (responseText.isEmpty) {
+          break;
+        }
+
+        final data = jsonDecode(responseText);
+        if (data is! Map<String, dynamic>) {
+          break;
+        }
+
+        totalPages ??= int.tryParse('${data['totalPage'] ?? ''}');
+        final list = data['list'];
+        if (list is! List || list.isEmpty) {
+          break;
+        }
+
+        final pageChapters = <Map<String, String?>>[];
+        for (final item in list) {
+          if (item is! Map) continue;
+          final title = '${item['title'] ?? ''}'.trim();
+          final rawUrl = '${item['pic'] ?? ''}'.trim();
+          if (title.isEmpty || rawUrl.isEmpty) continue;
+
+          final chapter = <String, String?>{
+            'chapterName': title,
+            'chapterUrl': NetworkService.joinUrl(tocUrl, rawUrl),
+            'isVip': '0',
+            'isVolume': '0',
+            'updateTime': '',
+            'nextTocUrl': '',
+          };
+          final identity = _chapterIdentity(chapter);
+          if (identity.isEmpty || existingIdentities.contains(identity)) {
+            continue;
+          }
+          existingIdentities.add(identity);
+          pageChapters.add(chapter);
+        }
+
+        if (pageChapters.isEmpty) {
+          break;
+        }
+
+        collected.addAll(pageChapters);
+        pageNum++;
+
+        if (totalPages != null && pageNum >= totalPages) {
+          break;
+        }
+      } catch (_) {
+        break;
+      }
+    }
+
+    if (collected.isNotEmpty) {
+      AppLog.instance.put('目录AJAX分页补全成功: 新增 ${collected.length} 个章节');
+    }
+
+    return collected;
   }
 
   /// 从单个书源搜索书籍
@@ -361,32 +617,34 @@ class BookService extends BaseService {
       // 使用并发限流器（参考项目：ConcurrentRateLimiter）
       final updatedBook =
           await ConcurrentRateLimiter(source).withLimit(() async {
-        // 发送请求,确保禁用缓存
-        final headers = NetworkService.parseHeaders(source.header);
-        headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
-        headers['Pragma'] = 'no-cache';
-        headers['Expires'] = '0';
+        String html = '';
+        bool usedCachedInfoHtml = false;
 
-        // 记录到 AppLog
-        AppLog.instance
-            .put('getBookInfo: 请求URL=${book.bookUrl}, 请求头数量=${headers.length}');
+        if (book.infoHtml != null && book.infoHtml!.isNotEmpty) {
+          html = book.infoHtml!;
+          usedCachedInfoHtml = true;
+          AppLog.instance.put(
+            'getBookInfo: 使用列表页透传HTML，内容长度=${html.length}, URL=${book.bookUrl}',
+          );
+        } else {
+          html = await _fetchBookInfoHtml(book, source);
+        }
 
-        // 使用协议处理器发送请求
-        final html = await _request(
-          book.bookUrl,
-          source,
-          headers: headers,
-        );
-
-        // 记录到 AppLog
-        AppLog.instance
-            .put('getBookInfo: 内容长度=${html.length}, URL=${book.bookUrl}');
-
-        final bookInfo = await RuleParser.parseBookInfoRule(
+        var bookInfo = await RuleParser.parseBookInfoRule(
           html,
           source.ruleBookInfo,
-          baseUrl: book.bookUrl, // 使用书籍详情页的URL
+          baseUrl: book.bookUrl,
         );
+
+        if (usedCachedInfoHtml && !_hasMeaningfulBookInfo(bookInfo)) {
+          AppLog.instance.put('getBookInfo: 透传HTML未命中详情规则，回退网络请求');
+          html = await _fetchBookInfoHtml(book, source);
+          bookInfo = await RuleParser.parseBookInfoRule(
+            html,
+            source.ruleBookInfo,
+            baseUrl: book.bookUrl,
+          );
+        }
 
         // 更新书籍信息
         final newTocUrl = bookInfo['tocUrl'] != null
@@ -419,20 +677,28 @@ class BookService extends BaseService {
           }
         }
 
+        String? pickNonBlank(String? primary, String? fallback) {
+          if (primary != null && primary.trim().isNotEmpty) {
+            return primary;
+          }
+          return fallback;
+        }
+
         // 更新书籍信息
         return book.copyWith(
-          name: bookInfo['name'] ?? book.name,
-          author: bookInfo['author'] ?? book.author,
-          kind: bookInfo['kind'] ?? book.kind,
+          name: pickNonBlank(bookInfo['name'], book.name) ?? book.name,
+          author: pickNonBlank(bookInfo['author'], book.author) ?? book.author,
+          kind: pickNonBlank(bookInfo['kind'], book.kind),
           // coverUrl已经在parseRule中使用书籍详情页URL（book.bookUrl）作为baseUrl处理过了
           // 参考项目：封面URL使用当前页面URL作为baseUrl，parseRule已经处理
-          coverUrl: bookInfo['coverUrl'] ?? book.coverUrl,
-          intro: bookInfo['intro'] ?? book.intro,
-          wordCount: bookInfo['wordCount'] ?? book.wordCount,
+          coverUrl: pickNonBlank(bookInfo['coverUrl'], book.coverUrl),
+          intro: pickNonBlank(bookInfo['intro'], book.intro),
+          wordCount: pickNonBlank(bookInfo['wordCount'], book.wordCount),
           latestChapterTitle:
-              bookInfo['lastChapter'] ?? book.latestChapterTitle,
+              pickNonBlank(bookInfo['lastChapter'], book.latestChapterTitle),
           tocUrl: newTocUrl,
           variable: updatedVariable,
+          infoHtml: html,
           lastCheckTime: DateTime.now().millisecondsSinceEpoch,
         );
       });
@@ -468,8 +734,45 @@ class BookService extends BaseService {
     }
   }
 
+  Future<String> _fetchBookInfoHtml(Book book, BookSource source) async {
+    final headers = NetworkService.parseHeaders(source.header);
+    headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+    headers['Pragma'] = 'no-cache';
+    headers['Expires'] = '0';
+
+    AppLog.instance.put(
+      'getBookInfo: 请求URL=${book.bookUrl}, 请求头数量=${headers.length}',
+    );
+
+    final html = await _request(
+      book.bookUrl,
+      source,
+      headers: headers,
+    );
+
+    AppLog.instance.put(
+      'getBookInfo: 内容长度=${html.length}, URL=${book.bookUrl}',
+    );
+
+    return html;
+  }
+
+  bool _hasMeaningfulBookInfo(Map<String, String?> bookInfo) {
+    const keys = ['name', 'author', 'kind', 'wordCount', 'lastChapter', 'intro', 'coverUrl', 'tocUrl'];
+    for (final key in keys) {
+      final value = bookInfo[key];
+      if (value != null && value.trim().isNotEmpty) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// 获取章节列表（支持分页获取所有章节）
-  Future<List<BookChapter>> getChapterList(Book book) async {
+  Future<List<BookChapter>> getChapterList(
+    Book book, {
+    bool loadAllPages = true,
+  }) async {
     if (book.isLocal) {
       // 本地书籍从数据库读取章节
       return await _getLocalChapters(book.bookUrl);
@@ -481,6 +784,7 @@ class BookService extends BaseService {
     }
 
     try {
+      final chapterVariables = _buildRuleVariables(book);
       // 使用tocUrl或bookUrl
       final tocUrl = book.tocUrl.isNotEmpty ? book.tocUrl : book.bookUrl;
       AppLog.instance.put('开始获取章节列表: tocUrl=$tocUrl, bookUrl=${book.bookUrl}');
@@ -692,9 +996,10 @@ class BookService extends BaseService {
       }
 
       // 参考项目：第一次调用 analyzeChapterList，返回章节列表和下一页URL列表
-      final firstPageResult = RuleParser.parseTocRuleWithNextUrl(
+      final firstPageResult = await RuleParser.parseTocRuleWithNextUrl(
         html,
         effectiveTocRule,
+        variables: chapterVariables,
         baseUrl: effectiveBaseUrl,
         getNextUrl: true,
       );
@@ -713,9 +1018,28 @@ class BookService extends BaseService {
       // size == 0: 不处理分页
       // size == 1: 循环获取下一页
       // size > 1: 并发处理所有URL
-      if (nextUrlList.isEmpty) {
-        // 不处理分页
-      } else if (nextUrlList.length == 1) {
+      if (loadAllPages && nextUrlList.isEmpty) {
+        final ajaxChapters = await _loadAjaxTocPages(
+          tocUrl: tocUrl,
+          firstPageHtml: html,
+          source: source,
+          seedChapters: allChapterList,
+        );
+        if (ajaxChapters.isNotEmpty) {
+          allChapterList.addAll(ajaxChapters);
+        }
+
+        final implicitChapters = await _loadImplicitTocPages(
+          tocUrl: tocUrl,
+          source: source,
+          tocRule: effectiveTocRule!,
+          seedChapters: allChapterList,
+          variables: chapterVariables,
+        );
+        if (implicitChapters.isNotEmpty) {
+          allChapterList.addAll(implicitChapters);
+        }
+      } else if (loadAllPages && nextUrlList.length == 1) {
         // 参考项目：循环获取下一页，直到没有下一页或已访问过
         var currentUrl = nextUrlList[0];
         var visitedUrls = <String>{tocUrl, currentUrl};
@@ -738,9 +1062,10 @@ class BookService extends BaseService {
             }
 
             // 解析当前页的章节列表和下一页URL
-            final pageResult = RuleParser.parseTocRuleWithNextUrl(
+            final pageResult = await RuleParser.parseTocRuleWithNextUrl(
               pageHtml,
               effectiveTocRule,
+              variables: chapterVariables,
               baseUrl: currentUrl,
               getNextUrl: true,
             );
@@ -771,7 +1096,7 @@ class BookService extends BaseService {
             break;
           }
         }
-      } else {
+      } else if (loadAllPages) {
         // 参考项目：并发处理所有URL
         try {
           // 并发处理所有URL
@@ -798,9 +1123,10 @@ class BookService extends BaseService {
               final pageHtml = result['html'] as String;
               final pageUrl = result['url'] as String;
 
-              final pageResult = RuleParser.parseTocRuleWithNextUrl(
+              final pageResult = await RuleParser.parseTocRuleWithNextUrl(
                 pageHtml,
                 effectiveTocRule,
+                variables: chapterVariables,
                 baseUrl: pageUrl,
                 getNextUrl: false, // 并发处理时不需要获取下一页URL
               );
@@ -852,7 +1178,10 @@ class BookService extends BaseService {
         if (chapterUrl != null && chapterUrl.isNotEmpty) {
           // 参考项目：bookChapter.url = analyzeRule.getString(urlRule)
           // 拼接为绝对URL，但不做额外规范化处理
-          finalUrl = NetworkService.joinUrl(effectiveBaseUrl, chapterUrl);
+          finalUrl = _repairChapterUrlWithBookVariables(
+            NetworkService.joinUrl(effectiveBaseUrl, chapterUrl),
+            book,
+          );
         } else {
           // 参考项目：如果 URL 为空，根据是否是卷名来设置
           if (isVolume) {
@@ -882,6 +1211,14 @@ class BookService extends BaseService {
         chapters.add(chapter);
       }
 
+      final previewCount = chapters.length < 5 ? chapters.length : 5;
+      for (int i = 0; i < previewCount; i++) {
+        final chapter = chapters[i];
+        AppLog.instance.put(
+          '目录预览 ${i + 1}: title=${chapter.title}, url=${chapter.url}',
+        );
+      }
+
       // 参考项目：如果章节列表为空，抛出异常
       if (chapters.isEmpty) {
         throw TocEmptyException('章节列表为空');
@@ -900,6 +1237,24 @@ class BookService extends BaseService {
       if (chapters.length < originalCount) {
         AppLog.instance
             .put('章节去重: $originalCount -> ${chapters.length}（保留第一个发现的）');
+        final urlCounts = <String, int>{};
+        for (final chapter in chapters.length == originalCount
+            ? chapters
+            : chapterList.map((item) {
+                final title = item['chapterName'] ?? '';
+                final url = item['chapterUrl'] ?? '';
+                return BookChapter(url: url, title: title, bookUrl: book.bookUrl);
+              })) {
+          urlCounts[chapter.url] = (urlCounts[chapter.url] ?? 0) + 1;
+        }
+        final duplicates = urlCounts.entries
+            .where((entry) => entry.value > 1)
+            .take(5);
+        for (final entry in duplicates) {
+          AppLog.instance.put(
+            '重复章节URL: url=${entry.key}, count=${entry.value}',
+          );
+        }
       }
 
       // 参考项目：如果 !book.getReverseToc()，再次反转列表（参考项目第126-128行）
@@ -1018,7 +1373,10 @@ class BookService extends BaseService {
   }
 
   /// 获取章节列表但不保存到数据库（用于探索页面）
-  Future<List<BookChapter>> getChapterListWithoutSave(Book book) async {
+  Future<List<BookChapter>> getChapterListWithoutSave(
+    Book book, {
+    bool loadAllPages = true,
+  }) async {
     if (book.isLocal) {
       // 本地书籍从数据库读取章节
       return await _getLocalChapters(book.bookUrl);
@@ -1036,6 +1394,7 @@ class BookService extends BaseService {
     }
 
     try {
+      final chapterVariables = _buildRuleVariables(book);
       // 使用tocUrl或bookUrl
       final tocUrl = book.tocUrl.isNotEmpty ? book.tocUrl : book.bookUrl;
       AppLog.instance.put('开始获取章节列表: tocUrl=$tocUrl, bookUrl=${book.bookUrl}');
@@ -1226,222 +1585,214 @@ class BookService extends BaseService {
         }
       }
 
-      // 使用有效规则（原始规则或降级规则）进行分页获取
       var allChapterList = <Map<String, String?>>[];
-      var currentUrl = tocUrl;
-      var visitedUrls = <String>{currentUrl};
-      var pageCount = 0;
-      const maxPages = 100; // 防止无限循环
-
-      // 循环获取所有页面的目录（参考项目逻辑）
-      while (pageCount < maxPages && effectiveTocRule != null) {
-        pageCount++;
-        AppLog.instance.put('获取目录第 $pageCount 页: $currentUrl');
-
-        // 如果是第一页，使用已有的html；否则需要重新请求
-        String pageHtml;
-        if (pageCount == 1) {
-          pageHtml = html;
-        } else {
-          final pageResponse = await _networkService.get(
-            currentUrl,
-            headers: NetworkService.parseHeaders(source.header),
-            retryCount: 1,
-          );
-          pageHtml = await NetworkService.getResponseText(pageResponse);
-          if (pageHtml.isEmpty) {
-            AppLog.instance.put('第 $pageCount 页内容为空，停止获取');
-            break;
-          }
-        }
-
-        // 解析当前页的章节列表
-        var pageChapterList = RuleParser.parseTocRule(
-          pageHtml,
+      var pageCount = 1;
+      if (effectiveTocRule != null) {
+        final firstPageResult = await RuleParser.parseTocRuleWithNextUrl(
+          html,
           effectiveTocRule,
-          baseUrl: currentUrl,
+          variables: chapterVariables,
+          baseUrl: tocUrl,
+          getNextUrl: true,
         );
-
+        final firstPageChapterList =
+            firstPageResult['chapterList'] as List<Map<String, String?>>;
         AppLog.instance
-            .put('第 $pageCount 页解析结果: 找到 ${pageChapterList.length} 个章节');
-        allChapterList.addAll(pageChapterList);
+            .put('第 1 页解析结果: 找到 ${firstPageChapterList.length} 个章节');
+        allChapterList.addAll(firstPageChapterList);
+      }
 
-        // 查找下一页URL（从nextTocUrl规则或章节数据中获取）
-        // 参考项目：使用getStringList获取URL列表（isUrl=true）
-        // 如果返回多个URL，参考项目会并发处理；如果返回一个URL，就循环处理
-        String? nextUrl;
-        if (effectiveTocRule.nextTocUrl != null &&
-            effectiveTocRule.nextTocUrl!.isNotEmpty) {
-          // 使用nextTocUrl规则获取下一页链接列表
-          AppLog.instance
-              .put('尝试使用nextTocUrl规则获取下一页: ${effectiveTocRule.nextTocUrl}');
+      if (loadAllPages) {
+        var currentUrl = tocUrl;
+        var visitedUrls = <String>{currentUrl};
+        const maxPages = 100; // 防止无限循环
 
-          // 参考项目：使用getStringList获取URL列表，可能返回多个URL
-          List<String> nextUrlList;
-
-          // 检查规则是否包含属性选择器（@href, @src等）
-          if (effectiveTocRule.nextTocUrl!.contains('@')) {
-            // 规则包含属性选择器，直接使用parseListRule获取属性值
-            nextUrlList = RuleParser.parseListRule(
-              pageHtml,
-              effectiveTocRule.nextTocUrl!,
-              baseUrl: currentUrl,
-              returnHtml: false, // 获取属性值（URL）
+        while (pageCount < maxPages && effectiveTocRule != null) {
+          String pageHtml = html;
+          if (pageCount > 1) {
+            final pageResponse = await _networkService.get(
+              currentUrl,
+              headers: NetworkService.parseHeaders(source.header),
+              retryCount: 1,
             );
-          } else {
-            // 规则不包含属性选择器，需要先获取HTML，然后提取href
-            final linkHtmlList = RuleParser.parseListRule(
-              pageHtml,
-              effectiveTocRule.nextTocUrl!,
-              baseUrl: currentUrl,
-              returnHtml: true, // 获取HTML内容
-            );
-
-            // 从HTML中提取href属性
-            nextUrlList = [];
-            for (final linkHtml in linkHtmlList) {
-              final hrefPattern = RegExp(
-                'href\\s*=\\s*["\']([^"\']+)["\']',
-                caseSensitive: false,
-              );
-              final match = hrefPattern.firstMatch(linkHtml);
-              if (match != null) {
-                final href = match.group(1);
-                if (href != null && href.isNotEmpty) {
-                  nextUrlList.add(href);
-                }
-              }
-            }
-          }
-
-          // 过滤掉与当前URL相同的URL，并拼接完整URL
-          final filteredUrls = nextUrlList
-              .where((url) => url.isNotEmpty && url != currentUrl)
-              .map((url) => NetworkService.joinUrl(currentUrl, url))
-              .where((url) => url != currentUrl && !visitedUrls.contains(url))
-              .toList();
-
-          AppLog.instance
-              .put('nextTocUrl规则解析结果: 找到 ${filteredUrls.length} 个URL');
-          for (int i = 0; i < filteredUrls.length; i++) {
-            AppLog.instance.put('  下一页URL ${i + 1}: ${filteredUrls[i]}');
-          }
-
-          if (filteredUrls.isNotEmpty) {
-            // 参考项目：如果返回多个URL，会并发处理；如果返回一个URL，就循环处理
-            if (filteredUrls.length == 1) {
-              // 只有一个URL，直接使用
-              nextUrl = filteredUrls[0];
-              AppLog.instance.put('使用唯一的下页URL: $nextUrl');
-            } else {
-              // 多个URL，并发处理
-              AppLog.instance.put('找到 ${filteredUrls.length} 个下一页URL，开始并发处理');
-              try {
-                // 并发处理所有URL，收集所有章节
-                final futures = filteredUrls.map((url) async {
-                  try {
-                    AppLog.instance.put('并发处理URL: $url');
-                    final response = await _networkService.get(
-                      url,
-                      headers: NetworkService.parseHeaders(source.header),
-                      retryCount: 1,
-                    );
-                    final html = await NetworkService.getResponseText(response);
-                    return {'url': url, 'html': html, 'success': true};
-                  } catch (e) {
-                    AppLog.instance.put('并发处理URL失败: $url, 错误: $e');
-                    return {'url': url, 'html': '', 'success': false};
-                  }
-                }).toList();
-
-                final results = await Future.wait(futures);
-
-                // 合并所有成功的HTML内容
-                final allHtml = results
-                    .where((r) =>
-                        r['success'] == true &&
-                        (r['html'] as String).isNotEmpty)
-                    .map((r) => r['html'] as String)
-                    .join('\n');
-
-                if (allHtml.isNotEmpty) {
-                  // 使用合并后的HTML继续处理
-                  pageHtml = allHtml;
-                  AppLog.instance.put('并发处理完成，合并后的HTML长度: ${allHtml.length}');
-                  // 继续使用当前URL作为nextUrl，因为已经处理了所有URL
-                  nextUrl = null; // 设置为null，表示已经处理完所有URL
-                } else {
-                  // 所有URL都失败，使用第一个URL
-                  nextUrl = filteredUrls[0];
-                  AppLog.instance.put('所有并发URL处理失败，回退到第一个URL: $nextUrl');
-                }
-              } catch (e) {
-                AppLog.instance.put('并发处理异常: $e，回退到第一个URL');
-                nextUrl = filteredUrls[0];
-              }
-            }
-          } else {
-            AppLog.instance.put('nextTocUrl规则解析失败或所有URL都已访问过');
-          }
-        } else {
-          AppLog.instance.put('nextTocUrl规则为空，尝试从章节数据中获取');
-        }
-
-        // 如果没有从规则中获取到，尝试从章节数据中获取
-        if (nextUrl == null || nextUrl.isEmpty) {
-          AppLog.instance
-              .put('从章节数据中查找nextTocUrl，共 ${pageChapterList.length} 个章节');
-          for (int i = 0; i < pageChapterList.length; i++) {
-            final chapterData = pageChapterList[i];
-            final chapterNextUrl = chapterData['nextTocUrl'];
-            if (chapterNextUrl != null && chapterNextUrl.isNotEmpty) {
-              AppLog.instance
-                  .put('从章节 ${i + 1} 中找到nextTocUrl: $chapterNextUrl');
-              nextUrl = NetworkService.joinUrl(currentUrl, chapterNextUrl);
-              AppLog.instance.put('拼接后的下一页URL: $nextUrl');
+            pageHtml = await NetworkService.getResponseText(pageResponse);
+            if (pageHtml.isEmpty) {
+              AppLog.instance.put('第 $pageCount 页内容为空，停止获取');
               break;
             }
           }
-        }
 
-        // 如果仍然没有找到，尝试从HTML中自动查找"下一页"链接
-        if (nextUrl == null || nextUrl.isEmpty) {
-          AppLog.instance.put('尝试从HTML中自动查找"下一页"链接');
-          try {
-            final nextPagePattern = RegExp(
-              '<a[^>]*href=["\']([^"\']+)["\'][^>]*>.*?(?:下一页|下页|next|Next|NEXT)[^<]*</a>',
-              caseSensitive: false,
-              dotAll: true,
+          List<Map<String, String?>> pageChapterList;
+          if (pageCount == 1) {
+            pageChapterList = allChapterList;
+          } else {
+            final pageResult = await RuleParser.parseTocRuleWithNextUrl(
+              pageHtml,
+              effectiveTocRule,
+              variables: chapterVariables,
+              baseUrl: currentUrl,
+              getNextUrl: true,
             );
-            final match = nextPagePattern.firstMatch(pageHtml);
-            if (match != null) {
-              final href = match.group(1);
-              if (href != null && href.isNotEmpty) {
-                nextUrl = NetworkService.joinUrl(currentUrl, href);
-                AppLog.instance.put('从HTML中自动找到"下一页"链接: $nextUrl');
+            pageChapterList =
+                pageResult['chapterList'] as List<Map<String, String?>>;
+            AppLog.instance
+                .put('第 $pageCount 页解析结果: 找到 ${pageChapterList.length} 个章节');
+            allChapterList.addAll(pageChapterList);
+          }
+
+          String? nextUrl;
+          if (effectiveTocRule.nextTocUrl != null &&
+              effectiveTocRule.nextTocUrl!.isNotEmpty) {
+            AppLog.instance
+                .put('尝试使用nextTocUrl规则获取下一页: ${effectiveTocRule.nextTocUrl}');
+
+            List<String> nextUrlList;
+            if (effectiveTocRule.nextTocUrl!.contains('@')) {
+              nextUrlList = RuleParser.parseListRule(
+                pageHtml,
+                effectiveTocRule.nextTocUrl!,
+                variables: chapterVariables,
+                baseUrl: currentUrl,
+                returnHtml: false,
+              );
+            } else {
+              final linkHtmlList = RuleParser.parseListRule(
+                pageHtml,
+                effectiveTocRule.nextTocUrl!,
+                variables: chapterVariables,
+                baseUrl: currentUrl,
+                returnHtml: true,
+              );
+
+              nextUrlList = [];
+              for (final linkHtml in linkHtmlList) {
+                final hrefPattern = RegExp(
+                  'href\\s*=\\s*["\']([^"\']+)["\']',
+                  caseSensitive: false,
+                );
+                final match = hrefPattern.firstMatch(linkHtml);
+                if (match != null) {
+                  final href = match.group(1);
+                  if (href != null && href.isNotEmpty) {
+                    nextUrlList.add(href);
+                  }
+                }
               }
             }
-          } catch (e) {
-            AppLog.instance.put('自动查找"下一页"链接失败', error: e);
+
+            final filteredUrls = nextUrlList
+                .where((url) => url.isNotEmpty && url != currentUrl)
+                .map((url) => NetworkService.joinUrl(currentUrl, url))
+                .where((url) => url != currentUrl && !visitedUrls.contains(url))
+                .toList();
+
+            AppLog.instance
+                .put('nextTocUrl规则解析结果: 找到 ${filteredUrls.length} 个URL');
+
+            if (filteredUrls.isNotEmpty) {
+              if (filteredUrls.length == 1) {
+                nextUrl = filteredUrls[0];
+              } else {
+                try {
+                  final futures = filteredUrls.map((url) async {
+                    try {
+                      final response = await _networkService.get(
+                        url,
+                        headers: NetworkService.parseHeaders(source.header),
+                        retryCount: 1,
+                      );
+                      final html = await NetworkService.getResponseText(response);
+                      return {'url': url, 'html': html, 'success': true};
+                    } catch (e) {
+                      return {'url': url, 'html': '', 'success': false};
+                    }
+                  }).toList();
+
+                  final results = await Future.wait(futures);
+                  final allHtml = results
+                      .where((r) =>
+                          r['success'] == true &&
+                          (r['html'] as String).isNotEmpty)
+                      .map((r) => r['html'] as String)
+                      .join('\n');
+
+                  if (allHtml.isNotEmpty) {
+                    pageHtml = allHtml;
+                    nextUrl = null;
+                  } else {
+                    nextUrl = filteredUrls[0];
+                  }
+                } catch (e) {
+                  nextUrl = filteredUrls[0];
+                }
+              }
+            }
           }
+
+          if (nextUrl == null || nextUrl.isEmpty) {
+            for (int i = 0; i < pageChapterList.length; i++) {
+              final chapterData = pageChapterList[i];
+              final chapterNextUrl = chapterData['nextTocUrl'];
+              if (chapterNextUrl != null && chapterNextUrl.isNotEmpty) {
+                nextUrl = NetworkService.joinUrl(currentUrl, chapterNextUrl);
+                break;
+              }
+            }
+          }
+
+          if (nextUrl == null || nextUrl.isEmpty) {
+            try {
+              final nextPagePattern = RegExp(
+                '<a[^>]*href=["\']([^"\']+)["\'][^>]*>.*?(?:下一页|下页|next|Next|NEXT)[^<]*</a>',
+                caseSensitive: false,
+                dotAll: true,
+              );
+              final match = nextPagePattern.firstMatch(pageHtml);
+              if (match != null) {
+                final href = match.group(1);
+                if (href != null && href.isNotEmpty) {
+                  nextUrl = NetworkService.joinUrl(currentUrl, href);
+                }
+              }
+            } catch (e) {
+              AppLog.instance.put('自动查找"下一页"链接失败', error: e);
+            }
+          }
+
+          if (nextUrl == null ||
+              nextUrl.isEmpty ||
+              visitedUrls.contains(nextUrl)) {
+            break;
+          }
+
+          visitedUrls.add(nextUrl);
+          currentUrl = nextUrl;
+          pageCount++;
+          AppLog.instance.put('找到下一页URL: $nextUrl，继续获取第 $pageCount 页');
         }
 
-        // 如果没有找到下一页URL，或者已经访问过，停止循环
-        if (nextUrl == null ||
-            nextUrl.isEmpty ||
-            visitedUrls.contains(nextUrl)) {
-          if (nextUrl != null && visitedUrls.contains(nextUrl)) {
-            AppLog.instance.put('下一页URL已访问过，停止获取: $nextUrl');
-          } else if (nextUrl == null || nextUrl.isEmpty) {
-            AppLog.instance.put(
-                '没有找到下一页URL，停止获取。当前页: $pageCount, 已获取章节: ${allChapterList.length}');
+        if (pageCount == 1 && effectiveTocRule != null) {
+          final ajaxChapters = await _loadAjaxTocPages(
+            tocUrl: tocUrl,
+            firstPageHtml: html,
+            source: source,
+            seedChapters: allChapterList,
+          );
+          if (ajaxChapters.isNotEmpty) {
+            allChapterList.addAll(ajaxChapters);
           }
-          break;
-        }
 
-        visitedUrls.add(nextUrl);
-        currentUrl = nextUrl;
-        AppLog.instance.put('找到下一页URL: $nextUrl，继续获取第 ${pageCount + 1} 页');
+          final implicitChapters = await _loadImplicitTocPages(
+            tocUrl: tocUrl,
+            source: source,
+            tocRule: effectiveTocRule,
+            seedChapters: allChapterList,
+            variables: chapterVariables,
+          );
+          if (implicitChapters.isNotEmpty) {
+            allChapterList.addAll(implicitChapters);
+          }
+        }
       }
 
       AppLog.instance
@@ -1814,6 +2165,14 @@ class BookService extends BaseService {
         chapters.add(chapter);
       }
 
+      final previewCount = chapters.length < 5 ? chapters.length : 5;
+      for (int i = 0; i < previewCount; i++) {
+        final chapter = chapters[i];
+        AppLog.instance.put(
+          '目录预览 ${i + 1}: title=${chapter.title}, url=${chapter.url}',
+        );
+      }
+
       // 过滤最新章节：找到第一个包含数字编号的章节（如"1、"、"2、"等），这应该是真正的目录开始
       // 参考项目：只添加标题不为空的章节，不添加分页链接
       if (chapters.isNotEmpty) {
@@ -1834,7 +2193,6 @@ class BookService extends BaseService {
               (hasChapterKeyword && isNotLatestChapter && i >= 6)) {
             // 如果找到了数字编号模式，或者找到了包含"章"的标题且不是"最新"相关，且索引>=6（跳过前几个）
             startIndex = i;
-            AppLog.instance.put('找到真正的目录开始位置: 索引=$startIndex, 标题=$title');
             break;
           }
         }
@@ -1842,7 +2200,6 @@ class BookService extends BaseService {
         // 如果找到了真正的目录开始位置，移除前面的最新章节
         // 但至少要保留一个章节，避免全部删除
         if (startIndex > 0 && startIndex < chapters.length) {
-          AppLog.instance.put('移除前 $startIndex 个最新章节');
           chapters.removeRange(0, startIndex);
           // 重新设置索引
           for (int i = 0; i < chapters.length; i++) {
@@ -1856,7 +2213,6 @@ class BookService extends BaseService {
           final firstTitle =
               chapters[0].title.trim().replaceAll(RegExp(r'\s+'), '');
           if (firstTitle.isEmpty) {
-            AppLog.instance.put('移除第一条空标题章节: 原始标题="${chapters[0].title}"');
             chapters.removeAt(0);
             // 重新设置索引
             for (int i = 0; i < chapters.length; i++) {
@@ -1867,16 +2223,7 @@ class BookService extends BaseService {
               break;
             }
           } else {
-            AppLog.instance.put('第一条章节标题: "${chapters[0].title}"');
             break;
-          }
-        }
-
-        // 输出前几条章节的标题，用于调试
-        if (chapters.isNotEmpty) {
-          final previewCount = chapters.length > 5 ? 5 : chapters.length;
-          for (int i = 0; i < previewCount; i++) {
-            AppLog.instance.put('章节 ${i + 1}: "${chapters[i].title}"');
           }
         }
       }
@@ -1884,10 +2231,23 @@ class BookService extends BaseService {
       // 去重：保留第一个发现的章节
       // LinkedHashSet 保留第一次出现的元素
       final originalCount = chapters.length;
+      final originalChapters = List<BookChapter>.from(chapters);
       chapters = LinkedHashSet<BookChapter>.from(chapters).toList();
       if (chapters.length < originalCount) {
         AppLog.instance
             .put('章节去重: $originalCount -> ${chapters.length}（保留第一个发现的）');
+        final urlCounts = <String, int>{};
+        for (final chapter in originalChapters) {
+          urlCounts[chapter.url] = (urlCounts[chapter.url] ?? 0) + 1;
+        }
+        final duplicates = urlCounts.entries
+            .where((entry) => entry.value > 1)
+            .take(5);
+        for (final entry in duplicates) {
+          AppLog.instance.put(
+            '重复章节URL: url=${entry.key}, count=${entry.value}',
+          );
+        }
       }
 
       // 重新设置索引
@@ -2267,9 +2627,12 @@ class BookService extends BaseService {
     Book? book, // 新增：用于缓存保存
   }) async {
     try {
+      final contentVariables =
+          book != null ? _buildRuleVariables(book) : <String, String>{};
       // 参考项目：使用章节URL作为baseUrl，支持分页获取
       // 参考项目：BookContent.analyzeContent
       var currentUrl = chapter.url;
+      currentUrl = _repairChapterUrlWithBookVariables(currentUrl, book);
       var redirectUrl = currentUrl; // 重定向后的URL
       var visitedUrls = <String>{currentUrl};
       var contentList = <String>[];
@@ -2306,6 +2669,7 @@ class BookService extends BaseService {
       final pageContent = await RuleParser.parseContentRule(
         html,
         source.ruleContent,
+        variables: contentVariables,
         baseUrl: currentUrl, // 使用当前请求的URL作为baseUrl
         bookName: bookName,
         bookOrigin: bookOrigin,
@@ -2329,12 +2693,11 @@ class BookService extends BaseService {
             .put('获取章节内容下一页URL: 规则=${source.ruleContent!.nextContentUrl}');
 
         // 参考项目：使用parseListRule获取URL列表（isUrl=true）
-        final rawNextUrlList = RuleParser.parseListRule(
+        final rawNextUrlList = await RuleParser.parseUrlListRuleAsync(
           html,
           source.ruleContent!.nextContentUrl!,
-          variables: null,
+          variables: contentVariables,
           baseUrl: redirectUrl,
-          returnHtml: false,
         );
 
         // 将相对URL转换为绝对URL，并过滤
@@ -2496,7 +2859,6 @@ class BookService extends BaseService {
             '并发解析正文，总页数: ${filteredNextUrlList.length} (原始: ${nextUrlList.length})');
 
         final futures = filteredNextUrlList.asMap().entries.map((entry) async {
-          final index = entry.key;
           final url = entry.value;
           try {
             final response = await _networkService.get(
@@ -2612,12 +2974,7 @@ class BookService extends BaseService {
       }
 
       // 输出章节内容 前500 字符
-      final previewLength = content.length > 500 ? 500 : content.length;
       // 输出章节内容 后500 字符
-      if (content.length > 500) {
-        final tailLength = content.length > 500 ? 500 : content.length;
-      }
-
       // 参考项目：在返回内容前立即保存到缓存（BookHelp.saveText）
       // 这样可以避免 _loadingChapters 移除后、缓存写入前的竞态条件
       if (book != null && !book.isLocal) {

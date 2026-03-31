@@ -19,15 +19,18 @@ abstract class BaseReadAloudService extends BaseService {
   int _currentParagraphIndex = -1;
 
   /// 段落开始位置（用于段落内定位）
+  // ignore: unused_field
   int _paragraphStartPos = 0;
 
   /// 是否按页朗读
   bool _readAloudByPage = false;
 
   /// 当前章节
+  // ignore: unused_field
   String? _currentChapterUrl;
 
   /// 当前页面索引
+  // ignore: unused_field
   int _currentPageIndex = 0;
 
   /// 定时器（分钟）

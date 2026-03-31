@@ -17,7 +17,6 @@ import '../../../services/book/book_service.dart';
 import '../../../services/book/local_book_service.dart';
 import '../../widgets/book/book_card.dart';
 import '../../widgets/book/book_grid_card.dart';
-import '../../widgets/common/custom_tab_bar.dart';
 import '../reader/reader_page.dart';
 import '../search/search_page.dart';
 import 'book_info/book_info_page.dart';
@@ -31,6 +30,7 @@ import 'log_dialog.dart';
 import 'remote_book_dialog.dart';
 import 'widgets/bookshelf_empty_state.dart';
 import 'widgets/bookshelf_add_book_sheet.dart';
+import '../../widgets/home/home_shell.dart';
 
 /// 书架页面
 class BookshelfPage extends ConsumerStatefulWidget {
@@ -40,12 +40,7 @@ class BookshelfPage extends ConsumerStatefulWidget {
   ConsumerState<BookshelfPage> createState() => _BookshelfPageState();
 }
 
-class _BookshelfPageState extends ConsumerState<BookshelfPage>
-    with TickerProviderStateMixin {
-  final TextEditingController _searchController = TextEditingController();
-  bool _isSearching = false;
-  List<Book> _searchResults = [];
-  late TabController _tabController;
+class _BookshelfPageState extends ConsumerState<BookshelfPage> {
   int _selectedGroupIndex = 0;
 
   // 批量操作相关
@@ -58,9 +53,6 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
   @override
   void initState() {
     super.initState();
-    // 初始化为1，会在build中根据实际分组数量更新
-    _tabController = TabController(length: 1, vsync: this);
-    _tabController.addListener(_onTabChanged);
   }
 
   /// 滚动到顶部
@@ -74,98 +66,10 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
     }
   }
 
-  void _onTabChanged() {
-    if (_tabController.indexIsChanging && mounted) {
-      setState(() {
-        _selectedGroupIndex = _tabController.index;
-      });
-    }
-  }
-
   @override
   void dispose() {
-    _searchController.dispose();
-    _tabController.removeListener(_onTabChanged);
-    _tabController.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  /// 搜索书籍（书架内搜索）
-  Future<void> _searchBooks(String keyword) async {
-    if (keyword.isEmpty) {
-      if (mounted) {
-        setState(() {
-          _isSearching = false;
-          _searchResults = [];
-        });
-      }
-      return;
-    }
-
-    if (mounted) {
-      setState(() {
-        _isSearching = true;
-      });
-    }
-
-    try {
-      // 从当前分组获取所有书籍
-      final groupsAsync = ref.read(bookGroupsProvider);
-      final groups = groupsAsync.value ?? [];
-      if (groups.isEmpty) {
-        if (mounted) {
-          setState(() {
-            _isSearching = false;
-            _searchResults = [];
-          });
-        }
-        return;
-      }
-
-      // 确保 _selectedGroupIndex 在有效范围内
-      if (_selectedGroupIndex >= groups.length) {
-        _selectedGroupIndex = 0;
-      }
-
-      final currentGroup = groups[_selectedGroupIndex];
-      final allBooks =
-          await ref.read(booksByGroupProvider(currentGroup.groupId).future);
-
-      // 在书架内搜索（即使窗口失去焦点也继续）
-      final keywordLower = keyword.toLowerCase();
-      final results = allBooks.where((book) {
-        return book.name.toLowerCase().contains(keywordLower) ||
-            book.author.toLowerCase().contains(keywordLower) ||
-            (book.kind?.toLowerCase().contains(keywordLower) ?? false) ||
-            (book.customTag?.toLowerCase().contains(keywordLower) ?? false);
-      }).toList();
-
-      // 搜索完成后，尝试更新UI
-      try {
-        if (mounted) {
-          setState(() {
-            _searchResults = results;
-            _isSearching = false;
-          });
-        }
-      } catch (_) {
-        // 忽略setState错误（widget可能已dispose）
-      }
-    } catch (e) {
-      try {
-        if (mounted) {
-          setState(() {
-            _isSearching = false;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('搜索失败: $e')),
-          );
-        }
-      } catch (_) {
-        // 忽略错误
-      }
-    }
   }
 
   /// 打开书籍
@@ -178,24 +82,6 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
         ),
       ),
     );
-  }
-
-  /// 添加书籍到书架
-  Future<void> _addBookToShelf(Book book) async {
-    try {
-      await ref.read(bookOperationsProvider).addBook(book, ref);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('已添加到书架')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('添加失败: $e')),
-        );
-      }
-    }
   }
 
   /// 删除书籍
@@ -221,14 +107,14 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
     if (confirmed == true) {
       try {
         await ref.read(bookOperationsProvider).removeBook(book.bookUrl, ref);
-        
+
         // 刷新所有分组的书籍列表，确保界面更新
         final groupsAsync = ref.read(bookGroupsProvider);
         final groups = groupsAsync.value ?? [];
         for (final group in groups) {
           ref.invalidate(booksByGroupProvider(group.groupId));
         }
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('已删除')),
@@ -312,7 +198,6 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final groupsAsync = ref.watch(bookGroupsProvider);
     final settings = ref.watch(bookshelfSettingsProvider);
     final layoutType = settings.layoutType;
@@ -325,166 +210,50 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
     });
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          '我的书架',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
-        ),
-        elevation: 0,
-        centerTitle: false,
-        backgroundColor: theme.scaffoldBackgroundColor,
-        foregroundColor: theme.colorScheme.onSurface,
-        bottom: groupsAsync.when(
-          data: (groups) {
-            if (groups.isEmpty) return null;
-
-            // 更新TabController长度（必须在构建TabBar之前）
-            if (_tabController.length != groups.length) {
-              // 使用 WidgetsBinding 确保在下一帧更新
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (!mounted) return;
-
-                try {
-                  final oldIndex =
-                      _tabController.index.clamp(0, groups.length - 1);
-                  _tabController.removeListener(_onTabChanged);
-                  _tabController.dispose();
-
-                  // 再次检查 mounted 状态
-                  if (!mounted) return;
-
-                  _tabController = TabController(
-                    length: groups.length,
-                    vsync: this,
-                    initialIndex: oldIndex,
-                  );
-                  _tabController.addListener(_onTabChanged);
-                  if (mounted) {
-                    setState(() {
-                      _selectedGroupIndex = _tabController.index;
-                    });
-                  }
-                } catch (e) {
-                  // 如果创建失败，尝试使用默认值重新创建
-                  if (mounted) {
-                    try {
-                      if (_tabController.length != groups.length) {
-                        _tabController.removeListener(_onTabChanged);
-                        _tabController.dispose();
-                        _tabController = TabController(
-                          length: groups.length,
-                          vsync: this,
-                          initialIndex: 0,
-                        );
-                        _tabController.addListener(_onTabChanged);
-                        if (mounted) {
-                          setState(() {
-                            _selectedGroupIndex = 0;
-                          });
-                        }
-                      }
-                    } catch (e2) {
-                    }
-                  }
-                }
-              });
-            }
-
-            // 如果 TabController 长度不匹配，暂时返回 null，等待下一帧更新
-            if (_tabController.length != groups.length) {
-              return null;
-            }
-
-            return CustomTabBar(
-              controller: _tabController,
-              isScrollable: true,
-              labelColor: theme.colorScheme.primary,
-              unselectedLabelColor: theme.colorScheme.onSurface.withOpacity(0.6),
-              indicatorColor: theme.colorScheme.primary,
-              tabAlignment: TabAlignment.start,
-              labelStyle: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-              unselectedLabelStyle: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.normal,
-              ),
-              tabs: groups.map((group) => Tab(text: group.groupName)).toList(),
-            );
-          },
-          loading: () => null,
-          error: (_, __) => null,
-        ),
-        actions: [
-          // 搜索按钮
-          IconButton(
-            icon: const Icon(Icons.search_rounded),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const SearchPage(),
-                ),
-              );
-            },
-          ),
-          // 更多选项
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            position: PopupMenuPosition.under,
-            onSelected: (value) {
-              _handleMenuAction(value);
-            },
-            itemBuilder: (context) => [
-              _buildPopupMenuItem('update_toc', Icons.refresh_rounded, '更新目录'),
-              const PopupMenuDivider(),
-              _buildPopupMenuItem('add_local', Icons.add_box_outlined, '添加本地'),
-              _buildPopupMenuItem('add_remote', Icons.cloud_download_outlined, '远程书籍'),
-              _buildPopupMenuItem('add_url', Icons.link_rounded, '添加网址'),
-              const PopupMenuDivider(),
-              _buildPopupMenuItem('bookshelf_manage', Icons.manage_accounts_outlined, '书架管理'),
-              _buildPopupMenuItem('cache_export', Icons.storage_rounded, '缓存/导出'),
-              _buildPopupMenuItem('group', Icons.folder_open_rounded, '分组管理'),
-              _buildPopupMenuItem('layout', Icons.dashboard_customize_outlined, '书架布局'),
-              const PopupMenuDivider(),
-              _buildPopupMenuItem('export_booklist', Icons.upload_rounded, '导出书单'),
-              _buildPopupMenuItem('import_booklist', Icons.download_rounded, '导入书单'),
-              const PopupMenuDivider(),
-              _buildPopupMenuItem('log', Icons.history_edu_rounded, '更新日志'),
-            ],
-          ),
-          const SizedBox(width: 4),
-        ],
-      ),
-      body: groupsAsync.when(
-        data: (groups) {
-          if (groups.isEmpty) {
-            return const Center(child: Text('暂无分组'));
-          }
-
-          // 确保 _selectedGroupIndex 在有效范围内
-          if (_selectedGroupIndex >= groups.length) {
-            _selectedGroupIndex = 0;
-          }
-
-          final selectedGroup = groups[_selectedGroupIndex];
-          return _buildBodyWithGroup(context, selectedGroup, layoutType);
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
+      backgroundColor: Colors.transparent,
+      body: HomePageBackground(
+        glowColors: const [Color(0xFF4F7CFF), Color(0xFF7C5CFF)],
+        child: SafeArea(
+          bottom: false,
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
-              const SizedBox(height: 16),
-              Text('加载失败: $error'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  ref.invalidate(bookGroupsProvider);
-                },
-                child: const Text('重试'),
+              _buildBookshelfHeader(groupsAsync),
+              Expanded(
+                child: groupsAsync.when(
+                  data: (groups) {
+                    if (groups.isEmpty) {
+                      return const Center(child: Text('暂无分组'));
+                    }
+
+                    if (_selectedGroupIndex >= groups.length) {
+                      _selectedGroupIndex = 0;
+                    }
+
+                    final selectedGroup = groups[_selectedGroupIndex];
+                    return _buildBodyWithGroup(
+                        context, selectedGroup, layoutType);
+                  },
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (error, stack) => Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 48, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text('加载失败: $error'),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () {
+                            ref.invalidate(bookGroupsProvider);
+                          },
+                          child: const Text('重试'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -493,26 +262,26 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
       floatingActionButton: _isBatchMode
           ? FloatingActionButton.extended(
               onPressed: _selectedBookUrls.isEmpty ? null : _showBatchActions,
+              backgroundColor: HomePalette.accent,
+              foregroundColor: Colors.white,
               icon: const Icon(Icons.more_vert),
               label: Text('已选择 ${_selectedBookUrls.length}'),
             )
-          : null,
+          : FloatingActionButton(
+              onPressed: _showAddBookDialog,
+              backgroundColor: HomePalette.accent,
+              foregroundColor: Colors.white,
+              child: const Icon(Icons.add_rounded),
+            ),
     );
   }
 
   /// 构建带分组的书架内容
   Widget _buildBodyWithGroup(
       BuildContext context, BookGroup group, BookshelfLayoutType layoutType) {
-    // 如果正在搜索，显示搜索结果
-    if (_isSearching || _searchResults.isNotEmpty) {
-      return _buildSearchResults();
-    }
-
-    // 显示指定分组的书籍
-    final booksAsync = ref.watch(booksByGroupProvider(group.groupId));
     final settings = ref.watch(bookshelfSettingsProvider);
+    final booksAsync = ref.watch(booksByGroupProvider(group.groupId));
 
-    // 获取分组的实际排序方式
     final globalSortType = settings.sortType;
     final groupBookSort = group.getRealBookSort(_sortTypeToInt(globalSortType));
     final effectiveSortType = _intToSortType(groupBookSort);
@@ -547,7 +316,209 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
 
   /// 构建空状态
   Widget _buildEmptyState() {
-    return BookshelfEmptyState(onAddBook: _showAddBookDialog);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        child: HomeSectionCard(
+          margin: EdgeInsets.zero,
+          child: BookshelfEmptyState(
+            onSearchOnline: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const SearchPage(),
+                ),
+              );
+            },
+            onImportLocal: _importLocalBooks,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBookshelfHeader(AsyncValue<List<BookGroup>> groupsAsync) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+      decoration: BoxDecoration(
+        color: HomePalette.card(context).withValues(alpha: 0.96),
+        border: Border(
+          bottom: BorderSide(color: HomePalette.lineColor(context)),
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              _buildHeaderActionButton(
+                icon: _isBatchMode ? Icons.close_rounded : Icons.menu_rounded,
+                onTap: () {
+                  setState(() {
+                    _isBatchMode = !_isBatchMode;
+                    if (!_isBatchMode) {
+                      _selectedBookUrls.clear();
+                    }
+                  });
+                },
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '书架',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: HomePalette.primaryText(context),
+                  ),
+                ),
+              ),
+              _buildHeaderActionButton(
+                icon: Icons.search_rounded,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const SearchPage(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 10),
+              PopupMenuButton<String>(
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                position: PopupMenuPosition.under,
+                onSelected: _handleMenuAction,
+                itemBuilder: (context) => [
+                  _buildPopupMenuItem(
+                      'update_toc', Icons.refresh_rounded, '更新目录'),
+                  const PopupMenuDivider(),
+                  _buildPopupMenuItem(
+                      'add_local', Icons.add_box_outlined, '添加本地'),
+                  _buildPopupMenuItem(
+                      'add_remote', Icons.cloud_download_outlined, '远程书籍'),
+                  _buildPopupMenuItem('add_url', Icons.link_rounded, '添加网址'),
+                  const PopupMenuDivider(),
+                  _buildPopupMenuItem('bookshelf_manage',
+                      Icons.manage_accounts_outlined, '书架管理'),
+                  _buildPopupMenuItem(
+                      'cache_export', Icons.storage_rounded, '缓存/导出'),
+                  _buildPopupMenuItem(
+                      'group', Icons.folder_open_rounded, '分组管理'),
+                  _buildPopupMenuItem(
+                      'layout', Icons.dashboard_customize_outlined, '书架布局'),
+                  const PopupMenuDivider(),
+                  _buildPopupMenuItem(
+                      'export_booklist', Icons.upload_rounded, '导出书单'),
+                  _buildPopupMenuItem(
+                      'import_booklist', Icons.download_rounded, '导入书单'),
+                  const PopupMenuDivider(),
+                  _buildPopupMenuItem('log', Icons.history_edu_rounded, '更新日志'),
+                ],
+                child: IgnorePointer(
+                  child: _buildHeaderActionButton(
+                    icon: Icons.more_horiz_rounded,
+                    onTap: () {},
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          groupsAsync.when(
+            data: _buildGroupTabs,
+            loading: () => const SizedBox(height: 36),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderActionButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: HomePalette.mutedCard(context),
+            shape: BoxShape.circle,
+            border: Border.all(color: HomePalette.lineColor(context)),
+          ),
+          child: Icon(
+            icon,
+            size: 22,
+            color: HomePalette.primaryText(context),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGroupTabs(List<BookGroup> groups) {
+    if (groups.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    if (_selectedGroupIndex >= groups.length) {
+      _selectedGroupIndex = 0;
+    }
+
+    return SizedBox(
+      height: 32,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: groups.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final selected = index == _selectedGroupIndex;
+          final group = groups[index];
+
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(999),
+              onTap: () {
+                if (index == _selectedGroupIndex) return;
+                setState(() {
+                  _selectedGroupIndex = index;
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? HomePalette.accentSoft
+                      : HomePalette.mutedCard(context),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  group.groupName,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                    color: selected
+                        ? HomePalette.accentStrong
+                        : HomePalette.secondaryText(context),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   /// 构建书籍列表
@@ -720,9 +691,11 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
               padding: const EdgeInsets.all(16),
               margin: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
+                color: Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                border: Border.all(
+                  color: Colors.orange.withValues(alpha: 0.3),
+                ),
               ),
               child: Row(
                 children: [
@@ -954,7 +927,8 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
     return groupedGridView;
   }
 
-  PopupMenuItem<String> _buildPopupMenuItem(String value, IconData icon, String text) {
+  PopupMenuItem<String> _buildPopupMenuItem(
+      String value, IconData icon, String text) {
     return PopupMenuItem<String>(
       value: value,
       child: Row(
@@ -1016,6 +990,8 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
   /// 更新目录
   Future<void> _updateToc() async {
     try {
+      final messenger = ScaffoldMessenger.of(context);
+      final navigator = Navigator.of(context);
       final groupsAsync = ref.read(bookGroupsProvider);
       final groups = groupsAsync.value ?? [];
       if (groups.isEmpty) return;
@@ -1030,12 +1006,13 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
           await ref.read(booksByGroupProvider(currentGroup.groupId).future);
 
       if (books.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(content: Text('当前分组没有书籍')),
         );
         return;
       }
 
+      if (!mounted) return;
       // 显示进度对话框
       showDialog(
         context: context,
@@ -1061,7 +1038,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
       final results = await BookService.instance.updateChapterLists(books);
 
       if (!mounted) return;
-      Navigator.pop(context); // 关闭进度对话框
+      navigator.pop(); // 关闭进度对话框
 
       final successCount = results.values.where((v) => v == true).length;
       final failCount = results.length - successCount;
@@ -1071,14 +1048,12 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
       // 刷新更新数量Badge
       ref.read(bookUpdateCountProvider.notifier).refresh();
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('更新完成：成功 $successCount 本，失败 $failCount 本'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('更新完成：成功 $successCount 本，失败 $failCount 本'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
     } catch (e) {
       if (mounted) {
         Navigator.pop(context); // 关闭进度对话框
@@ -1151,6 +1126,8 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
                 ),
               );
 
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(context);
               try {
                 final groupsAsync = ref.read(bookGroupsProvider);
                 final groups = groupsAsync.value ?? [];
@@ -1163,28 +1140,25 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
                 );
 
                 if (!mounted) return;
-                Navigator.pop(context); // 关闭进度对话框
+                navigator.pop(); // 关闭进度对话框
 
                 // 刷新书架
                 ref.invalidate(refreshBookshelfProvider);
 
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(successCount > 0
-                          ? '成功添加 $successCount 本书籍'
-                          : '添加失败，请检查网址是否正确或书源是否匹配'),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                }
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(successCount > 0
+                        ? '成功添加 $successCount 本书籍'
+                        : '添加失败，请检查网址是否正确或书源是否匹配'),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
               } catch (e) {
-                if (mounted) {
-                  Navigator.pop(context); // 关闭进度对话框
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('添加失败: $e')),
-                  );
-                }
+                if (!mounted) return;
+                navigator.pop(); // 关闭进度对话框
+                messenger.showSnackBar(
+                  SnackBar(content: Text('添加失败: $e')),
+                );
               }
             },
             child: const Text('确定'),
@@ -1203,7 +1177,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
 
         // 获取书籍所在的分组ID
         final bookGroupId = book.group;
-        
+
         // 查找该分组是否存在
         final group = groups.firstWhere(
           (g) => g.groupId == bookGroupId,
@@ -1282,6 +1256,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
   /// 导出书单
   Future<void> _exportBooklist() async {
     try {
+      final messenger = ScaffoldMessenger.of(context);
       final groupsAsync = ref.read(bookGroupsProvider);
       final groups = groupsAsync.value ?? [];
       if (groups.isEmpty) return;
@@ -1296,7 +1271,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
           await ref.read(booksByGroupProvider(currentGroup.groupId).future);
 
       if (books.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(content: Text('当前分组没有书籍')),
         );
         return;
@@ -1313,6 +1288,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
 
       final jsonString = const JsonEncoder.withIndent('  ').convert(bookList);
 
+      if (!mounted) return;
       // 显示导出结果
       showDialog(
         context: context,
@@ -1328,7 +1304,9 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
             ),
             TextButton(
               onPressed: () async {
-                Navigator.pop(context);
+                final dialogNavigator = Navigator.of(context);
+                final messenger = ScaffoldMessenger.of(context);
+                dialogNavigator.pop();
                 try {
                   // 使用share_plus分享文件，让用户选择保存位置
                   final directory = await getApplicationDocumentsDirectory();
@@ -1336,21 +1314,21 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
                       '${directory.path}/bookshelf_${DateTime.now().millisecondsSinceEpoch}.json');
                   await file.writeAsString(jsonString);
 
-                  if (mounted) {
-                    await Share.shareXFiles(
-                      [XFile(file.path)],
+                  if (!mounted) return;
+                  await SharePlus.instance.share(
+                    ShareParams(
+                      files: [XFile(file.path)],
                       text: '导出书单',
-                    );
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('导出成功')),
-                    );
-                  }
+                    ),
+                  );
+                  messenger.showSnackBar(
+                    const SnackBar(content: Text('导出成功')),
+                  );
                 } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('保存失败: $e')),
-                    );
-                  }
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    SnackBar(content: Text('保存失败: $e')),
+                  );
                 }
               },
               child: const Text('保存'),
@@ -1390,6 +1368,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
               icon: const Icon(Icons.file_upload),
               label: const Text('选择文件'),
               onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
                 try {
                   final result = await FilePicker.platform.pickFiles(
                     type: FileType.custom,
@@ -1403,11 +1382,10 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
                     jsonController.text = content;
                   }
                 } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('选择文件失败: $e')),
-                    );
-                  }
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    SnackBar(content: Text('选择文件失败: $e')),
+                  );
                 }
               },
             ),
@@ -1420,15 +1398,17 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
           ),
           TextButton(
             onPressed: () async {
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(context);
               final jsonText = jsonController.text.trim();
               if (jsonText.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                messenger.showSnackBar(
                   const SnackBar(content: Text('请输入书单数据')),
                 );
                 return;
               }
 
-              Navigator.pop(context);
+              navigator.pop();
 
               // 显示进度对话框
               showDialog(
@@ -1463,26 +1443,23 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
                 );
 
                 if (!mounted) return;
-                Navigator.pop(context); // 关闭进度对话框
+                navigator.pop(); // 关闭进度对话框
 
                 // 刷新书架
                 ref.invalidate(refreshBookshelfProvider);
 
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('导入完成：成功添加 $successCount 本书籍'),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                }
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text('导入完成：成功添加 $successCount 本书籍'),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
               } catch (e) {
-                if (mounted) {
-                  Navigator.pop(context); // 关闭进度对话框
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('导入失败: $e')),
-                  );
-                }
+                if (!mounted) return;
+                navigator.pop(); // 关闭进度对话框
+                messenger.showSnackBar(
+                  SnackBar(content: Text('导入失败: $e')),
+                );
               }
             },
             child: const Text('确定'),
@@ -1666,7 +1643,9 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
               width: 24,
               height: 24,
               decoration: BoxDecoration(
-                color: isSelected ? Colors.blue : Colors.grey.withOpacity(0.5),
+                color: isSelected
+                    ? Colors.blue
+                    : Colors.grey.withValues(alpha: 0.5),
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
               ),
@@ -1998,93 +1977,5 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage>
         );
       }
     }
-  }
-
-  /// 构建搜索结果
-  Widget _buildSearchResults() {
-    final theme = Theme.of(context);
-    if (_searchResults.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.search_off_rounded, size: 64, color: theme.colorScheme.onSurface.withOpacity(0.3)),
-            const SizedBox(height: 16),
-            Text(
-              '没有找到相关书籍',
-              style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.5)),
-            ),
-            const SizedBox(height: 24),
-            TextButton(
-              onPressed: () {
-                _searchController.clear();
-                setState(() {
-                  _isSearching = false;
-                  _searchResults = [];
-                });
-              },
-              child: const Text('清除搜索'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      children: [
-        // 搜索栏
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: theme.scaffoldBackgroundColor,
-            border: Border(bottom: BorderSide(color: theme.dividerColor.withOpacity(0.1))),
-          ),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: '在当前分组中搜索...',
-              prefixIcon: const Icon(Icons.search_rounded),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.cancel_rounded),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() {
-                          _isSearching = false;
-                          _searchResults = [];
-                        });
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-            ),
-            onSubmitted: _searchBooks,
-          ),
-        ),
-        // 搜索结果列表
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-            itemCount: _searchResults.length,
-            itemBuilder: (context, index) {
-              final book = _searchResults[index];
-              return BookCard(
-                book: book,
-                isSearchResult: true,
-                highlightKeyword: _searchController.text,
-                onTap: () => _addBookToShelf(book),
-                onLongPress: () => _showBookMenu(book),
-              );
-            },
-          ),
-        ),
-      ],
-    );
   }
 }

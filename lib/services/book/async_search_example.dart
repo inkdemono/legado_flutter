@@ -8,7 +8,6 @@ import 'package:legado_flutter/services/book/async_search_service.dart';
 import 'package:legado_flutter/services/book/search_model.dart';
 import 'package:legado_flutter/services/source/book_source_service.dart';
 import 'package:legado_flutter/data/models/book.dart';
-import 'package:legado_flutter/data/models/book_source.dart';
 
 /// 示例1: 使用SearchModel(推荐方式)
 class AsyncSearchExampleWithModel extends StatefulWidget {
@@ -212,7 +211,7 @@ class _AsyncSearchExampleDirectState extends State<AsyncSearchExampleDirect> {
   final SearchResultDeduplicator _deduplicator = SearchResultDeduplicator();
   final TextEditingController _searchController = TextEditingController();
 
-  List<Book> _books = [];
+  final List<Book> _books = [];
   bool _isSearching = false;
   int _searchedCount = 0;
   int _totalCount = 0;

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../config/app_config.dart';
 import '../../widgets/base/base_bottom_sheet_stateful.dart';
-import '../../widgets/common/custom_switch.dart';
+import '../../widgets/td/td_widgets.dart';
 import 'auto_read_dialog.dart';
 import 'click_action_config_dialog.dart';
 import 'page_key_dialog.dart';
@@ -379,7 +379,7 @@ class _MoreSettingsDialogState extends BaseBottomSheetState<MoreSettingsDialog> 
         title,
         style: const TextStyle(color: Colors.white70, fontSize: 14),
       ),
-      trailing: CustomSwitch(
+      trailing: TDThemedSwitch(
         value: value,
         onChanged: onChanged,
       ),

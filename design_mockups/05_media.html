@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>媒体页面 - Legado Flutter UI设计稿</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #1677ff;
+            --bg-color: #f7f8fa;
+            --card-bg: #ffffff;
+            --text-primary: #1f2329;
+            --text-secondary: #4e5969;
+            --text-hint: #86909c;
+            --divider: #e5e6eb;
+        }
+
+        body {
+            background:
+                radial-gradient(circle at top, rgba(255, 122, 165, 0.12), transparent 28%),
+                linear-gradient(135deg, #101821 0%, #1c314c 58%, #0f172a 100%);
+        }
+
+        .phone-frame {
+            width: 375px;
+            height: 812px;
+            background: var(--bg-color);
+            border-radius: 40px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .status-bar {
+            height: 44px;
+            background: var(--card-bg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            padding-top: 10px;
+        }
+
+        .app-bar {
+            height: 56px;
+            background: var(--card-bg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+        }
+
+        .app-bar h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .app-bar-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            background: var(--bg-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .tab-bar {
+            background: var(--card-bg);
+            display: flex;
+            border-bottom: 1px solid var(--divider);
+        }
+
+        .tab-item {
+            flex: 1;
+            text-align: center;
+            padding: 12px 0;
+            font-size: 14px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            position: relative;
+        }
+
+        .tab-item.active {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .tab-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 48px;
+            height: 2px;
+            background: var(--primary-color);
+            border-radius: 1px;
+        }
+
+        .content-area {
+            height: calc(100% - 44px - 56px - 45px - 80px);
+            overflow-y: auto;
+            background: var(--bg-color);
+            padding: 16px;
+        }
+
+        /* Recently Played */
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        .recent-scroll {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            margin-bottom: 24px;
+            padding-bottom: 8px;
+        }
+
+        .recent-scroll::-webkit-scrollbar {
+            display: none;
+        }
+
+        .recent-item {
+            flex-shrink: 0;
+            text-align: center;
+        }
+
+        .recent-cover {
+            width: 70px;
+            height: 70px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 6px;
+        }
+
+        .recent-cover.music-1 { background: linear-gradient(135deg, #4f7cff 0%, #7c5cff 100%); }
+        .recent-cover.music-2 { background: linear-gradient(135deg, #fb7185 0%, #ff7aa5 100%); }
+        .recent-cover.music-3 { background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%); }
+        .recent-cover.music-4 { background: linear-gradient(135deg, #34d399 0%, #14b8a6 100%); }
+        .recent-cover.music-5 { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+
+        .recent-title {
+            font-size: 12px;
+            color: var(--text-primary);
+            max-width: 70px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Playlist */
+        .playlist-section {
+            margin-top: 8px;
+        }
+
+        .playlist-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--card-bg);
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .playlist-cover {
+            width: 56px;
+            height: 56px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .playlist-cover.pl-1 { background: linear-gradient(135deg, #FF6B6B 0%, #FFE66D 100%); }
+        .playlist-cover.pl-2 { background: linear-gradient(135deg, #4ECDC4 0%, #556270 100%); }
+        .playlist-cover.pl-3 { background: linear-gradient(135deg, #A770EF 0%, #CF8BF3 100%); }
+
+        .playlist-info {
+            flex: 1;
+        }
+
+        .playlist-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .playlist-count {
+            font-size: 12px;
+            color: var(--text-hint);
+        }
+
+        .playlist-arrow {
+            color: var(--text-hint);
+            font-size: 18px;
+        }
+
+        /* Song List */
+        .song-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--divider);
+        }
+
+        .song-item:last-child {
+            border-bottom: none;
+        }
+
+        .song-num {
+            width: 24px;
+            font-size: 14px;
+            color: var(--text-hint);
+            text-align: center;
+        }
+
+        .song-info {
+            flex: 1;
+        }
+
+        .song-title {
+            font-size: 14px;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .song-artist {
+            font-size: 12px;
+            color: var(--text-hint);
+        }
+
+        .song-more {
+            color: var(--text-hint);
+            font-size: 18px;
+        }
+
+        /* Now Playing Mini */
+        .now-playing {
+            position: absolute;
+            bottom: 80px;
+            left: 8px;
+            right: 8px;
+            height: 60px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            gap: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .now-playing-cover {
+            width: 44px;
+            height: 44px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #4f7cff 0%, #7c5cff 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .now-playing-info {
+            flex: 1;
+        }
+
+        .now-playing-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .now-playing-artist {
+            font-size: 12px;
+            color: var(--text-hint);
+        }
+
+        .now-playing-controls {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .control-btn {
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .control-btn.play {
+            font-size: 32px;
+        }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-around;
+            padding-top: 8px;
+            border-top: 1px solid var(--divider);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+
+        .nav-icon {
+            font-size: 24px;
+            color: var(--text-hint);
+        }
+
+        .nav-item.active .nav-icon {
+            color: var(--primary-color);
+        }
+
+        .nav-label {
+            font-size: 11px;
+            color: var(--text-hint);
+        }
+
+        .nav-item.active .nav-label {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        /* Dark Mode */
+        .phone-frame.dark {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-primary: #E0E0E0;
+            --text-secondary: #A0A0A0;
+            --text-hint: #4e5969;
+            --divider: #1f2329;
+        }
+
+        .phone-frame.dark .status-bar,
+        .phone-frame.dark .app-bar,
+        .phone-frame.dark .tab-bar {
+            background: var(--card-bg);
+        }
+
+        .phone-frame.dark .status-bar span {
+            color: #E0E0E0;
+        }
+
+        .phone-frame.dark .icon-btn {
+            background: #2A2A2A;
+        }
+
+        .phone-frame.dark .bottom-nav {
+            background: rgba(30,30,30,0.95);
+        }
+
+        .phone-frame.dark .now-playing {
+            background: #2A2A2A;
+        }
+
+        .phone-frame.dark .playlist-item {
+            background: var(--card-bg);
+        }
+
+        .label {
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>🎬 媒体页面 - Media</h1>
+            <p>Legado Flutter UI设计稿 | 音乐 & 视频播放</p>
+        </div>
+
+        <div class="phones-container">
+            <!-- Music Page -->
+            <div>
+                <div class="phone-frame">
+                    <div class="status-bar">
+                        <span>9:41</span>
+                        <span>📶 🔋</span>
+                    </div>
+
+                    <div class="app-bar">
+                        <h2>媒体库</h2>
+                        <div class="app-bar-actions">
+                            <div class="icon-btn">🔍</div>
+                            <div class="icon-btn">+</div>
+                        </div>
+                    </div>
+
+                    <div class="tab-bar">
+                        <div class="tab-item active">🎵 音乐</div>
+                        <div class="tab-item">🎬 视频</div>
+                        <div class="tab-item">🎧 有声书</div>
+                    </div>
+
+                    <div class="content-area">
+                        <div class="section-title">最近播放</div>
+                        <div class="recent-scroll">
+                            <div class="recent-item">
+                                <div class="recent-cover music-1">🎵</div>
+                                <div class="recent-title">夜曲</div>
+                            </div>
+                            <div class="recent-item">
+                                <div class="recent-cover music-2">🎵</div>
+                                <div class="recent-title">稻香</div>
+                            </div>
+                            <div class="recent-item">
+                                <div class="recent-cover music-3">🎵</div>
+                                <div class="recent-title">晴天</div>
+                            </div>
+                            <div class="recent-item">
+                                <div class="recent-cover music-4">🎵</div>
+                                <div class="recent-title">青花瓷</div>
+                            </div>
+                            <div class="recent-item">
+                                <div class="recent-cover music-5">🎵</div>
+                                <div class="recent-title">七里香</div>
+                            </div>
+                        </div>
+
+                        <div class="playlist-section">
+                            <div class="section-title">我的歌单</div>
+
+                            <div class="playlist-item">
+                                <div class="playlist-cover pl-1">❤️</div>
+                                <div class="playlist-info">
+                                    <div class="playlist-name">我喜欢的音乐</div>
+                                    <div class="playlist-count">128首</div>
+                                </div>
+                                <span class="playlist-arrow">›</span>
+                            </div>
+
+                            <div class="playlist-item">
+                                <div class="playlist-cover pl-2">🕐</div>
+                                <div class="playlist-info">
+                                    <div class="playlist-name">最近添加</div>
+                                    <div class="playlist-count">23首</div>
+                                </div>
+                                <span class="playlist-arrow">›</span>
+                            </div>
+
+                            <div class="playlist-item">
+                                <div class="playlist-cover pl-3">🌙</div>
+                                <div class="playlist-info">
+                                    <div class="playlist-name">睡前音乐</div>
+                                    <div class="playlist-count">45首</div>
+                                </div>
+                                <span class="playlist-arrow">›</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="now-playing">
+                        <div class="now-playing-cover">🎵</div>
+                        <div class="now-playing-info">
+                            <div class="now-playing-title">夜曲</div>
+                            <div class="now-playing-artist">周杰伦</div>
+                        </div>
+                        <div class="now-playing-controls">
+                            <span class="control-btn">⏮️</span>
+                            <span class="control-btn play">⏸️</span>
+                            <span class="control-btn">⏭️</span>
+                        </div>
+                    </div>
+
+                    <div class="bottom-nav">
+                        <div class="nav-item">
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">书架</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🔍</span>
+                            <span class="nav-label">发现</span>
+                        </div>
+                        <div class="nav-item active">
+                            <span class="nav-icon">🎬</span>
+                            <span class="nav-label">媒体</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">👤</span>
+                            <span class="nav-label">我的</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="label">音乐页面 - 日间模式</p>
+            </div>
+
+            <!-- Dark Mode - Playlist Detail -->
+            <div>
+                <div class="phone-frame dark">
+                    <div class="status-bar">
+                        <span>9:41</span>
+                        <span>📶 🔋</span>
+                    </div>
+
+                    <div class="app-bar">
+                        <span style="font-size: 20px; color: #E0E0E0;">←</span>
+                        <h2>我喜欢的音乐</h2>
+                        <div class="icon-btn">⋯</div>
+                    </div>
+
+                    <div style="background: var(--card-bg); padding: 20px 16px; text-align: center;">
+                        <div style="width: 120px; height: 120px; background: linear-gradient(135deg, #FF6B6B 0%, #FFE66D 100%); border-radius: 16px; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; font-size: 48px;">❤️</div>
+                        <div style="font-size: 18px; font-weight: 600; color: #E0E0E0; margin-bottom: 4px;">我喜欢的音乐</div>
+                        <div style="font-size: 13px; color: #666;">128首歌曲</div>
+                        <div style="display: flex; justify-content: center; gap: 16px; margin-top: 16px;">
+                            <button style="padding: 10px 32px; background: #1677ff; color: white; border: none; border-radius: 20px; font-size: 14px; font-weight: 500;">▶ 播放全部</button>
+                            <button style="padding: 10px 24px; background: #2A2A2A; color: #A0A0A0; border: none; border-radius: 20px; font-size: 14px;">🔀 随机</button>
+                        </div>
+                    </div>
+
+                    <div style="height: calc(100% - 44px - 56px - 160px - 80px); overflow-y: auto; background: var(--bg-color); padding: 16px;">
+                        <div class="song-item">
+                            <span class="song-num">1</span>
+                            <div class="song-info">
+                                <div class="song-title">夜曲</div>
+                                <div class="song-artist">周杰伦 · 十一月的萧邦</div>
+                            </div>
+                            <span class="song-more">⋯</span>
+                        </div>
+                        <div class="song-item">
+                            <span class="song-num">2</span>
+                            <div class="song-info">
+                                <div class="song-title">稻香</div>
+                                <div class="song-artist">周杰伦 · 魔杰座</div>
+                            </div>
+                            <span class="song-more">⋯</span>
+                        </div>
+                        <div class="song-item">
+                            <span class="song-num">3</span>
+                            <div class="song-info">
+                                <div class="song-title">晴天</div>
+                                <div class="song-artist">周杰伦 · 叶惠美</div>
+                            </div>
+                            <span class="song-more">⋯</span>
+                        </div>
+                        <div class="song-item">
+                            <span class="song-num">4</span>
+                            <div class="song-info">
+                                <div class="song-title">青花瓷</div>
+                                <div class="song-artist">周杰伦 · 我很忙</div>
+                            </div>
+                            <span class="song-more">⋯</span>
+                        </div>
+                        <div class="song-item">
+                            <span class="song-num">5</span>
+                            <div class="song-info">
+                                <div class="song-title">七里香</div>
+                                <div class="song-artist">周杰伦 · 七里香</div>
+                            </div>
+                            <span class="song-more">⋯</span>
+                        </div>
+                        <div class="song-item">
+                            <span class="song-num">6</span>
+                            <div class="song-info">
+                                <div class="song-title">告白气球</div>
+                                <div class="song-artist">周杰伦 · 周杰伦的床边故事</div>
+                            </div>
+                            <span class="song-more">⋯</span>
+                        </div>
+                    </div>
+
+                    <div class="now-playing">
+                        <div class="now-playing-cover">🎵</div>
+                        <div class="now-playing-info">
+                            <div class="now-playing-title">夜曲</div>
+                            <div class="now-playing-artist">周杰伦</div>
+                        </div>
+                        <div class="now-playing-controls">
+                            <span class="control-btn">⏮️</span>
+                            <span class="control-btn play">▶️</span>
+                            <span class="control-btn">⏭️</span>
+                        </div>
+                    </div>
+
+                    <div class="bottom-nav">
+                        <div class="nav-item">
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">书架</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🔍</span>
+                            <span class="nav-label">发现</span>
+                        </div>
+                        <div class="nav-item active">
+                            <span class="nav-icon">🎬</span>
+                            <span class="nav-label">媒体</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">👤</span>
+                            <span class="nav-label">我的</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="label">歌单详情 - 夜间模式</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,6 +1,7 @@
 #!/usr/bin/env dart
-/// 书源校验和生成工具
-/// 根据参考项目的校验规则校验书源，生成可用的书源文件
+// ignore_for_file: avoid_print
+// 书源校验和生成工具
+// 根据参考项目的校验规则校验书源，生成可用的书源文件
 
 import 'dart:convert';
 import 'dart:io';

@@ -150,37 +150,6 @@ class WebViewProtocolHandler {
     }
   }
 
-  /// 模拟WebView加载 (备用/测试用)
-  ///
-  /// 实际运行时优先使用 loadPage 中的真实实现
-  Future<String> _simulateWebViewLoad(
-    String url,
-    BookSource source,
-    String? jsCode,
-  ) async {
-    AppLog.instance.put('临时实现: 模拟WebView加载');
-
-    // 这里应该:
-    // 1. 创建WebView实例
-    // 2. 设置User-Agent和Headers
-    // 3. 加载URL
-    // 4. 等待页面加载完成
-    // 5. 执行JavaScript提取内容
-    // 6. 提取Cookie
-
-    return '''
-<!DOCTYPE html>
-<html>
-<head><title>WebView加载</title></head>
-<body>
-<p>此处应该是WebView加载的真实内容</p>
-<p>URL: $url</p>
-<p>需要集成 webview_flutter 包</p>
-</body>
-</html>
-''';
-  }
-
   /// 执行JavaScript代码
   ///
   /// 这里作为占位实现,实际执行由 loadPage 中的 controller 负责
@@ -204,21 +173,6 @@ class WebViewProtocolHandler {
       return text.substring(1, text.length - 1);
     }
     return text;
-  }
-
-  /// 提取Cookie
-  ///
-  /// [url] 目标URL
-  ///
-  /// 返回: Cookie键值对
-  Map<String, String> _extractCookies(String url) {
-    try {
-      // 从Cookie存储中获取
-      final domain = Uri.parse(url).host;
-      return _cookieStore[domain] ?? {};
-    } catch (e) {
-      return {};
-    }
   }
 
   /// 保存Cookie

@@ -1,15 +1,20 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../data/models/book_chapter.dart';
 
 /// 章节列表页面
 class ChapterListPage extends StatefulWidget {
   final List<BookChapter> chapters;
+  final ValueListenable<List<BookChapter>>? chaptersListenable;
+  final ValueListenable<bool>? loadingListenable;
   final int currentChapterIndex;
   final Function(int) onChapterSelected;
 
   const ChapterListPage({
     super.key,
     required this.chapters,
+    this.chaptersListenable,
+    this.loadingListenable,
     required this.currentChapterIndex,
     required this.onChapterSelected,
   });
@@ -27,11 +32,27 @@ class _ChapterListPageState extends State<ChapterListPage> {
   final Map<int, int> _indexMap = {}; // filteredIndex -> originalIndex
   bool _showUrl = false; // 是否显示章节URL
 
+  void _handleChapterListenableChanged() {
+    if (!mounted) return;
+    setState(() {
+      if (_searchController.text.trim().isEmpty) {
+        _filteredChapters = widget.chaptersListenable?.value ?? widget.chapters;
+      } else {
+        final lowerKeyword = _searchController.text.trim().toLowerCase();
+        _filteredChapters = (widget.chaptersListenable?.value ?? widget.chapters)
+            .where((chapter) => chapter.title.toLowerCase().contains(lowerKeyword))
+            .toList();
+      }
+      _rebuildIndexMap();
+    });
+  }
+
   @override
   void initState() {
     super.initState();
-    _filteredChapters = widget.chapters;
+    _filteredChapters = widget.chaptersListenable?.value ?? widget.chapters;
     _rebuildIndexMap();
+    widget.chaptersListenable?.addListener(_handleChapterListenableChanged);
     // 延迟滚动到当前章节
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToCurrentChapter();
@@ -41,10 +62,15 @@ class _ChapterListPageState extends State<ChapterListPage> {
   @override
   void didUpdateWidget(ChapterListPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.chaptersListenable != widget.chaptersListenable) {
+      oldWidget.chaptersListenable?.removeListener(_handleChapterListenableChanged);
+      widget.chaptersListenable?.addListener(_handleChapterListenableChanged);
+    }
     // 如果章节列表或当前章节索引发生变化，更新过滤列表和索引映射
     if (oldWidget.chapters != widget.chapters ||
+        oldWidget.chaptersListenable?.value != widget.chaptersListenable?.value ||
         oldWidget.currentChapterIndex != widget.currentChapterIndex) {
-      _filteredChapters = widget.chapters;
+      _filteredChapters = widget.chaptersListenable?.value ?? widget.chapters;
       _rebuildIndexMap();
       // 重新滚动到当前章节
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -72,6 +98,7 @@ class _ChapterListPageState extends State<ChapterListPage> {
 
   @override
   void dispose() {
+    widget.chaptersListenable?.removeListener(_handleChapterListenableChanged);
     _searchController.dispose();
     _jumpController.dispose();
     _scrollController.dispose();
@@ -103,9 +130,10 @@ class _ChapterListPageState extends State<ChapterListPage> {
 
   /// 搜索章节（性能优化：使用预编译的正则表达式）
   void _searchChapters(String keyword) {
+    final sourceChapters = widget.chaptersListenable?.value ?? widget.chapters;
     if (keyword.isEmpty) {
       setState(() {
-        _filteredChapters = widget.chapters;
+        _filteredChapters = sourceChapters;
         _rebuildIndexMap();
       });
       return;
@@ -114,7 +142,7 @@ class _ChapterListPageState extends State<ChapterListPage> {
     // 性能优化：预编译搜索关键词
     final lowerKeyword = keyword.toLowerCase();
     setState(() {
-      _filteredChapters = widget.chapters.where((chapter) {
+      _filteredChapters = sourceChapters.where((chapter) {
         return chapter.title.toLowerCase().contains(lowerKeyword);
       }).toList();
       _rebuildIndexMap();
@@ -209,7 +237,7 @@ class _ChapterListPageState extends State<ChapterListPage> {
             const Text('目录'),
             const Spacer(),
             Text(
-              '共 ${widget.chapters.length} 章',
+              '共 ${(widget.chaptersListenable?.value ?? widget.chapters).length} 章',
               style: TextStyle(
                 fontSize: 14,
                 color: secondaryTextColor,
@@ -228,6 +256,14 @@ class _ChapterListPageState extends State<ChapterListPage> {
       ),
       body: Column(
         children: [
+          if (widget.loadingListenable != null)
+            ValueListenableBuilder<bool>(
+              valueListenable: widget.loadingListenable!,
+              builder: (context, loading, child) {
+                if (!loading) return const SizedBox.shrink();
+                return const LinearProgressIndicator(minHeight: 2);
+              },
+            ),
           // 搜索框
           Container(
             padding: const EdgeInsets.all(16),

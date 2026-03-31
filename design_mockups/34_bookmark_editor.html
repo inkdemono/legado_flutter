@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>书签编辑 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #25160d, #131821 62%);
+        }
+        .phone-frame {
+            width: 375px; height: 812px; border-radius: 40px; overflow: hidden; position: relative;
+            background:
+                linear-gradient(180deg, rgba(0,0,0,0.34), rgba(0,0,0,0.54)),
+                linear-gradient(135deg, #f7e7d7, #e4d7c5);
+            box-shadow: 0 26px 60px rgba(0,0,0,0.34);
+        }
+        .sheet {
+            position: absolute; left: 10px; right: 10px; bottom: 10px; top: 90px;
+            background: rgba(255,255,255,0.94); backdrop-filter: blur(16px);
+            border-radius: 30px; padding: 14px 16px 18px; box-shadow: 0 24px 48px rgba(5,10,18,0.26);
+        }
+        .handle { width: 42px; height: 5px; border-radius: 999px; background: #d8cfc6; margin: 0 auto 14px; }
+        .title { font-size: 18px; font-weight: 800; color: #1f2329; text-align: center; }
+        .sub { margin-top: 6px; font-size: 13px; color: #86909c; text-align: center; }
+        .chapter {
+            margin-top: 18px; padding: 12px 14px; border-radius: 18px; background: #fff7ed; color: #9a3412;
+            font-size: 13px; line-height: 1.5;
+        }
+        .field { margin-top: 14px; }
+        .field-label { font-size: 13px; font-weight: 700; color: #1f2329; margin-bottom: 8px; }
+        .field-box {
+            padding: 14px; border-radius: 18px; background: #f7f8fa; border: 1px solid #edf0f4;
+            color: #4e5969; font-size: 14px; line-height: 1.6;
+        }
+        .field-box.large { min-height: 132px; }
+        .footer {
+            position: absolute; left: 16px; right: 16px; bottom: 18px; display: flex; gap: 10px;
+        }
+        .btn {
+            height: 50px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700;
+        }
+        .btn.danger { flex: 1; background: #fff2f0; color: #e34d59; border: 1px solid #ffd8d2; }
+        .btn.ghost { flex: 1; background: #fff; color: #4e5969; border: 1px solid #edf0f4; }
+        .btn.primary { flex: 1.2; background: linear-gradient(135deg, #ff9800, #f57c00); color: #fff; }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>书签编辑</h1>
+            <p>补充“我的”模块里书签详情编辑浮层，强调章节上下文、摘录文本和删除/保存的操作分层。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="sheet">
+                    <div class="handle"></div>
+                    <div class="title">三体</div>
+                    <div class="sub">书签编辑</div>
+                    <div class="chapter">第 89 章：不要回答。保留章节信息作为语义锚点，避免用户编辑时脱离上下文。</div>
+                    <div class="field">
+                        <div class="field-label">书签文本</div>
+                        <div class="field-box">“给岁月以文明，而不是给文明以岁月。”</div>
+                    </div>
+                    <div class="field">
+                        <div class="field-label">摘要</div>
+                        <div class="field-box large">这类底部弹层适合承载轻编辑任务：用户往往是在阅读流中顺手标记，再回到这里补一句自己的批注或摘录说明。</div>
+                    </div>
+                    <div class="footer">
+                        <div class="btn danger">删除</div>
+                        <div class="btn ghost">取消</div>
+                        <div class="btn primary">保存</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

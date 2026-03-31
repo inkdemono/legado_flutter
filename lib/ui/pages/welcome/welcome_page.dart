@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:ui' show PlatformDispatcher;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../config/app_config.dart';
@@ -19,12 +20,13 @@ class WelcomePage extends StatefulWidget {
 }
 
 class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
-  bool _isLoading = true;
   String? _imagePath;
   bool _showText = true;
   bool _showIcon = true;
   bool _hasNavigated = false; // 防止重复导航
   Timer? _startTimer; // 用于启动导航的计时器
+  bool _configLoaded = false;
+  bool _customWelcomeEnabled = false;
 
   @override
   void initState() {
@@ -32,8 +34,9 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
     // 添加生命周期观察者，确保应用在后台时也能正常启动
     WidgetsBinding.instance.addObserver(this);
     _loadWelcomeConfig();
-    // 使用 Timer 代替 Future.delayed，确保在后台时也能触发
-    _scheduleNavigation();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scheduleNavigation();
+    });
   }
 
   @override
@@ -57,12 +60,13 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
   }
 
   /// 调度导航
-  /// 使用 Timer 代替 Future.delayed，确保即使窗口不在前台也能触发
+  /// 自定义欢迎页时保留极短展示时间，默认情况下首帧后立即进入主页。
   void _scheduleNavigation() {
-    // 减少延迟时间，加快启动速度（从300ms减少到100ms）
-    // 使用 Timer 而不是 Future.delayed
-    // Timer 基于事件循环，不受 UI 线程暂停影响
-    _startTimer = Timer(const Duration(milliseconds: 100), () {
+    final delay = _customWelcomeEnabled
+        ? const Duration(milliseconds: 350)
+        : Duration.zero;
+
+    _startTimer = Timer(delay, () {
       if (mounted && !_hasNavigated) {
         _startMainActivity();
       }
@@ -73,10 +77,11 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
   void _loadWelcomeConfig() {
     final customWelcome =
         AppConfig.getBool(PreferKey.customWelcome, defaultValue: false);
+    _customWelcomeEnabled = customWelcome;
 
     if (customWelcome) {
       // 根据当前主题选择图片
-      final brightness = MediaQuery.of(context).platformBrightness;
+      final brightness = PlatformDispatcher.instance.platformBrightness;
       final isDark = brightness == Brightness.dark;
 
       if (isDark) {
@@ -90,9 +95,13 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
       }
     }
 
-    setState(() {
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _configLoaded = true;
+      });
+    } else {
+      _configLoaded = true;
+    }
   }
 
   /// 启动主Activity
@@ -154,7 +163,7 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
 
   /// 构建欢迎页内容
   Widget _buildWelcomeContent(bool isDark) {
-    if (_isLoading) {
+    if (!_configLoaded) {
       return const Center(child: CircularProgressIndicator());
     }
 

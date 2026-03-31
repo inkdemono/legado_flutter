@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>主题编辑 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #f3efe8;
+            --card: rgba(255,255,255,0.82);
+            --text: #2c241f;
+            --sub: #6f6258;
+            --line: rgba(129,109,93,0.12);
+            --primary: #7d5c43;
+            --accent: #c96d3a;
+        }
+        body {
+            background:
+                radial-gradient(circle at 20% 0%, rgba(222,185,146,0.28), transparent 24%),
+                radial-gradient(circle at 80% 10%, rgba(123,90,68,0.28), transparent 18%),
+                linear-gradient(135deg, #3f3028, #151515 65%);
+        }
+        .design-header p { font-size: 14px; color: rgba(255,255,255,0.66); }
+        .phone-frame {
+            width: 375px; height: 812px; border-radius: 40px; overflow: hidden; position: relative;
+            background: #efe8de; box-shadow: 0 26px 60px rgba(0,0,0,0.34);
+        }
+        .status-bar, .app-bar {
+            background: rgba(255,250,245,0.82); backdrop-filter: blur(20px);
+            display: flex; align-items: center;
+        }
+        .status-bar { height: 44px; justify-content: space-between; padding: 10px 24px 0; font-size: 14px; font-weight: 600; color: var(--text); }
+        .app-bar { height: 56px; padding: 0 12px; border-bottom: 1px solid var(--line); }
+        .back-btn, .save-btn {
+            width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 21px;
+            font-size: 18px; color: var(--text);
+        }
+        .save-btn { background: rgba(125,92,67,0.12); color: var(--primary); }
+        .app-bar-title { flex: 1; font-size: 18px; font-weight: 700; color: var(--text); }
+        .content-area {
+            height: calc(100% - 44px - 56px);
+            overflow-y: auto;
+            padding: 18px 16px 24px;
+            background:
+                radial-gradient(circle at top left, rgba(201,109,58,0.10), transparent 25%),
+                linear-gradient(180deg, #f7f1ea, #f0e6d8 200px, #efe8de);
+        }
+        .title-card {
+            padding: 20px;
+            border-radius: 24px;
+            background: linear-gradient(135deg, rgba(255,246,238,0.9), rgba(255,255,255,0.65));
+            border: 1px solid rgba(125,92,67,0.10);
+            box-shadow: 0 12px 30px rgba(69,49,35,0.08);
+            margin-bottom: 16px;
+        }
+        .title-card h2 { font-size: 22px; color: var(--text); margin-bottom: 8px; }
+        .title-card p { font-size: 13px; line-height: 1.55; color: var(--sub); }
+        .name-field {
+            margin-top: 16px; padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,0.72);
+            border: 1px solid var(--line); color: var(--text); font-size: 16px; font-weight: 600;
+        }
+        .section {
+            margin-bottom: 14px; padding: 16px; border-radius: 22px;
+            background: var(--card); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.45);
+            box-shadow: 0 10px 24px rgba(69,49,35,0.06);
+        }
+        .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .section-title { font-size: 16px; font-weight: 700; color: var(--text); }
+        .toggle {
+            display: inline-flex; padding: 4px; background: #eee4d7; border-radius: 999px; gap: 4px;
+        }
+        .toggle span {
+            min-width: 72px; padding: 8px 14px; border-radius: 999px; font-size: 12px; text-align: center; color: var(--sub);
+        }
+        .toggle .active { background: #fff; color: var(--primary); font-weight: 700; box-shadow: 0 2px 8px rgba(69,49,35,0.08); }
+        .swatch-list { display: grid; gap: 10px; }
+        .swatch-item {
+            display: flex; align-items: center; gap: 12px; padding: 12px;
+            background: rgba(255,255,255,0.72); border-radius: 18px; border: 1px solid var(--line);
+        }
+        .swatch-color {
+            width: 42px; height: 42px; border-radius: 14px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.45);
+        }
+        .swatch-info { flex: 1; }
+        .swatch-name { font-size: 14px; font-weight: 600; color: var(--text); }
+        .swatch-value { font-size: 12px; color: var(--sub); margin-top: 3px; }
+        .swatch-arrow { color: #9e8978; font-size: 18px; }
+        .preview-card {
+            border-radius: 24px; overflow: hidden; background: #f9f4eb; border: 1px solid rgba(125,92,67,0.14);
+        }
+        .preview-top {
+            padding: 18px 18px 14px;
+            background: linear-gradient(135deg, #7d5c43, #c96d3a);
+            color: #fff;
+        }
+        .preview-top-title { font-size: 16px; font-weight: 700; }
+        .preview-top-sub { font-size: 12px; color: rgba(255,255,255,0.78); margin-top: 4px; }
+        .preview-body { padding: 16px; }
+        .preview-shelf { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+        .preview-book {
+            aspect-ratio: 3 / 4; border-radius: 14px; background: linear-gradient(160deg, #b08054, #6b4a38);
+            box-shadow: 0 8px 14px rgba(125,92,67,0.16);
+        }
+        .preview-book:nth-child(2) { background: linear-gradient(160deg, #cf7f44, #924c2d); }
+        .preview-book:nth-child(3) { background: linear-gradient(160deg, #6a7a4f, #425c36); }
+        .preview-row { display: flex; align-items: center; gap: 10px; }
+        .preview-tag {
+            padding: 8px 12px; border-radius: 999px; background: #efe2d3; color: var(--primary); font-size: 12px; font-weight: 700;
+        }
+        .preview-button {
+            margin-left: auto; padding: 10px 16px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 13px; font-weight: 700;
+        }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>主题编辑</h1>
+            <p>补充“我的”模块中主题列表之后的编辑页，把命名、昼夜模式切换、关键色选择和即时预览集中到一页。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="status-bar"><span>9:41</span><span>5G 100%</span></div>
+                <div class="app-bar">
+                    <div class="back-btn">‹</div>
+                    <div class="app-bar-title">编辑主题</div>
+                    <div class="save-btn">✓</div>
+                </div>
+                <div class="content-area">
+                    <div class="title-card">
+                        <h2>焦糖纸页</h2>
+                        <p>视觉方向偏向阅读场景本身，减少设置页的“表单感”，让主题编辑更像在调一张真实阅读纸张。</p>
+                        <div class="name-field">主题名称：焦糖纸页</div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-header">
+                            <div class="section-title">主题模式</div>
+                            <div class="toggle">
+                                <span class="active">浅色</span>
+                                <span>深色</span>
+                            </div>
+                        </div>
+                        <div class="swatch-list">
+                            <div class="swatch-item">
+                                <div class="swatch-color" style="background:#7D5C43;"></div>
+                                <div class="swatch-info">
+                                    <div class="swatch-name">主色</div>
+                                    <div class="swatch-value">#7D5C43 书架标题、导航重点</div>
+                                </div>
+                                <div class="swatch-arrow">›</div>
+                            </div>
+                            <div class="swatch-item">
+                                <div class="swatch-color" style="background:#C96D3A;"></div>
+                                <div class="swatch-info">
+                                    <div class="swatch-name">强调色</div>
+                                    <div class="swatch-value">#C96D3A 高亮按钮、阅读进度</div>
+                                </div>
+                                <div class="swatch-arrow">›</div>
+                            </div>
+                            <div class="swatch-item">
+                                <div class="swatch-color" style="background:#F7F1EA;"></div>
+                                <div class="swatch-info">
+                                    <div class="swatch-name">背景色</div>
+                                    <div class="swatch-value">#F7F1EA 页面底色、阅读基底</div>
+                                </div>
+                                <div class="swatch-arrow">›</div>
+                            </div>
+                            <div class="swatch-item">
+                                <div class="swatch-color" style="background:#E9DDCF;"></div>
+                                <div class="swatch-info">
+                                    <div class="swatch-name">底栏背景</div>
+                                    <div class="swatch-value">#E9DDCF 底部工具栏和浮层</div>
+                                </div>
+                                <div class="swatch-arrow">›</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-header">
+                            <div class="section-title">即时预览</div>
+                            <div style="font-size:12px;color:#8f7a69;">Bookshelf + Reader</div>
+                        </div>
+                        <div class="preview-card">
+                            <div class="preview-top">
+                                <div class="preview-top-title">书架</div>
+                                <div class="preview-top-sub">主题预览会同步到顶部渐变、书卡阴影与按钮强调色</div>
+                            </div>
+                            <div class="preview-body">
+                                <div class="preview-shelf">
+                                    <div class="preview-book"></div>
+                                    <div class="preview-book"></div>
+                                    <div class="preview-book"></div>
+                                </div>
+                                <div class="preview-row">
+                                    <div class="preview-tag">纸张模式</div>
+                                    <div class="preview-tag">低饱和</div>
+                                    <div class="preview-button">应用主题</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

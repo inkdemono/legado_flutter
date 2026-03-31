@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSS阅读记录 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --text: #1f2329;
+            --sub: #4e5969;
+            --hint: #86909c;
+            --line: #e5e6eb;
+            --primary: #f97316;
+        }
+        body { background: linear-gradient(135deg, #18130d, #13202d 62%); }
+        .phone-frame {
+            background:
+                radial-gradient(circle at top, rgba(249,115,22,0.20), transparent 32%),
+                linear-gradient(180deg, #f6f0eb, #f8fafc);
+        }
+        .dialog {
+            position: absolute; left: 18px; right: 18px; top: 94px; bottom: 84px;
+            border-radius: 28px; overflow: hidden; background: rgba(255,255,255,0.95);
+            box-shadow: 0 24px 60px rgba(17,24,39,0.20); backdrop-filter: blur(18px);
+        }
+        .dialog-head {
+            height: 68px; padding: 0 14px 0 18px; display: flex; align-items: center;
+            background: linear-gradient(135deg, #fb923c, #ea580c); color: #fff;
+        }
+        .dialog-title { font-size: 18px; font-weight: 800; }
+        .dialog-meta { margin-top: 4px; font-size: 12px; opacity: 0.84; }
+        .head-actions { margin-left: auto; display: flex; gap: 8px; }
+        .head-btn {
+            width: 36px; height: 36px; border-radius: 18px; background: rgba(255,255,255,0.18);
+            display: flex; align-items: center; justify-content: center; font-size: 16px;
+        }
+        .list {
+            height: calc(100% - 68px); overflow-y: auto; padding: 14px;
+            background: linear-gradient(180deg, #ffffff, #f7f8fb);
+        }
+        .record {
+            display: flex; gap: 12px; padding: 14px; margin-bottom: 10px; border-radius: 20px;
+            background: #fff; border: 1px solid #f0f1f4;
+        }
+        .icon {
+            width: 42px; height: 42px; border-radius: 16px; flex-shrink: 0;
+            background: #fff0e8; color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 18px;
+        }
+        .record-info { flex: 1; min-width: 0; }
+        .record-title {
+            font-size: 14px; font-weight: 800; color: var(--text); line-height: 1.45;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .record-origin {
+            margin-top: 5px; font-size: 12px; color: var(--sub);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .record-time { margin-top: 6px; font-size: 12px; color: var(--hint); }
+        .empty {
+            height: 100%; display: none; flex-direction: column; align-items: center; justify-content: center; color: var(--hint);
+        }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>RSS阅读记录</h1>
+            <p>补充“发现”模块里的阅读记录弹窗，覆盖时间回溯列表、来源信息和清空记录的危险动作入口。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="dialog">
+                    <div class="dialog-head">
+                        <div>
+                            <div class="dialog-title">阅读记录</div>
+                            <div class="dialog-meta">共 28 条 · 最近阅读已自动同步</div>
+                        </div>
+                        <div class="head-actions">
+                            <div class="head-btn">🗑</div>
+                            <div class="head-btn">✕</div>
+                        </div>
+                    </div>
+                    <div class="list">
+                        <div class="record">
+                            <div class="icon">📰</div>
+                            <div class="record-info">
+                                <div class="record-title">把阅读器当作第二信息流后，我重新整理了移动端收藏体系</div>
+                                <div class="record-origin">https://sspai.com/post/...</div>
+                                <div class="record-time">刚刚</div>
+                            </div>
+                        </div>
+
+                        <div class="record">
+                            <div class="icon">✦</div>
+                            <div class="record-info">
+                                <div class="record-title">RSS 订阅清单怎样维护，才不会在半年后重新沦为信息垃圾站</div>
+                                <div class="record-origin">https://example.com/feed/article-208</div>
+                                <div class="record-time">14 分钟前</div>
+                            </div>
+                        </div>
+
+                        <div class="record">
+                            <div class="icon">⌘</div>
+                            <div class="record-info">
+                                <div class="record-title">阅读记录、收藏与刷新入口，是否应该在文章列表页同时存在</div>
+                                <div class="record-origin">https://news.example.org/article/92</div>
+                                <div class="record-time">3 小时前</div>
+                            </div>
+                        </div>
+
+                        <div class="record">
+                            <div class="icon">R</div>
+                            <div class="record-info">
+                                <div class="record-title">如何在移动端安排一条足够稳定的订阅工作流</div>
+                                <div class="record-origin">https://rss.design/reading/flow</div>
+                                <div class="record-time">2 天前</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

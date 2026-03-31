@@ -8,6 +8,7 @@ import '../data/models/book_source.dart';
 import '../data/models/book_source_rule.dart';
 import '../data/models/explore_kind.dart';
 import '../utils/app_log.dart';
+import '../utils/analyze_url.dart';
 import '../utils/parsers/rule_parser.dart';
 import '../utils/js_engine.dart';
 import '../utils/js_extensions.dart';
@@ -73,15 +74,10 @@ class ExploreService extends BaseService {
       final exploreUrl = bookSource.exploreUrl!;
       List<ExploreKind> kinds = [];
 
-      AppLog.instance.put(
-          '解析发现分类: ${bookSource.bookSourceName}, exploreUrl长度: ${exploreUrl.length}');
-
       // 参考项目：先检查是否是 HTTP URL，需要请求后解析
       // 如果 exploreUrl 是 HTTP URL，需要请求 HTML 并使用 exploreScreen 规则解析分类
       if (exploreUrl.startsWith('http://') || exploreUrl.startsWith('https://')) {
         try {
-          AppLog.instance.put('exploreUrl 是 HTTP URL，需要请求并解析: ${bookSource.bookSourceName}');
-          
           // 构建完整URL
           final fullUrl = NetworkService.joinUrl(bookSource.bookSourceUrl, exploreUrl);
           
@@ -112,8 +108,6 @@ class ExploreService extends BaseService {
           // 使用 exploreScreen 规则解析分类列表
           // 参考项目：exploreScreen 规则用于从 HTML 中解析分类链接
           if (bookSource.exploreScreen != null && bookSource.exploreScreen!.isNotEmpty) {
-            AppLog.instance.put('使用 exploreScreen 规则解析分类: ${bookSource.bookSourceName}, 规则=${bookSource.exploreScreen}');
-            
             // 使用 RuleParser 解析分类链接
             // exploreScreen 规则应该返回链接列表，格式通常是 "a@text&&a@href"
             // 或者直接是选择器，返回链接元素的文本和 href
@@ -180,8 +174,6 @@ class ExploreService extends BaseService {
                   }
                 }
               }
-              
-              AppLog.instance.put('使用 exploreScreen 规则解析分类成功: ${bookSource.bookSourceName}, 分类数: ${kinds.length}');
             } catch (e) {
               AppLog.instance.put('使用 exploreScreen 规则解析分类失败: ${bookSource.bookSourceName}', error: e);
               completer.complete([ExploreKind(
@@ -215,11 +207,9 @@ class ExploreService extends BaseService {
         // 先检查持久化缓存（参考项目：aCache.getAsString）
         final cachedResult = _prefs!.getString('explore_$exploreKindsKey');
         if (cachedResult != null && cachedResult.isNotEmpty) {
-          AppLog.instance.put('使用持久化缓存的JavaScript执行结果: ${bookSource.bookSourceName}');
           ruleStr = cachedResult;
         } else {
           // 执行 JavaScript（参考项目：runScriptWithContext）
-          AppLog.instance.put('执行JavaScript发现规则: ${bookSource.bookSourceName}');
           try {
             String jsStr;
             if (exploreUrl.startsWith('@js:')) {
@@ -247,7 +237,6 @@ class ExploreService extends BaseService {
             
             // 缓存执行结果（参考项目：aCache.put）
             await _prefs!.setString('explore_$exploreKindsKey', ruleStr);
-            AppLog.instance.put('JavaScript执行成功，结果长度: ${ruleStr.length}');
           } catch (e) {
             AppLog.instance.put('JavaScript执行失败: ${bookSource.bookSourceName}', error: e);
             completer.complete([ExploreKind(
@@ -278,8 +267,6 @@ class ExploreService extends BaseService {
             }
             return ExploreKind(title: item.toString());
           }).toList();
-          AppLog.instance.put(
-              '解析JSON格式发现分类成功: ${bookSource.bookSourceName}, 分类数: ${kinds.length}');
         } catch (e) {
           AppLog.instance
               .put('解析发现分类 JSON 失败: ${bookSource.bookSourceName}', error: e);
@@ -298,8 +285,6 @@ class ExploreService extends BaseService {
             url: parts.length > 1 ? parts[1].trim() : null,
           ));
         }
-        AppLog.instance.put(
-            '解析文本格式发现分类成功: ${bookSource.bookSourceName}, 分类数: ${kinds.length}');
       }
 
       // 缓存结果到内存（参考项目：exploreKindsMap）
@@ -345,62 +330,141 @@ class ExploreService extends BaseService {
     int page = 1,
   }) async {
     String fullUrl = exploreUrl;
+    String requestMethod = 'GET';
 
     try {
+      // 先URL解码，处理已经编码的URL（如 %3C -> <, %3E -> >）
+      // 这样可以正确处理存储时被编码的分页模式
+      if (fullUrl.contains('%3C') || fullUrl.contains('%3E')) {
+        fullUrl = Uri.decodeComponent(fullUrl);
+        AppLog.instance.put('exploreBooks: URL解码后: $fullUrl');
+      }
+
       // 先替换分页变量（在URL解析之前）
       // 支持 {{page}} 格式和 <1,2,3> 格式
       if (fullUrl.contains('{{page}}')) {
         fullUrl = fullUrl.replaceAll('{{page}}', page.toString());
       } else if (fullUrl.contains('<') && fullUrl.contains('>')) {
-        // 处理 <1,2,3> 格式的分页变量
-        final pagePattern = RegExp(r'<([^>]+)>');
+        // 处理 <1,2,3> 或 <,index_1.html> 格式的分页变量
+        // 参考项目：支持 <,index_{{page}}.html> 格式，其中空值表示第一页无后缀
+        final pagePattern = RegExp(r'<([^>]*)>');
         fullUrl = fullUrl.replaceAllMapped(pagePattern, (match) {
-          final pages = match.group(1)!.split(',');
-          if (page <= pages.length) {
-            return pages[page - 1].trim();
+          final content = match.group(1)!;
+          final pages = content.split(',');
+
+          // 参考项目逻辑：
+          // <,index_1.html> 表示：第一页用空字符串，后续页用 index_{{page-1}}.html
+          // <1,2,3> 表示：第一页用1，第二页用2，以此类推
+          // 如果第一个元素为空，说明第一页不需要后缀
+
+          String replacement;
+          if (pages.isNotEmpty && pages[0].isEmpty) {
+            // 第一个元素为空，表示第一页无后缀
+            if (page == 1) {
+              replacement = '';
+            } else {
+              // 后续页面：使用 {{page}} 变量替换
+              // 例如 index_1.html 中的 1 应该被替换为 page-1
+              // 或者直接使用 index_{{page}}.html 格式
+              String pageSuffix = pages.length > 1 ? pages[1] : pages.last;
+
+              // 处理 index_1.html 或 index_{{page}}.html 格式
+              if (pageSuffix.contains('{{page}}')) {
+                replacement = pageSuffix.replaceAll('{{page}}', page.toString());
+              } else if (pageSuffix.contains(RegExp(r'_\d+\.'))) {
+                // 如果包含 _1. 这样的数字，替换为实际页码
+                // 例如 index_1.html -> index_2.html
+                replacement = pageSuffix.replaceAllMapped(
+                  RegExp(r'_(\d+)\.'),
+                  (m) => '_$page.',
+                );
+              } else {
+                replacement = pageSuffix;
+              }
+            }
           } else {
-            return pages.last.trim();
+            // 常规格式：<1,2,3> 或 <index_1.html,index_2.html>
+            if (page <= pages.length) {
+              replacement = pages[page - 1].trim();
+            } else {
+              // 超出范围时使用最后一个，并尝试替换页码
+              String lastPage = pages.last.trim();
+              if (lastPage.contains('{{page}}')) {
+                replacement = lastPage.replaceAll('{{page}}', page.toString());
+              } else if (lastPage.contains(RegExp(r'_\d+\.'))) {
+                replacement = lastPage.replaceAllMapped(
+                  RegExp(r'_(\d+)\.'),
+                  (m) => '_$page.',
+                );
+              } else {
+                replacement = lastPage;
+              }
+            }
           }
+
+          AppLog.instance.put('分页变量替换: 模式=<$content>, 页码=$page, 结果=$replacement');
+          return replacement;
         });
       }
 
-      // 构建完整URL（处理相对路径）
-      // 使用 NetworkService.joinUrl 来保持与参考项目一致
-      // 即使URL是绝对的，也通过 joinUrl 来规范化（对于绝对URL，joinUrl 会直接返回）
-      fullUrl = NetworkService.joinUrl(bookSource.bookSourceUrl, fullUrl);
+      final sourceHeaders = _getHeaders(bookSource);
+      final analyzedUrl = await AnalyzeUrl.analyze(
+        fullUrl,
+        baseUrl: bookSource.bookSourceUrl,
+        page: page,
+        headerMap: sourceHeaders,
+      );
 
-      // 确保URL格式正确（移除末尾多余的斜杠，但保留路径中的斜杠）
-      // 注意：某些URL可能需要末尾斜杠，所以这里不做处理
+      fullUrl = analyzedUrl.url;
+      requestMethod = analyzedUrl.method;
+      final headers = <String, String>{
+        ...sourceHeaders,
+        ...analyzedUrl.headers,
+      };
+      final requestBody = analyzedUrl.body;
 
-      // 发送请求（确保使用正确的请求头）
-      final headers = _getHeaders(bookSource);
+      if (requestBody != null &&
+          requestBody.isNotEmpty &&
+          !headers.containsKey('Content-Type') &&
+          !headers.containsKey('content-type') &&
+          (requestBody.trimLeft().startsWith('{') ||
+              requestBody.trimLeft().startsWith('['))) {
+        headers['Content-Type'] = 'application/json';
+      }
+
       // 确保禁用缓存
       headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
       headers['Pragma'] = 'no-cache';
       headers['Expires'] = '0';
 
-      // 记录到 AppLog
-      AppLog.instance.put(
-          'exploreBooks: 请求URL=$fullUrl, 页码=$page, 请求头数量=${headers.length}');
-
-      final response = await NetworkService.instance.get(
-        fullUrl,
-        headers: headers,
-        retryCount: 1,
-        options: Options(
-          // 禁用缓存
-          extra: {'noCache': true},
-          // 确保返回原始字节，以便手动处理编码
-          responseType: ResponseType.bytes,
-        ),
+      final requestOptions = Options(
+        extra: {'noCache': true},
+        responseType: ResponseType.bytes,
       );
+      final retryCount = analyzedUrl.retry > 0 ? analyzedUrl.retry : 1;
+      AppLog.instance.put(
+        'exploreBooks: 请求URL=$fullUrl, 页码=$page, method=$requestMethod, 请求头数量=${headers.length}',
+      );
+      final response = requestMethod == 'POST'
+          ? await NetworkService.instance.post(
+              fullUrl,
+              data: requestBody,
+              headers: headers,
+              retryCount: retryCount,
+              options: requestOptions,
+            )
+          : await NetworkService.instance.get(
+              fullUrl,
+              headers: headers,
+              retryCount: retryCount,
+              options: requestOptions,
+            );
 
       final html = await NetworkService.getResponseText(response);
-      
-      // 记录到 AppLog
       AppLog.instance.put(
-          'exploreBooks: 响应状态码=${response.statusCode}, 内容长度=${html.length}, URL=$fullUrl');
-
+        'exploreBooks: 响应状态码=${response.statusCode}, 内容长度=${html.length}, URL=$fullUrl',
+      );
+      
       if (html.isEmpty) {
         return [];
       }
@@ -411,22 +475,17 @@ class ExploreService extends BaseService {
       if (ruleToUse == null ||
           ruleToUse.bookList == null ||
           ruleToUse.bookList!.isEmpty) {
-        AppLog.instance.put(
-            'exploreBooks: 发现规则为空或bookList为空, 尝试使用搜索规则 (书源: ${bookSource.bookSourceName})');
         // 如果发现规则为空或bookList为空，尝试使用搜索规则
         if (bookSource.ruleSearch != null &&
             bookSource.ruleSearch!.bookList != null) {
-          AppLog.instance.put(
-              'exploreBooks: 使用搜索规则解析发现书籍 (书源: ${bookSource.bookSourceName}, bookList=${bookSource.ruleSearch!.bookList})');
           // 使用搜索规则解析，但传入的是发现URL
           final results = await RuleParser.parseSearchRule(html, bookSource.ruleSearch!,
               baseUrl: fullUrl);
           AppLog.instance.put(
-              'exploreBooks: 使用搜索规则解析完成, 找到 ${results.length} 本书籍 (书源: ${bookSource.bookSourceName})');
+            'exploreBooks: 解析完成, 找到 ${results.length} 本书籍 (书源: ${bookSource.bookSourceName})',
+          );
           return results;
         } else {
-          AppLog.instance.put(
-              'exploreBooks: 搜索规则也为空, 返回空列表 (书源: ${bookSource.bookSourceName})');
           return [];
         }
       }
@@ -434,11 +493,13 @@ class ExploreService extends BaseService {
       // 使用 RuleParser 解析
       // 使用实际请求的URL作为baseUrl（参考项目中的做法）
       try {
-        AppLog.instance.put(
-            'exploreBooks: 使用发现规则解析书籍列表 (书源: ${bookSource.bookSourceName}, bookList=${ruleToUse.bookList}, HTML长度=${html.length})');
         final results = await _parseExploreBooks(html, ruleToUse, fullUrl);
+        for (final result in results) {
+          result['infoHtml'] = html;
+        }
         AppLog.instance.put(
-            'exploreBooks: 解析完成, 找到 ${results.length} 本书籍 (书源: ${bookSource.bookSourceName})');
+          'exploreBooks: 解析完成, 找到 ${results.length} 本书籍 (书源: ${bookSource.bookSourceName})',
+        );
         return results;
       } catch (e) {
         final errorMsg =

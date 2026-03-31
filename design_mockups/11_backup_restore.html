@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>备份恢复 - Legado Flutter UI设计稿</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #1677ff;
+            --bg-color: #f7f8fa;
+            --card-bg: #ffffff;
+            --text-primary: #1f2329;
+            --text-secondary: #4e5969;
+            --text-hint: #86909c;
+            --divider: #e5e6eb;
+        }
+
+        body {
+            background: #1a1a2e;
+        }
+
+        .phone-frame {
+            width: 375px;
+            height: 812px;
+            background: var(--bg-color);
+            border-radius: 40px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .status-bar {
+            height: 44px;
+            background: var(--card-bg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            padding-top: 10px;
+        }
+
+        /* App Bar */
+        .app-bar {
+            background: var(--card-bg);
+            padding: 0 8px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--divider);
+        }
+
+        .back-btn {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--text-primary);
+        }
+
+        .app-bar-title {
+            flex: 1;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .app-bar-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .action-btn {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: var(--text-primary);
+        }
+
+        /* Content */
+        .content-area {
+            height: calc(100% - 44px - 56px - 80px);
+            overflow-y: auto;
+            background: var(--bg-color);
+            padding: 16px;
+        }
+
+        /* Section Card */
+        .section-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            margin-bottom: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .section-header {
+            padding: 16px 16px 12px;
+            border-bottom: 1px solid var(--divider);
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title-icon {
+            font-size: 20px;
+        }
+
+        .section-content {
+            padding: 12px 16px;
+        }
+
+        /* Action Button */
+        .action-button {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: var(--bg-color);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .action-button:last-child {
+            margin-bottom: 0;
+        }
+
+        .action-button:active {
+            background: #e5e6eb;
+        }
+
+        .action-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: white;
+        }
+
+        .action-icon.blue { background: linear-gradient(135deg, #1677ff 0%, #0f62fe 100%); }
+        .action-icon.green { background: linear-gradient(135deg, #52C41A 0%, #389E0D 100%); }
+        .action-icon.orange { background: linear-gradient(135deg, #FA8C16 0%, #D46B08 100%); }
+        .action-icon.purple { background: linear-gradient(135deg, #722ED1 0%, #531DAB 100%); }
+
+        .action-info {
+            flex: 1;
+        }
+
+        .action-title {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .action-subtitle {
+            font-size: 12px;
+            color: var(--text-hint);
+        }
+
+        .action-arrow {
+            color: var(--text-hint);
+            font-size: 18px;
+        }
+
+        /* Backup List Item */
+        .backup-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--divider);
+        }
+
+        .backup-item:last-child {
+            border-bottom: none;
+        }
+
+        .backup-icon {
+            width: 36px;
+            height: 36px;
+            background: #E6F7FF;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin-right: 12px;
+        }
+
+        .backup-info {
+            flex: 1;
+        }
+
+        .backup-name {
+            font-size: 14px;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .backup-date {
+            font-size: 12px;
+            color: var(--text-hint);
+        }
+
+        .backup-action {
+            padding: 6px 12px;
+            background: #1677ff;
+            color: white;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-hint);
+        }
+
+        .empty-icon {
+            font-size: 40px;
+            margin-bottom: 8px;
+            opacity: 0.5;
+        }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-around;
+            padding-top: 8px;
+            border-top: 1px solid var(--divider);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .nav-icon {
+            font-size: 24px;
+            color: var(--text-hint);
+        }
+
+        .nav-item.active .nav-icon {
+            color: var(--primary-color);
+        }
+
+        .nav-label {
+            font-size: 11px;
+            color: var(--text-hint);
+        }
+
+        .nav-item.active .nav-label {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        /* Dark Mode */
+        .phone-frame.dark {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-primary: #E0E0E0;
+            --text-secondary: #A0A0A0;
+            --text-hint: #4e5969;
+            --divider: #1f2329;
+        }
+
+        .phone-frame.dark .app-bar,
+        .phone-frame.dark .status-bar {
+            background: var(--card-bg);
+        }
+
+        .phone-frame.dark .action-button {
+            background: #2A2A2A;
+        }
+
+        .phone-frame.dark .action-button:active {
+            background: #3A3A3A;
+        }
+
+        .phone-frame.dark .backup-icon {
+            background: #1A3A5C;
+        }
+
+        .phone-frame.dark .bottom-nav {
+            background: rgba(30,30,30,0.95);
+        }
+
+        .label {
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>💾 备份恢复 - Backup & Restore</h1>
+            <p>Legado Flutter UI设计稿 | 本地备份 & WebDAV云备份</p>
+        </div>
+
+        <div class="phones-container">
+            <!-- 备份恢复 - 日间模式 -->
+            <div>
+                <div class="phone-frame">
+                    <div class="status-bar">
+                        <span>9:41</span>
+                        <span>📶 🔋</span>
+                    </div>
+
+                    <div class="app-bar">
+                        <div class="back-btn">‹</div>
+                        <div class="app-bar-title">备份恢复</div>
+                        <div class="app-bar-actions">
+                            <div class="action-btn">⚙️</div>
+                        </div>
+                    </div>
+
+                    <div class="content-area">
+                        <!-- 备份操作 -->
+                        <div class="section-card">
+                            <div class="section-header">
+                                <div class="section-title">
+                                    <span class="section-title-icon">📤</span>
+                                    备份数据
+                                </div>
+                            </div>
+                            <div class="section-content">
+                                <div class="action-button">
+                                    <div class="action-icon blue">💾</div>
+                                    <div class="action-info">
+                                        <div class="action-title">备份到本地</div>
+                                        <div class="action-subtitle">保存备份文件到手机存储</div>
+                                    </div>
+                                    <span class="action-arrow">›</span>
+                                </div>
+                                <div class="action-button">
+                                    <div class="action-icon green">☁️</div>
+                                    <div class="action-info">
+                                        <div class="action-title">备份到WebDAV</div>
+                                        <div class="action-subtitle">上传备份到云存储</div>
+                                    </div>
+                                    <span class="action-arrow">›</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 恢复操作 -->
+                        <div class="section-card">
+                            <div class="section-header">
+                                <div class="section-title">
+                                    <span class="section-title-icon">📥</span>
+                                    恢复数据
+                                </div>
+                            </div>
+                            <div class="section-content">
+                                <div class="action-button">
+                                    <div class="action-icon orange">📁</div>
+                                    <div class="action-info">
+                                        <div class="action-title">从本地恢复</div>
+                                        <div class="action-subtitle">选择本地备份文件恢复</div>
+                                    </div>
+                                    <span class="action-arrow">›</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- WebDAV备份列表 -->
+                        <div class="section-card">
+                            <div class="section-header">
+                                <div class="section-title">
+                                    <span class="section-title-icon">☁️</span>
+                                    WebDAV备份
+                                    <span style="margin-left: auto; font-size: 14px; color: var(--text-hint);">🔄</span>
+                                </div>
+                            </div>
+                            <div class="section-content">
+                                <div class="backup-item">
+                                    <div class="backup-icon">📦</div>
+                                    <div class="backup-info">
+                                        <div class="backup-name">backup_2024-03-15.zip</div>
+                                        <div class="backup-date">2024-03-15 14:30</div>
+                                    </div>
+                                    <div class="backup-action">恢复</div>
+                                </div>
+                                <div class="backup-item">
+                                    <div class="backup-icon">📦</div>
+                                    <div class="backup-info">
+                                        <div class="backup-name">backup_2024-03-10.zip</div>
+                                        <div class="backup-date">2024-03-10 09:15</div>
+                                    </div>
+                                    <div class="backup-action">恢复</div>
+                                </div>
+                                <div class="backup-item">
+                                    <div class="backup-icon">📦</div>
+                                    <div class="backup-info">
+                                        <div class="backup-name">backup_2024-03-01.zip</div>
+                                        <div class="backup-date">2024-03-01 20:00</div>
+                                    </div>
+                                    <div class="backup-action">恢复</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bottom-nav">
+                        <div class="nav-item">
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">书架</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🔍</span>
+                            <span class="nav-label">发现</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🎬</span>
+                            <span class="nav-label">媒体</span>
+                        </div>
+                        <div class="nav-item active">
+                            <span class="nav-icon">👤</span>
+                            <span class="nav-label">我的</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="label">备份恢复页面（日间模式）</p>
+            </div>
+
+            <!-- 夜间模式 - 空状态 -->
+            <div>
+                <div class="phone-frame dark">
+                    <div class="status-bar">
+                        <span>9:41</span>
+                        <span>📶 🔋</span>
+                    </div>
+
+                    <div class="app-bar">
+                        <div class="back-btn">‹</div>
+                        <div class="app-bar-title">备份恢复</div>
+                        <div class="app-bar-actions">
+                            <div class="action-btn">⚙️</div>
+                        </div>
+                    </div>
+
+                    <div class="content-area">
+                        <!-- 备份操作 -->
+                        <div class="section-card">
+                            <div class="section-header">
+                                <div class="section-title">
+                                    <span class="section-title-icon">📤</span>
+                                    备份数据
+                                </div>
+                            </div>
+                            <div class="section-content">
+                                <div class="action-button">
+                                    <div class="action-icon blue">💾</div>
+                                    <div class="action-info">
+                                        <div class="action-title">备份到本地</div>
+                                        <div class="action-subtitle">保存备份文件到手机存储</div>
+                                    </div>
+                                    <span class="action-arrow">›</span>
+                                </div>
+                                <div class="action-button">
+                                    <div class="action-icon green">☁️</div>
+                                    <div class="action-info">
+                                        <div class="action-title">备份到WebDAV</div>
+                                        <div class="action-subtitle">上传备份到云存储</div>
+                                    </div>
+                                    <span class="action-arrow">›</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 恢复操作 -->
+                        <div class="section-card">
+                            <div class="section-header">
+                                <div class="section-title">
+                                    <span class="section-title-icon">📥</span>
+                                    恢复数据
+                                </div>
+                            </div>
+                            <div class="section-content">
+                                <div class="action-button">
+                                    <div class="action-icon orange">📁</div>
+                                    <div class="action-info">
+                                        <div class="action-title">从本地恢复</div>
+                                        <div class="action-subtitle">选择本地备份文件恢复</div>
+                                    </div>
+                                    <span class="action-arrow">›</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- WebDAV空状态 -->
+                        <div class="section-card">
+                            <div class="section-header">
+                                <div class="section-title">
+                                    <span class="section-title-icon">☁️</span>
+                                    WebDAV备份
+                                    <span style="margin-left: auto; font-size: 14px; color: var(--text-hint);">🔄</span>
+                                </div>
+                            </div>
+                            <div class="section-content">
+                                <div class="empty-state">
+                                    <div class="empty-icon">☁️</div>
+                                    <div>暂无备份</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bottom-nav">
+                        <div class="nav-item">
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">书架</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🔍</span>
+                            <span class="nav-label">发现</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🎬</span>
+                            <span class="nav-label">媒体</span>
+                        </div>
+                        <div class="nav-item active">
+                            <span class="nav-icon">👤</span>
+                            <span class="nav-label">我的</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="label">备份恢复页面（夜间模式 - 空状态）</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

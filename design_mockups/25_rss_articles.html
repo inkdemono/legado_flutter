@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSS文章列表 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #f6f7fb;
+            --card: #fff;
+            --text: #1f2329;
+            --sub: #4e5969;
+            --hint: #86909c;
+            --line: #e5e6eb;
+            --primary: #f97316;
+        }
+        body {
+            background: linear-gradient(135deg, #311606, #121923 65%);
+        }
+        .phone-frame {
+            width: 375px; height: 812px; border-radius: 40px; overflow: hidden; position: relative; background: var(--bg);
+            box-shadow: 0 26px 60px rgba(0,0,0,0.34);
+        }
+        .status-bar, .app-bar { background: rgba(255,255,255,0.95); display: flex; align-items: center; }
+        .status-bar { height: 44px; justify-content: space-between; padding: 10px 24px 0; font-size: 14px; font-weight: 600; }
+        .app-bar { height: 56px; border-bottom: 1px solid var(--line); padding: 0 12px; }
+        .icon-btn { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 20px; font-size: 18px; color: var(--text); }
+        .app-bar-title { flex: 1; font-size: 18px; font-weight: 700; color: var(--text); }
+        .filter-strip {
+            padding: 12px 16px; display: flex; gap: 8px; overflow-x: auto; background: #fff; border-bottom: 1px solid var(--line);
+        }
+        .filter-strip::-webkit-scrollbar { display: none; }
+        .filter-chip {
+            padding: 8px 12px; border-radius: 999px; background: #f2f3f5; font-size: 12px; color: var(--sub); white-space: nowrap;
+        }
+        .filter-chip.active { background: #fff1e8; color: var(--primary); font-weight: 700; }
+        .content-area {
+            height: calc(100% - 44px - 56px - 53px);
+            overflow-y: auto; padding: 12px 16px 18px;
+            background:
+                radial-gradient(circle at top right, rgba(249,115,22,0.08), transparent 26%),
+                linear-gradient(180deg, #fcfcfd, #f6f7fb 180px);
+        }
+        .article {
+            background: var(--card); border-radius: 20px; padding: 14px; margin-bottom: 10px;
+            box-shadow: 0 8px 20px rgba(15,23,32,0.05);
+        }
+        .article-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+        .article-source { display: flex; align-items: center; gap: 10px; }
+        .article-icon {
+            width: 38px; height: 38px; border-radius: 14px; background: linear-gradient(135deg, #fb923c, #ea580c);
+            color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px;
+        }
+        .article-col { min-width: 0; }
+        .article-channel { font-size: 13px; font-weight: 700; color: var(--text); }
+        .article-time { font-size: 12px; color: var(--hint); margin-top: 3px; }
+        .article-badge {
+            padding: 5px 9px; border-radius: 999px; background: #eef6ff; color: #165dff; font-size: 11px; font-weight: 700;
+        }
+        .article-title { font-size: 16px; font-weight: 700; color: var(--text); line-height: 1.45; }
+        .article-desc { margin-top: 8px; font-size: 13px; line-height: 1.55; color: var(--sub); }
+        .article-footer { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; }
+        .meta-group { display: flex; gap: 8px; flex-wrap: wrap; }
+        .meta {
+            padding: 4px 8px; border-radius: 999px; background: #f2f3f5; font-size: 11px; color: var(--hint);
+        }
+        .fav { color: #f59e0b; font-size: 16px; }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>RSS文章列表</h1>
+            <p>补充“发现”模块里的订阅阅读列表，强化源信息、阅读状态和快速刷新后的内容密度。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="status-bar"><span>9:41</span><span>5G 100%</span></div>
+                <div class="app-bar">
+                    <div class="icon-btn">‹</div>
+                    <div class="app-bar-title">少数派</div>
+                    <div class="icon-btn">↻</div>
+                </div>
+                <div class="filter-strip">
+                    <div class="filter-chip active">最新文章</div>
+                    <div class="filter-chip">未读优先</div>
+                    <div class="filter-chip">收藏</div>
+                    <div class="filter-chip">阅读记录</div>
+                </div>
+                <div class="content-area">
+                    <div class="article">
+                        <div class="article-top">
+                            <div class="article-source">
+                                <div class="article-icon">RSS</div>
+                                <div class="article-col">
+                                    <div class="article-channel">少数派精选</div>
+                                    <div class="article-time">10 分钟前</div>
+                                </div>
+                            </div>
+                            <div class="article-badge">未读</div>
+                        </div>
+                        <div class="article-title">把阅读器当作第二信息流后，我重新整理了移动端收藏体系</div>
+                        <div class="article-desc">列表卡片更像“杂志摘要”而不是单行新闻。对 RSS 而言，标题常常偏长，所以这里让标题占据更高权重。</div>
+                        <div class="article-footer">
+                            <div class="meta-group">
+                                <span class="meta">工作流</span>
+                                <span class="meta">8 分钟阅读</span>
+                            </div>
+                            <div class="fav">☆</div>
+                        </div>
+                    </div>
+
+                    <div class="article">
+                        <div class="article-top">
+                            <div class="article-source">
+                                <div class="article-icon">📰</div>
+                                <div class="article-col">
+                                    <div class="article-channel">少数派专题</div>
+                                    <div class="article-time">今天 08:25</div>
+                                </div>
+                            </div>
+                            <div class="article-badge" style="background:#f2f3f5;color:#86909c;">已读</div>
+                        </div>
+                        <div class="article-title">RSS 订阅清单怎样维护，才不会在半年后重新沦为“信息垃圾站”</div>
+                        <div class="article-desc">已读状态降低饱和度，但不改变排版结构，这样在同一列表中切换状态时不会引发视觉跳动。</div>
+                        <div class="article-footer">
+                            <div class="meta-group">
+                                <span class="meta">订阅</span>
+                                <span class="meta">深度长文</span>
+                            </div>
+                            <div class="fav">★</div>
+                        </div>
+                    </div>
+
+                    <div class="article">
+                        <div class="article-top">
+                            <div class="article-source">
+                                <div class="article-icon">✦</div>
+                                <div class="article-col">
+                                    <div class="article-channel">少数派快讯</div>
+                                    <div class="article-time">昨天 21:40</div>
+                                </div>
+                            </div>
+                            <div class="article-badge">未读</div>
+                        </div>
+                        <div class="article-title">阅读记录、收藏与刷新入口，是否应该在文章列表页同时存在</div>
+                        <div class="article-desc">这里把常用操作收敛到顶部栏与筛选条，避免每条文章出现过多二级按钮，降低扫读成本。</div>
+                        <div class="article-footer">
+                            <div class="meta-group">
+                                <span class="meta">产品讨论</span>
+                                <span class="meta">4 分钟阅读</span>
+                            </div>
+                            <div class="fav">☆</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

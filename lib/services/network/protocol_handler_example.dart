@@ -122,7 +122,7 @@ class WebViewProtocolExample {
     try {
       // WebView会自动处理验证码页面
       // 用户需要在WebView中手动完成验证码
-      final html = await ProtocolHandler.instance.request(
+      await ProtocolHandler.instance.request(
         url: 'https://captcha.example.com/search?q=武侠@webview',
         source: source,
       );
@@ -230,7 +230,7 @@ class BookServiceIntegrationExample {
       final searchUrl = source.searchUrl?.replaceAll('{{key}}', keyword) ?? '';
 
       // 使用协议处理器请求
-      final response = await ProtocolHandler.instance.request(
+      await ProtocolHandler.instance.request(
         url: searchUrl,
         source: source,
       );

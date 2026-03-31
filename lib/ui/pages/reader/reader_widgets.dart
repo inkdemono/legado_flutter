@@ -1,3 +1,5 @@
+// ignore_for_file: invalid_use_of_protected_member
+
 part of 'reader_page.dart';
 
 /// 抽离 UI 控件到此文件
@@ -186,9 +188,6 @@ extension ReaderWidgetsFix on _ReaderPageState {
   Widget _buildTextWidget({
     required String content,
     required TextStyle style,
-    String? searchKeyword,
-    int? searchPosition,
-    int? pageStartPosition,
   }) {
     return Text(
       content,

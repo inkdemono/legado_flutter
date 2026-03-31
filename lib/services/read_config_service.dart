@@ -406,7 +406,6 @@ class ReadConfigService extends BaseService {
           },
           operationName: '删除阅读配置',
           logError: true,
-        ) ??
-        false;
+        );
   }
 }

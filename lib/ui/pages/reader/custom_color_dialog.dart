@@ -9,7 +9,7 @@ import '../../../data/models/book.dart';
 import '../../../services/book/book_service.dart';
 import '../../../services/read_config_service.dart';
 import '../../../utils/app_log.dart';
-import '../../widgets/common/custom_switch.dart';
+import '../../widgets/td/td_widgets.dart';
 
 /// 自定义颜色和背景设置对话框
 class CustomColorDialog extends ConsumerStatefulWidget {
@@ -242,7 +242,7 @@ class _CustomColorDialogState extends ConsumerState<CustomColorDialog> {
               '深色状态栏图标',
               style: TextStyle(color: Colors.white, fontSize: 14),
             ),
-            CustomSwitch(
+            TDThemedSwitch(
               value: _config.darkStatusIcon,
               onChanged: (value) {
                 setState(() {
@@ -262,7 +262,7 @@ class _CustomColorDialogState extends ConsumerState<CustomColorDialog> {
               '文字下划线',
               style: TextStyle(color: Colors.white, fontSize: 14),
             ),
-            CustomSwitch(
+            TDThemedSwitch(
               value: _config.underline,
               onChanged: (value) {
                 setState(() {

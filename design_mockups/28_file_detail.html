@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件详情 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #0b1f34, #121826 62%);
+        }
+        .phone-frame {
+            width: 375px; height: 812px; border-radius: 40px; overflow: hidden; position: relative;
+            box-shadow: 0 26px 60px rgba(0,0,0,0.34);
+            background:
+                linear-gradient(180deg, rgba(5,10,18,0.30), rgba(5,10,18,0.48)),
+                linear-gradient(135deg, #1c3f66, #101828);
+        }
+        .status-bar {
+            height: 44px; padding: 10px 24px 0; display: flex; align-items: center; justify-content: space-between;
+            color: #fff; font-size: 14px; font-weight: 600;
+        }
+        .page-mask {
+            position: absolute; inset: 44px 0 0; padding: 18px;
+            background: linear-gradient(180deg, rgba(8,12,18,0.1), rgba(8,12,18,0.42));
+        }
+        .sheet {
+            position: absolute; left: 12px; right: 12px; bottom: 12px;
+            background: rgba(255,255,255,0.94); backdrop-filter: blur(18px);
+            border-radius: 30px; padding: 14px 16px 18px; box-shadow: 0 24px 48px rgba(5,10,18,0.32);
+        }
+        .handle {
+            width: 42px; height: 5px; border-radius: 999px; background: #d0d7e2; margin: 0 auto 16px;
+        }
+        .file-head { display: flex; gap: 14px; align-items: center; margin-bottom: 18px; }
+        .file-icon {
+            width: 58px; height: 58px; border-radius: 18px; background: linear-gradient(135deg, #1890ff, #69b1ff);
+            color: #fff; display: flex; align-items: center; justify-content: center; font-size: 28px; flex-shrink: 0;
+        }
+        .file-name { font-size: 17px; font-weight: 800; color: #1f2329; line-height: 1.35; }
+        .file-sub { font-size: 12px; color: #86909c; margin-top: 5px; }
+        .detail-grid { display: grid; gap: 10px; margin-bottom: 16px; }
+        .detail-item {
+            padding: 12px 14px; border-radius: 18px; background: #f7f9fc; border: 1px solid #edf0f4;
+        }
+        .detail-label { font-size: 11px; color: #86909c; text-transform: uppercase; letter-spacing: 0.04em; }
+        .detail-value { margin-top: 6px; font-size: 14px; color: #1f2329; line-height: 1.45; }
+        .action-list { display: grid; gap: 8px; }
+        .action-item {
+            display: flex; align-items: center; gap: 12px; padding: 14px;
+            border-radius: 18px; background: #fff; border: 1px solid #edf0f4;
+        }
+        .action-icon {
+            width: 38px; height: 38px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+            font-size: 18px; color: #fff;
+        }
+        .a1 { background: linear-gradient(135deg, #1677ff, #69b1ff); }
+        .a2 { background: linear-gradient(135deg, #2ba471, #57d9a3); }
+        .a3 { background: linear-gradient(135deg, #e34d59, #ff9b8f); }
+        .action-title { font-size: 14px; font-weight: 700; color: #1f2329; }
+        .action-desc { font-size: 12px; color: #86909c; margin-top: 4px; }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>文件详情</h1>
+            <p>补充“我的”模块里文件管理的详情/操作浮层，适合承载文件信息、导入书籍和删除等动作。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="status-bar"><span>9:41</span><span>5G 100%</span></div>
+                <div class="page-mask"></div>
+                <div class="sheet">
+                    <div class="handle"></div>
+                    <div class="file-head">
+                        <div class="file-icon">📘</div>
+                        <div>
+                            <div class="file-name">三体全集.epub</div>
+                            <div class="file-sub">书籍文件 · 支持直接导入</div>
+                        </div>
+                    </div>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <div class="detail-label">路径</div>
+                            <div class="detail-value">/Documents/books/scifi/三体全集.epub</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">修改时间</div>
+                            <div class="detail-value">2026-03-26 22:41</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">大小</div>
+                            <div class="detail-value">2.4 MB</div>
+                        </div>
+                    </div>
+                    <div class="action-list">
+                        <div class="action-item">
+                            <div class="action-icon a1">↗</div>
+                            <div>
+                                <div class="action-title">打开文件</div>
+                                <div class="action-desc">使用系统默认应用查看或预览内容</div>
+                            </div>
+                        </div>
+                        <div class="action-item">
+                            <div class="action-icon a2">📚</div>
+                            <div>
+                                <div class="action-title">导入为书籍</div>
+                                <div class="action-desc">进入书架并自动识别元数据</div>
+                            </div>
+                        </div>
+                        <div class="action-item">
+                            <div class="action-icon a3">🗑</div>
+                            <div>
+                                <div class="action-title">删除文件</div>
+                                <div class="action-desc">危险操作单独高亮，避免误触</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

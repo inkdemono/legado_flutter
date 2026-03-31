@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'models/page_range.dart';
 import 'paginator.dart';
 import 'reading_position_manager.dart';

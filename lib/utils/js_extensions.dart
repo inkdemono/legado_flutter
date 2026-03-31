@@ -1264,7 +1264,7 @@ class JSExtensions {
             data,
             options: Options(responseType: ResponseType.bytes),
           );
-          if (response.data != null && response.data is List<int>) {
+          if (response.data is List<int>) {
             font = Uint8List.fromList(response.data as List<int>);
           }
         } else {
@@ -1275,14 +1275,13 @@ class JSExtensions {
             // 可能是本地文件路径
             final filePath = await _getFile(data);
             final bytes = await FileUtils.readBytes(filePath);
-            if (bytes != null) {
-              font = Uint8List.fromList(bytes);
-            }
+            font = Uint8List.fromList(bytes);
           }
         }
 
-        if (font == null || font.isEmpty) return null;
-        qTTF = QueryTTF(font);
+        final resolvedFont = font;
+        if (resolvedFont == null || resolvedFont.isEmpty) return null;
+        qTTF = QueryTTF(resolvedFont);
       } else if (data is List<int>) {
         // ByteArray
         if (useCache) {
@@ -1304,7 +1303,7 @@ class JSExtensions {
       }
 
       // 缓存
-      if (key != null && qTTF != null) {
+      if (key != null) {
         _ttfCache[key] = qTTF;
       }
 

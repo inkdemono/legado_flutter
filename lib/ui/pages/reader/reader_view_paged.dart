@@ -1,3 +1,5 @@
+// ignore_for_file: invalid_use_of_protected_member
+
 part of 'reader_page.dart';
 
 /// 翻页模式相关视图

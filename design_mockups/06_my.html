@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的页面 - Legado Flutter UI设计稿</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #1677ff;
+            --bg-color: #f7f8fa;
+            --card-bg: #ffffff;
+            --text-primary: #1f2329;
+            --text-secondary: #4e5969;
+            --text-hint: #86909c;
+            --divider: #e5e6eb;
+        }
+
+        body {
+            background:
+                radial-gradient(circle at top, rgba(79, 124, 255, 0.14), transparent 28%),
+                linear-gradient(135deg, #101821 0%, #1c314c 58%, #0f172a 100%);
+        }
+
+        .phone-frame {
+            width: 375px;
+            height: 812px;
+            background: var(--bg-color);
+            border-radius: 40px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .status-bar {
+            height: 44px;
+            background: var(--card-bg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            padding-top: 10px;
+        }
+
+        .status-bar span {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* App Bar */
+        .app-bar {
+            height: 56px;
+            background: var(--card-bg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 8px;
+            border-bottom: 1px solid var(--divider);
+        }
+
+        .app-bar-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .app-bar-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-left: 12px;
+        }
+
+        .app-bar-action {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            cursor: pointer;
+            border-radius: 20px;
+            color: var(--text-primary);
+        }
+
+        .app-bar-action:hover {
+            background: var(--bg-color);
+        }
+
+        .content-area {
+            height: calc(100% - 44px - 56px - 80px);
+            overflow-y: auto;
+            background: var(--bg-color);
+        }
+
+        /* Profile Header */
+        .profile-header {
+            background: linear-gradient(135deg, #4f7cff 0%, #7c5cff 100%);
+            padding: 20px 16px 30px;
+            text-align: center;
+        }
+
+        .profile-avatar {
+            width: 70px;
+            height: 70px;
+            background: rgba(255,255,255,0.96);
+            border-radius: 50%;
+            margin: 0 auto 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            box-shadow: 0 12px 28px rgba(15, 23, 32, 0.12);
+        }
+
+        .profile-name {
+            font-size: 20px;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 4px;
+        }
+
+        .profile-version {
+            font-size: 13px;
+            color: rgba(255,255,255,0.7);
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: flex;
+            background: var(--card-bg);
+            margin: -20px 16px 0;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .stat-item {
+            flex: 1;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-hint);
+            margin-top: 2px;
+        }
+
+        .stat-divider {
+            width: 1px;
+            background: var(--divider);
+            margin: 0 8px;
+        }
+
+        /* Menu Sections */
+        .menu-section {
+            background: var(--card-bg);
+            margin: 16px;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .menu-section:first-of-type {
+            margin-top: 24px;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--divider);
+        }
+
+        .menu-item:last-child {
+            border-bottom: none;
+        }
+
+        .menu-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin-right: 12px;
+        }
+
+        .menu-icon.blue { background: #E6F4FF; }
+        .menu-icon.green { background: #E8F8E8; }
+        .menu-icon.orange { background: #FFF4E6; }
+        .menu-icon.purple { background: #F3E8FF; }
+        .menu-icon.red { background: #FFE6E6; }
+        .menu-icon.cyan { background: #E6FFFF; }
+        .menu-icon.yellow { background: #FFFDE6; }
+        .menu-icon.pink { background: #FFE6F0; }
+
+        .menu-content {
+            flex: 1;
+        }
+
+        .menu-title {
+            font-size: 15px;
+            color: var(--text-primary);
+        }
+
+        .menu-subtitle {
+            font-size: 12px;
+            color: var(--text-hint);
+            margin-top: 2px;
+        }
+
+        .menu-trailing {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .menu-badge {
+            background: #FF4D4F;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        .menu-value {
+            font-size: 13px;
+            color: var(--text-hint);
+        }
+
+        .menu-arrow {
+            color: var(--text-hint);
+            font-size: 16px;
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            width: 44px;
+            height: 24px;
+            background: #E0E0E0;
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .toggle-switch.active {
+            background: var(--primary-color);
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(20px);
+        }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-around;
+            padding-top: 8px;
+            border-top: 1px solid var(--divider);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+
+        .nav-icon {
+            font-size: 24px;
+            color: var(--text-hint);
+        }
+
+        .nav-item.active .nav-icon {
+            color: var(--primary-color);
+        }
+
+        .nav-label {
+            font-size: 11px;
+            color: var(--text-hint);
+        }
+
+        .nav-item.active .nav-label {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        /* Dark Mode */
+        .phone-frame.dark {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-primary: #E0E0E0;
+            --text-secondary: #A0A0A0;
+            --text-hint: #4e5969;
+            --divider: #1f2329;
+        }
+
+        .phone-frame.dark .status-bar,
+        .phone-frame.dark .app-bar {
+            background: var(--card-bg);
+        }
+
+        .phone-frame.dark .status-bar span,
+        .phone-frame.dark .app-bar-title,
+        .phone-frame.dark .app-bar-action {
+            color: #E0E0E0;
+        }
+
+        .phone-frame.dark .app-bar-action:hover {
+            background: #2A2A2A;
+        }
+
+        .phone-frame.dark .bottom-nav {
+            background: rgba(30,30,30,0.95);
+        }
+
+        .phone-frame.dark .stats-bar {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .phone-frame.dark .menu-icon.blue { background: #1A3A5C; }
+        .phone-frame.dark .menu-icon.green { background: #1A3C1A; }
+        .phone-frame.dark .menu-icon.orange { background: #3C2A1A; }
+        .phone-frame.dark .menu-icon.purple { background: #2A1A3C; }
+        .phone-frame.dark .menu-icon.red { background: #3C1A1A; }
+        .phone-frame.dark .menu-icon.cyan { background: #1A3C3C; }
+        .phone-frame.dark .menu-icon.yellow { background: #3C3C1A; }
+        .phone-frame.dark .menu-icon.pink { background: #3C1A2A; }
+
+        .phone-frame.dark .toggle-switch {
+            background: #444;
+        }
+
+        .phone-frame.dark .toggle-switch.active {
+            background: var(--primary-color);
+        }
+
+        .label {
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>👤 我的页面 - Profile</h1>
+            <p>Legado Flutter UI设计稿 | 日间模式 & 夜间模式</p>
+        </div>
+
+        <div class="phones-container">
+            <!-- Light Mode -->
+            <div>
+                <div class="phone-frame">
+                    <div class="status-bar">
+                        <span>9:41</span>
+                        <span>📶 🔋</span>
+                    </div>
+
+                    <div class="content-area">
+                        <div class="profile-header">
+                            <div class="profile-avatar">📚</div>
+                            <div class="profile-name">Legado 阅读</div>
+                            <div class="profile-version">v2.2.0 Flutter</div>
+                        </div>
+
+                        <div class="stats-bar">
+                            <div class="stat-item">
+                                <div class="stat-value">23</div>
+                                <div class="stat-label">书籍</div>
+                            </div>
+                            <div class="stat-divider"></div>
+                            <div class="stat-item">
+                                <div class="stat-value">156</div>
+                                <div class="stat-label">小时</div>
+                            </div>
+                            <div class="stat-divider"></div>
+                            <div class="stat-item">
+                                <div class="stat-value">8</div>
+                                <div class="stat-label">书源</div>
+                            </div>
+                        </div>
+
+                        <div class="menu-section">
+                            <div class="menu-item">
+                                <div class="menu-icon blue">📖</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">书源管理</div>
+                                    <div class="menu-subtitle">管理书源</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon green">📝</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">TXT目录规则</div>
+                                    <div class="menu-subtitle">配置TXT目录规则</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon orange">🔄</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">替换规则</div>
+                                    <div class="menu-subtitle">净化替换规则</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon purple">📖</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">字典规则</div>
+                                    <div class="menu-subtitle">配置字典规则</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                        </div>
+
+                        <div class="menu-section">
+                            <div class="menu-item">
+                                <div class="menu-icon cyan">🎨</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">主题模式</div>
+                                    <div class="menu-subtitle">跟随系统</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon blue">🌐</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">Web服务</div>
+                                    <div class="menu-subtitle">开启Web服务</div>
+                                </div>
+                                <div class="menu-trailing">
+                                    <div class="toggle-switch"></div>
+                                </div>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon green">💾</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">备份恢复</div>
+                                    <div class="menu-subtitle">WebDAV设置</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon purple">🖌️</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">主题设置</div>
+                                    <div class="menu-subtitle">自定义主题</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon orange">⚙️</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">其他设置</div>
+                                    <div class="menu-subtitle">更多设置选项</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                        </div>
+
+                        <div class="menu-section">
+                            <div class="menu-item">
+                                <div class="menu-icon yellow">🔖</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">书签</div>
+                                    <div class="menu-subtitle">所有书签</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon pink">📋</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">阅读记录</div>
+                                    <div class="menu-subtitle">阅读历史记录</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon cyan">📦</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">缓存管理</div>
+                                    <div class="menu-subtitle">管理书籍缓存</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon blue">📁</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">文件管理</div>
+                                    <div class="menu-subtitle">管理文件</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon cyan">❓</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">帮助</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon green">ℹ️</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">关于</div>
+                                </div>
+                                <span class="menu-value">v2.2.0</span>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon red">🚪</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">退出</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bottom-nav">
+                        <div class="nav-item">
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">书架</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🔍</span>
+                            <span class="nav-label">发现</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🎬</span>
+                            <span class="nav-label">媒体</span>
+                        </div>
+                        <div class="nav-item active">
+                            <span class="nav-icon">👤</span>
+                            <span class="nav-label">我的</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="label">日间模式</p>
+            </div>
+
+            <!-- Dark Mode -->
+            <div>
+                <div class="phone-frame dark">
+                    <div class="status-bar">
+                        <span>9:41</span>
+                        <span>📶 🔋</span>
+                    </div>
+
+                    <div class="content-area">
+                        <div class="profile-header">
+                            <div class="profile-avatar">📚</div>
+                            <div class="profile-name">Legado 阅读</div>
+                            <div class="profile-version">v2.2.0 Flutter</div>
+                        </div>
+
+                        <div class="stats-bar">
+                            <div class="stat-item">
+                                <div class="stat-value">23</div>
+                                <div class="stat-label">书籍</div>
+                            </div>
+                            <div class="stat-divider"></div>
+                            <div class="stat-item">
+                                <div class="stat-value">156</div>
+                                <div class="stat-label">小时</div>
+                            </div>
+                            <div class="stat-divider"></div>
+                            <div class="stat-item">
+                                <div class="stat-value">8</div>
+                                <div class="stat-label">书源</div>
+                            </div>
+                        </div>
+
+                        <div class="menu-section">
+                            <div class="menu-item">
+                                <div class="menu-icon blue">📖</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">书源管理</div>
+                                    <div class="menu-subtitle">管理书源</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon green">📝</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">TXT目录规则</div>
+                                    <div class="menu-subtitle">配置TXT目录规则</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon orange">🔄</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">替换规则</div>
+                                    <div class="menu-subtitle">净化替换规则</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon purple">📖</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">字典规则</div>
+                                    <div class="menu-subtitle">配置字典规则</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                        </div>
+
+                        <div class="menu-section">
+                            <div class="menu-item">
+                                <div class="menu-icon cyan">🎨</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">主题模式</div>
+                                    <div class="menu-subtitle">深色</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon blue">🌐</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">Web服务</div>
+                                    <div class="menu-subtitle">192.168.1.100:8080</div>
+                                </div>
+                                <div class="menu-trailing">
+                                    <div class="toggle-switch active"></div>
+                                </div>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon green">💾</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">备份恢复</div>
+                                    <div class="menu-subtitle">WebDAV设置</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon purple">🖌️</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">主题设置</div>
+                                    <div class="menu-subtitle">自定义主题</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon orange">⚙️</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">其他设置</div>
+                                    <div class="menu-subtitle">更多设置选项</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                        </div>
+
+                        <div class="menu-section">
+                            <div class="menu-item">
+                                <div class="menu-icon yellow">🔖</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">书签</div>
+                                    <div class="menu-subtitle">所有书签</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon pink">📋</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">阅读记录</div>
+                                    <div class="menu-subtitle">阅读历史记录</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon cyan">📦</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">缓存管理</div>
+                                    <div class="menu-subtitle">管理书籍缓存</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon blue">📁</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">文件管理</div>
+                                    <div class="menu-subtitle">管理文件</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon cyan">❓</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">帮助</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon green">ℹ️</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">关于</div>
+                                </div>
+                                <span class="menu-value">v2.2.0</span>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                            <div class="menu-item">
+                                <div class="menu-icon red">🚪</div>
+                                <div class="menu-content">
+                                    <div class="menu-title">退出</div>
+                                </div>
+                                <span class="menu-arrow">›</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bottom-nav">
+                        <div class="nav-item">
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">书架</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🔍</span>
+                            <span class="nav-label">发现</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🎬</span>
+                            <span class="nav-label">媒体</span>
+                        </div>
+                        <div class="nav-item active">
+                            <span class="nav-icon">👤</span>
+                            <span class="nav-label">我的</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="label">夜间模式（Web服务已开启）</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

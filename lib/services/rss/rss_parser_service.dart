@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:xml/xml.dart' as xml;
 import '../../core/base/base_service.dart';
+import '../../data/models/book_source_rule.dart';
 import '../../data/models/rss_source.dart';
 import '../../data/models/rss_article.dart';
 import '../network/network_service.dart';
@@ -11,6 +13,7 @@ import '../../utils/network_utils.dart';
 /// 参考项目：Rss.kt 和 RssParserByRule.kt
 class RssParserService extends BaseService {
   static final RssParserService instance = RssParserService._init();
+  static const int _maxAutoNextPages = 10;
   RssParserService._init();
 
   /// 获取RSS文章列表
@@ -22,9 +25,19 @@ class RssParserService extends BaseService {
     int page = 1,
   }) async {
     try {
+      final ruleArticles = source.ruleArticles;
+      if (ruleArticles != null && ruleArticles.isNotEmpty) {
+        return await _getArticlesByRule(
+          source: source,
+          sortName: sortName ?? '',
+          sortUrl: sortUrl ?? source.sourceUrl,
+          maxPages: page > 1 ? page : _maxAutoNextPages,
+        );
+      }
+
       // 确定要请求的URL
       final url = sortUrl ?? source.sourceUrl;
-      
+
       // 发送请求
       final response = await NetworkService.instance.get(
         url,
@@ -33,34 +46,88 @@ class RssParserService extends BaseService {
       );
 
       final body = await NetworkService.getResponseText(response);
-      
+
       if (body.isEmpty) {
         throw Exception('获取RSS内容为空');
       }
 
-      // 检查是否有自定义规则
-      final ruleArticles = source.ruleArticles;
-      if (ruleArticles != null && ruleArticles.isNotEmpty) {
-        // 使用规则解析
-        return await _parseByRule(
-          source: source,
-          html: body,
-          sortName: sortName ?? '',
-          sortUrl: url,
-          redirectUrl: response.realUri.toString(),
-        );
-      } else {
-        // 使用默认XML解析
-        return _parseDefaultXML(
-          xmlContent: body,
-          sourceUrl: source.sourceUrl,
-          sortName: sortName ?? '',
-        );
-      }
+      // 使用默认XML解析
+      return _parseDefaultXML(
+        xmlContent: body,
+        sourceUrl: source.sourceUrl,
+        sortName: sortName ?? '',
+      );
     } catch (e) {
       AppLog.instance.put('获取RSS文章失败: ${source.sourceName}', error: e);
       rethrow;
     }
+  }
+
+  Future<List<RssArticle>> _getArticlesByRule({
+    required RssSource source,
+    required String sortName,
+    required String sortUrl,
+    required int maxPages,
+  }) async {
+    final articleList = <RssArticle>[];
+    final articleKeys = <String>{};
+    final visitedUrls = <String>{};
+    var currentUrl = sortUrl;
+    var pageCount = 0;
+
+    while (currentUrl.isNotEmpty &&
+        !visitedUrls.contains(currentUrl) &&
+        pageCount < maxPages) {
+      visitedUrls.add(currentUrl);
+      pageCount++;
+
+      final response = await NetworkService.instance.get(
+        currentUrl,
+        headers: NetworkService.parseHeaders(source.header),
+        retryCount: 1,
+      );
+
+      final body = await NetworkService.getResponseText(response);
+      if (body.isEmpty) {
+        throw Exception('获取RSS内容为空');
+      }
+
+      final pageArticles = await _parseByRule(
+        source: source,
+        html: body,
+        sortName: sortName,
+        sortUrl: currentUrl,
+        redirectUrl: response.realUri.toString(),
+      );
+
+      for (final article in pageArticles) {
+        final key = '${article.origin}::${article.link}';
+        if (articleKeys.add(key)) {
+          articleList.add(article);
+        }
+      }
+
+      if (source.ruleNextPage == null || source.ruleNextPage!.isEmpty) {
+        break;
+      }
+
+      final nextUrl = await resolveNextPageUrl(
+        source: source,
+        html: body,
+        baseUrl: currentUrl,
+        redirectUrl: response.realUri.toString(),
+      );
+      if (nextUrl == null ||
+          nextUrl.isEmpty ||
+          visitedUrls.contains(nextUrl) ||
+          nextUrl == currentUrl) {
+        break;
+      }
+
+      currentUrl = nextUrl;
+    }
+
+    return articleList;
   }
 
   /// 使用规则解析RSS文章
@@ -134,12 +201,14 @@ class RssParserService extends BaseService {
     required String item,
     required String baseUrl,
     required String redirectUrl,
+    Future<String?> Function(String url)? contentLoader,
   }) async {
     try {
       String title = '';
       String link = source.sourceUrl; // 默认使用源URL
       String? pubDate;
       String? description;
+      String? content;
       String? image;
 
       // 解析标题
@@ -191,6 +260,18 @@ class RssParserService extends BaseService {
         }
       }
 
+      if ((description == null || description.isEmpty) &&
+          source.ruleContent != null &&
+          source.ruleContent!.isNotEmpty &&
+          link.isNotEmpty &&
+          link != source.sourceUrl) {
+        content = await _loadArticleContent(
+          source: source,
+          articleUrl: link,
+          contentLoader: contentLoader,
+        );
+      }
+
       // 解析图片
       if (source.ruleImage != null && source.ruleImage!.isNotEmpty) {
         final imageResult = await RuleParser.parseRuleAsync(
@@ -214,12 +295,127 @@ class RssParserService extends BaseService {
         title: title,
         pubDate: pubDate,
         description: description,
+        content: content,
         image: image,
       );
     } catch (e) {
       AppLog.instance.put('解析RSS文章项失败', error: e);
       return null;
     }
+  }
+
+  Future<String?> resolveNextPageUrl({
+    required RssSource source,
+    required String html,
+    required String baseUrl,
+    required String redirectUrl,
+  }) async {
+    final ruleNextPage = source.ruleNextPage;
+    if (ruleNextPage == null || ruleNextPage.isEmpty) {
+      return null;
+    }
+
+    try {
+      final result = await RuleParser.parseRuleAsync(
+        html,
+        ruleNextPage,
+        baseUrl: baseUrl,
+      );
+      if (result == null || result.isEmpty) {
+        return null;
+      }
+
+      return NetworkUtils.getAbsoluteURL(redirectUrl, result);
+    } catch (e) {
+      AppLog.instance.put('解析 RSS 下一页失败', error: e);
+      return null;
+    }
+  }
+
+  Future<String?> _loadArticleContent({
+    required RssSource source,
+    required String articleUrl,
+    Future<String?> Function(String url)? contentLoader,
+  }) async {
+    try {
+      if (contentLoader != null) {
+        return await contentLoader(articleUrl);
+      }
+
+      final response = await NetworkService.instance.get(
+        articleUrl,
+        headers: NetworkService.parseHeaders(source.header),
+        retryCount: 1,
+      );
+      final html = await NetworkService.getResponseText(response);
+      if (html.isEmpty) {
+        return null;
+      }
+
+      final contentRule = ContentRule(content: source.ruleContent);
+      return await RuleParser.parseContentRule(
+        html,
+        contentRule,
+        baseUrl: response.realUri.toString(),
+        bookName: null,
+        bookOrigin: null,
+      );
+    } catch (e) {
+      AppLog.instance.put('预取 RSS 正文失败: $articleUrl', error: e);
+      return null;
+    }
+  }
+
+  @visibleForTesting
+  Future<List<RssArticle>> parseArticlesByRuleForTesting({
+    required RssSource source,
+    required String html,
+    String sortName = '',
+    String? sortUrl,
+    String? redirectUrl,
+  }) {
+    final resolvedSortUrl = sortUrl ?? source.sourceUrl;
+    return _parseByRule(
+      source: source,
+      html: html,
+      sortName: sortName,
+      sortUrl: resolvedSortUrl,
+      redirectUrl: redirectUrl ?? resolvedSortUrl,
+    );
+  }
+
+  @visibleForTesting
+  Future<RssArticle?> parseArticleItemForTesting({
+    required RssSource source,
+    required String item,
+    String? baseUrl,
+    String? redirectUrl,
+    Future<String?> Function(String url)? contentLoader,
+  }) {
+    final resolvedBaseUrl = baseUrl ?? source.sourceUrl;
+    return _parseArticleItem(
+      source: source,
+      item: item,
+      baseUrl: resolvedBaseUrl,
+      redirectUrl: redirectUrl ?? resolvedBaseUrl,
+      contentLoader: contentLoader,
+    );
+  }
+
+  @visibleForTesting
+  Future<String?> resolveNextPageUrlForTesting({
+    required RssSource source,
+    required String html,
+    String? baseUrl,
+    String? redirectUrl,
+  }) {
+    final resolvedBaseUrl = baseUrl ?? source.sourceUrl;
+    return resolveNextPageUrl(
+      source: source,
+      html: html,
+      baseUrl: resolvedBaseUrl,
+      redirectUrl: redirectUrl ?? resolvedBaseUrl,
+    );
   }
 
   /// 使用默认XML解析RSS文章
@@ -261,7 +457,7 @@ class RssParserService extends BaseService {
         if (descriptionElements.isNotEmpty) {
           description = descriptionElements.first.innerText.trim();
           // 从描述中提取图片
-          if (image == null || image.isEmpty) {
+          if ((image ?? '').isEmpty) {
             image = _extractImageFromHtml(description);
           }
         }
@@ -351,4 +547,3 @@ class RssParserService extends BaseService {
     return null;
   }
 }
-

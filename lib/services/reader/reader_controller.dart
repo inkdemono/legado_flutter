@@ -217,8 +217,9 @@ class ReaderController extends ChangeNotifier {
   /// 保存当前阅读位置
   Future<void> _saveCurrentPosition() async {
     if (_currentChapterUrl == null || _state.pages.isEmpty) return;
-    if (_state.currentPage < 0 || _state.currentPage >= _state.pages.length)
+    if (_state.currentPage < 0 || _state.currentPage >= _state.pages.length) {
       return;
+    }
 
     // 更新字符偏移量
     _charOffset = _state.pages[_state.currentPage].start;
@@ -290,10 +291,5 @@ class ReaderController extends ChangeNotifier {
   /// 获取缓存统计
   Map<String, dynamic> getCacheStats() {
     return _cache.getStats();
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 }

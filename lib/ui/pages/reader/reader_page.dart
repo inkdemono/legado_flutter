@@ -1,50 +1,27 @@
-import 'dart:convert';
 import 'dart:async';
-import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show compute, ValueListenable;
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:screen_brightness/screen_brightness.dart';
-import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../data/models/book.dart';
 import '../../../data/models/book_chapter.dart';
 import '../../../data/models/book_source.dart';
 import '../../../services/book/book_service.dart';
 import '../../../services/source/book_source_service.dart';
-import '../../../services/book/local_book_service.dart';
 import '../../../services/reader/cache_service.dart';
 import '../../../services/reader/content_processor.dart';
-import '../../../providers/book_provider.dart';
 import '../../../config/app_config.dart';
 import '../../../core/constants/app_status.dart';
-import '../../../core/constants/prefer_key.dart';
-import '../../../core/exceptions/app_exceptions.dart';
 import '../../../utils/app_log.dart';
-import '../../../services/read_record_service.dart';
-import '../../../services/receiver/time_battery_listener.dart';
-import '../../../services/receiver/reader_controller.dart';
-import '../../../utils/helpers/book_extensions.dart';
 import 'models/text_chapter.dart';
-import 'models/text_page.dart';
 import 'reader_settings_page.dart';
 import 'chapter_list_page.dart';
 import 'more_settings_dialog.dart';
 import 'tts_control_widget.dart';
 import 'search_content_page.dart';
-import '../bookmark/bookmark_dialog.dart';
-import '../../../data/models/bookmark.dart';
-import 'dict_dialog.dart';
 import 'auto_read_dialog.dart';
-import 'content_edit_dialog.dart';
-import 'effective_replaces_dialog.dart';
-import '../../../services/media/tts_service.dart';
 import '../../../services/reader/chapter_layout_provider.dart';
-import 'widgets/simulation_page_turn.dart';
 
 part "reader_logic.dart";
 part "reader_view_scroll.dart";
@@ -85,13 +62,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
 
   final Set<int> _loadingChapters = {};
   final Map<int, ScrollController> _chapterScrollControllers = {};
+  // ignore: unused_field
+  String? _searchKeyword;
+  // ignore: unused_field
+  int? _searchChapterIndex;
+  // ignore: unused_field
+  int? _searchPosition;
 
-  Offset? _touchStart;
   DateTime _currentTime = DateTime.now();
-  int _currentBatteryLevel = 100;
-  String _searchKeyword = "";
-  int _searchChapterIndex = -1;
-  int _searchPosition = -1;
 
   @override
   void initState() {

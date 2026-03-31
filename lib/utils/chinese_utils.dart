@@ -1,6 +1,6 @@
 import 'package:flutter_opencc_ffi_native/flutter_opencc_ffi_native.dart';
 import 'package:flutter_opencc_ffi_platform_interface/flutter_opencc_ffi_platform_interface.dart';
-import 'package:flutter_opencc_ffi_platform_interface/converter.dart';
+import 'dart:io';
 import 'app_log.dart';
 
 /// 简繁转换工具类
@@ -22,26 +22,58 @@ import 'app_log.dart';
 /// - t2hk.json: 繁体转香港繁体
 class ChineseUtils {
   static bool _initialized = false;
-  static Converter? _s2tConverter;
-  static Converter? _t2sConverter;
+  static bool _available = true;
+  static bool _loggedUnavailable = false;
+  static dynamic _s2tConverter;
+  static dynamic _t2sConverter;
+  static const List<String> _configCandidates = [
+    's2t.json',
+    't2s.json',
+  ];
+
+  static void _markUnavailable([Object? error]) {
+    _available = false;
+    _initialized = true;
+    if (!_loggedUnavailable) {
+      _loggedUnavailable = true;
+      if (error != null) {
+        AppLog.instance.put('OpenCC 配置不可用，已跳过简繁转换初始化', error: error);
+      } else {
+        AppLog.instance.put('OpenCC 配置不可用，已跳过简繁转换初始化');
+      }
+    }
+  }
+
+  static String? _resolveConfigPath(String fileName) {
+    final file = File(fileName);
+    if (file.existsSync()) {
+      return file.path;
+    }
+    return null;
+  }
 
   /// 初始化 OpenCC
   static Future<void> _initialize() async {
     if (_initialized) return;
     
     try {
+      final s2tPath = _resolveConfigPath(_configCandidates[0]);
+      final t2sPath = _resolveConfigPath(_configCandidates[1]);
+      if (s2tPath == null || t2sPath == null) {
+        _markUnavailable();
+        return;
+      }
+
       // 注册平台实现
       FlutterOpenccFfi.registerPlatform();
       
       // 创建转换器
-      _s2tConverter = FlutterOpenccFfiPlatform.instance.createConverter('s2t.json');
-      _t2sConverter = FlutterOpenccFfiPlatform.instance.createConverter('t2s.json');
+      _s2tConverter = FlutterOpenccFfiPlatform.instance.createConverter(s2tPath);
+      _t2sConverter = FlutterOpenccFfiPlatform.instance.createConverter(t2sPath);
       
       _initialized = true;
     } catch (e) {
-      AppLog.instance.put('初始化 OpenCC 失败', error: e);
-      // 如果初始化失败，标记为已初始化以避免重复尝试
-      _initialized = true;
+      _markUnavailable(e);
     }
   }
 
@@ -52,6 +84,7 @@ class ChineseUtils {
     
     try {
       await _initialize();
+      if (!_available) return content;
       if (_s2tConverter != null) {
         return _s2tConverter!.convert(content);
       }
@@ -69,6 +102,7 @@ class ChineseUtils {
     
     try {
       await _initialize();
+      if (!_available) return content;
       if (_t2sConverter != null) {
         return _t2sConverter!.convert(content);
       }
@@ -106,6 +140,7 @@ class ChineseUtils {
   /// 预加载转换字典（可选）
   /// 参考项目：ChineseUtils.preLoad
   static Future<void> preLoad({bool async = false}) async {
+    if (!_available) return;
     await _initialize();
   }
 
@@ -117,5 +152,7 @@ class ChineseUtils {
     _s2tConverter = null;
     _t2sConverter = null;
     _initialized = false;
+    _available = true;
+    _loggedUnavailable = false;
   }
 }

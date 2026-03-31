@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>书籍管理 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #f5f6f8;
+            --card: #ffffff;
+            --text: #1f2329;
+            --sub: #4e5969;
+            --hint: #86909c;
+            --line: #e5e6eb;
+            --primary: #165dff;
+            --danger: #f53f3f;
+        }
+        body {
+            background: linear-gradient(135deg, #18222f, #0f1720);
+        }
+        .design-header p { font-size: 14px; color: rgba(255,255,255,0.66); }
+        .phone-frame {
+            width: 375px; height: 812px; border-radius: 40px; overflow: hidden; position: relative;
+            background: var(--bg); box-shadow: 0 26px 60px rgba(0,0,0,0.34);
+        }
+        .status-bar, .app-bar {
+            background: rgba(255,255,255,0.96); display: flex; align-items: center;
+        }
+        .status-bar { height: 44px; justify-content: space-between; padding: 10px 24px 0; font-size: 14px; font-weight: 600; color: var(--text); }
+        .app-bar { height: 56px; padding: 0 12px; border-bottom: 1px solid var(--line); }
+        .icon-btn {
+            width: 40px; height: 40px; border-radius: 20px; display: flex; align-items: center; justify-content: center;
+            font-size: 18px; color: var(--text);
+        }
+        .app-bar-title { flex: 1; font-size: 18px; font-weight: 700; color: var(--text); }
+        .toolbar {
+            padding: 12px 16px; background: #fff; border-bottom: 1px solid var(--line);
+        }
+        .search-box {
+            height: 44px; border-radius: 16px; background: #f7f8fa; border: 1px solid #eef0f3;
+            display: flex; align-items: center; padding: 0 14px; color: var(--hint); font-size: 14px; gap: 8px;
+        }
+        .content-area {
+            height: calc(100% - 44px - 56px - 69px - 88px);
+            overflow-y: auto; padding: 12px 12px 0;
+        }
+        .selection-bar {
+            margin: 0 0 10px; padding: 14px; border-radius: 18px;
+            background: linear-gradient(135deg, #edf3ff, #f7faff);
+            border: 1px solid #d6e4ff;
+        }
+        .selection-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .selection-title { font-size: 14px; font-weight: 700; color: var(--text); }
+        .selection-link { font-size: 12px; color: var(--primary); }
+        .selection-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .selection-action {
+            padding: 10px 0; border-radius: 14px; background: #fff; text-align: center; font-size: 12px; color: var(--sub);
+        }
+        .selection-action.danger { color: var(--danger); }
+        .book-item {
+            background: var(--card); border-radius: 20px; padding: 12px; display: flex; gap: 12px; align-items: center;
+            margin-bottom: 10px; box-shadow: 0 6px 16px rgba(15,23,32,0.05);
+        }
+        .check {
+            width: 22px; height: 22px; border-radius: 50%; border: 2px solid #c9cdd4; flex-shrink: 0;
+        }
+        .check.active { background: var(--primary); border-color: var(--primary); box-shadow: inset 0 0 0 4px #fff; }
+        .cover {
+            width: 52px; height: 72px; border-radius: 12px; flex-shrink: 0;
+            background: linear-gradient(160deg, #6176f6, #3a46a8);
+        }
+        .cover.c2 { background: linear-gradient(160deg, #ff8a5b, #d94d2d); }
+        .cover.c3 { background: linear-gradient(160deg, #4fbf8f, #237260); }
+        .book-info { flex: 1; min-width: 0; }
+        .book-title { font-size: 15px; font-weight: 700; color: var(--text); }
+        .book-meta { margin-top: 4px; font-size: 12px; color: var(--sub); }
+        .book-tags { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .tag {
+            padding: 4px 8px; border-radius: 999px; background: #f2f3f5; color: var(--hint); font-size: 11px;
+        }
+        .more { color: var(--hint); font-size: 18px; }
+        .bottom-bar {
+            position: absolute; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.95); backdrop-filter: blur(16px);
+            border-top: 1px solid var(--line); padding: 12px 14px 22px;
+        }
+        .bottom-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .bottom-item { text-align: center; font-size: 11px; color: var(--sub); }
+        .bottom-icon {
+            width: 46px; height: 46px; margin: 0 auto 6px; border-radius: 16px; background: #f4f7ff;
+            display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 18px;
+        }
+        .bottom-icon.danger { background: #fff2f0; color: var(--danger); }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>书籍管理</h1>
+            <p>补充“书架”模块中批量管理页，把选择态、批量操作和单项信息密度做出更清晰的层次。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="status-bar"><span>9:41</span><span>5G 100%</span></div>
+                <div class="app-bar">
+                    <div class="icon-btn">‹</div>
+                    <div class="app-bar-title">书籍管理</div>
+                    <div class="icon-btn">✕</div>
+                </div>
+                <div class="toolbar">
+                    <div class="search-box">⌕ 搜索书名、作者或标签</div>
+                </div>
+                <div class="content-area">
+                    <div class="selection-bar">
+                        <div class="selection-top">
+                            <div class="selection-title">已选择 3 / 18 本</div>
+                            <div class="selection-link">全选</div>
+                        </div>
+                        <div class="selection-actions">
+                            <div class="selection-action">移动分组</div>
+                            <div class="selection-action">清理缓存</div>
+                            <div class="selection-action danger">删除</div>
+                        </div>
+                    </div>
+
+                    <div class="book-item">
+                        <div class="check active"></div>
+                        <div class="cover"></div>
+                        <div class="book-info">
+                            <div class="book-title">三体</div>
+                            <div class="book-meta">刘慈欣 · 已读至 第 89 章</div>
+                            <div class="book-tags">
+                                <span class="tag">科幻</span>
+                                <span class="tag">可更新</span>
+                                <span class="tag">缓存 42 章</span>
+                            </div>
+                        </div>
+                        <div class="more">⋯</div>
+                    </div>
+
+                    <div class="book-item">
+                        <div class="check active"></div>
+                        <div class="cover c2"></div>
+                        <div class="book-info">
+                            <div class="book-title">庆余年</div>
+                            <div class="book-meta">猫腻 · 上次更新 昨天 22:14</div>
+                            <div class="book-tags">
+                                <span class="tag">历史</span>
+                                <span class="tag">已置顶</span>
+                            </div>
+                        </div>
+                        <div class="more">⋯</div>
+                    </div>
+
+                    <div class="book-item">
+                        <div class="check active"></div>
+                        <div class="cover c3"></div>
+                        <div class="book-info">
+                            <div class="book-title">凡人修仙传</div>
+                            <div class="book-meta">忘语 · 作者分组</div>
+                            <div class="book-tags">
+                                <span class="tag">仙侠</span>
+                                <span class="tag">未更新</span>
+                                <span class="tag">本地书</span>
+                            </div>
+                        </div>
+                        <div class="more">⋯</div>
+                    </div>
+
+                    <div class="book-item">
+                        <div class="check"></div>
+                        <div class="cover"></div>
+                        <div class="book-info">
+                            <div class="book-title">雪中悍刀行</div>
+                            <div class="book-meta">烽火戏诸侯 · 最近阅读 3 天前</div>
+                            <div class="book-tags">
+                                <span class="tag">武侠</span>
+                                <span class="tag">待更新 12</span>
+                            </div>
+                        </div>
+                        <div class="more">⋯</div>
+                    </div>
+                </div>
+
+                <div class="bottom-bar">
+                    <div class="bottom-grid">
+                        <div class="bottom-item">
+                            <div class="bottom-icon">⇄</div>
+                            移动
+                        </div>
+                        <div class="bottom-item">
+                            <div class="bottom-icon">⟳</div>
+                            更新
+                        </div>
+                        <div class="bottom-item">
+                            <div class="bottom-icon">⊘</div>
+                            缓存
+                        </div>
+                        <div class="bottom-item">
+                            <div class="bottom-icon danger">🗑</div>
+                            删除
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

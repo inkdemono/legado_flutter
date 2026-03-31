@@ -1,12 +1,14 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../../../config/app_config.dart';
 import '../../../services/reader/cache_service.dart';
 import '../../../utils/app_log.dart';
-import '../../widgets/common/custom_switch_list_tile.dart';
-import '../welcome/welcome_config_page.dart';
+import '../../widgets/home/home_shell.dart';
 import '../config/cover_config_page.dart';
+import '../welcome/welcome_config_page.dart';
 
 /// 其他设置页面
 class OtherSettingsPage extends StatefulWidget {
@@ -17,249 +19,565 @@ class OtherSettingsPage extends StatefulWidget {
 }
 
 class _OtherSettingsPageState extends State<OtherSettingsPage> {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('其他设置'),
-      ),
-      body: ListView(
-        children: [
-          // 网络设置
-          _buildSectionTitle('网络设置'),
-          _buildUserAgentSetting(),
-          _buildPreDownloadNumSetting(),
-          _buildThreadCountSetting(),
-          _buildWebPortSetting(),
-          const Divider(),
-
-          // 缓存管理
-          _buildSectionTitle('缓存管理'),
-          _buildCacheSizeInfo(),
-          _buildClearCacheSetting(),
-          const Divider(),
-
-          // 其他
-          _buildSectionTitle('其他'),
-          _buildRecordLogSetting(),
-          _buildShowDiscoverySetting(),
-          _buildShowRssSetting(),
-          _buildWelcomeConfigSetting(),
-          _buildCoverConfigSetting(),
-        ],
-      ),
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: Colors.grey[700],
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: HomePageBackground(
+        glowColors: const [Color(0xFF06B6D4), Color(0xFF1677FF)],
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              _buildHeader(context),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  children: [
+                    _buildHeroCard(context),
+                    const SizedBox(height: 18),
+                    _buildSection(
+                      context,
+                      title: '网络与下载',
+                      subtitle: '请求头、缓存策略与服务端口',
+                      children: [
+                        _buildSettingItem(
+                          context,
+                          icon: Icons.language_rounded,
+                          iconColor: const Color(0xFF1677FF),
+                          title: 'User Agent',
+                          subtitle: AppConfig.getUserAgentWithDefault(),
+                          onTap: _showUserAgentDialog,
+                        ),
+                        _buildSettingDivider(context),
+                        _buildSettingItem(
+                          context,
+                          icon: Icons.download_rounded,
+                          iconColor: const Color(0xFF22C55E),
+                          title: '预下载数量',
+                          subtitle:
+                              '${AppConfig.getInt('pre_download_num', defaultValue: 0)} 章',
+                          onTap: () => _showNumberPickerDialog(
+                            title: '预下载数量',
+                            currentValue: AppConfig.getInt('pre_download_num',
+                                defaultValue: 0),
+                            minValue: 0,
+                            maxValue: 9999,
+                            onChanged: (value) async {
+                              await AppConfig.setInt('pre_download_num', value);
+                              setState(() {});
+                            },
+                          ),
+                        ),
+                        _buildSettingDivider(context),
+                        _buildSettingItem(
+                          context,
+                          icon: Icons.speed_rounded,
+                          iconColor: const Color(0xFFF59E0B),
+                          title: '线程数',
+                          subtitle:
+                              '${AppConfig.getInt('thread_count', defaultValue: 10)} 个',
+                          onTap: () => _showNumberPickerDialog(
+                            title: '线程数',
+                            currentValue: AppConfig.getInt('thread_count',
+                                defaultValue: 10),
+                            minValue: 1,
+                            maxValue: 999,
+                            onChanged: (value) async {
+                              await AppConfig.setInt('thread_count', value);
+                              setState(() {});
+                            },
+                          ),
+                        ),
+                        _buildSettingDivider(context),
+                        _buildSettingItem(
+                          context,
+                          icon: Icons.web_rounded,
+                          iconColor: const Color(0xFF8B5CF6),
+                          title: 'Web 服务端口',
+                          subtitle:
+                              '${AppConfig.getInt('web_port', defaultValue: 1122)}',
+                          onTap: () => _showNumberPickerDialog(
+                            title: 'Web 服务端口',
+                            currentValue: AppConfig.getInt('web_port',
+                                defaultValue: 1122),
+                            minValue: 1024,
+                            maxValue: 60000,
+                            onChanged: (value) async {
+                              await AppConfig.setInt('web_port', value);
+                              setState(() {});
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    _buildSection(
+                      context,
+                      title: '缓存与运行',
+                      subtitle: '查看缓存体积并清理本地残留',
+                      children: [
+                        FutureBuilder<Map<String, dynamic>>(
+                          future: _getCacheInfo(),
+                          builder: (context, snapshot) {
+                            final totalSize =
+                                snapshot.data?['totalSize'] as int? ?? 0;
+                            final fileCount =
+                                snapshot.data?['fileCount'] as int? ?? 0;
+                            final subtitle = snapshot.connectionState ==
+                                    ConnectionState.waiting
+                                ? '正在统计缓存大小'
+                                : '${_formatFileSize(totalSize)} • $fileCount 个文件';
+
+                            return _buildSettingItem(
+                              context,
+                              icon: Icons.storage_rounded,
+                              iconColor: const Color(0xFF06B6D4),
+                              title: '缓存大小',
+                              subtitle: subtitle,
+                            );
+                          },
+                        ),
+                        _buildSettingDivider(context),
+                        _buildSettingItem(
+                          context,
+                          icon: Icons.delete_outline_rounded,
+                          iconColor: const Color(0xFFE34D59),
+                          title: '清除所有缓存',
+                          subtitle: '清除所有书籍章节缓存，此操作不可恢复',
+                          onTap: _showClearCacheDialog,
+                          danger: true,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    _buildSection(
+                      context,
+                      title: '显示与行为',
+                      subtitle: '控制书架展示与启动相关入口',
+                      children: [
+                        _buildSwitchItem(
+                          context,
+                          icon: Icons.bug_report_outlined,
+                          iconColor: const Color(0xFFF59E0B),
+                          title: '记录日志',
+                          subtitle: '开启后记录应用运行日志',
+                          value: AppConfig.getBool('record_log',
+                              defaultValue: false),
+                          onChanged: (value) async {
+                            await AppConfig.setBool('record_log', value);
+                            setState(() {});
+                          },
+                        ),
+                        _buildSettingDivider(context),
+                        _buildSwitchItem(
+                          context,
+                          icon: Icons.explore_outlined,
+                          iconColor: const Color(0xFF1677FF),
+                          title: '显示发现',
+                          subtitle: '在书架页面显示发现入口',
+                          value: AppConfig.getBool('show_discovery',
+                              defaultValue: true),
+                          onChanged: (value) async {
+                            await AppConfig.setBool('show_discovery', value);
+                            setState(() {});
+                          },
+                        ),
+                        _buildSettingDivider(context),
+                        _buildSwitchItem(
+                          context,
+                          icon: Icons.rss_feed_rounded,
+                          iconColor: const Color(0xFFFB7185),
+                          title: '显示 RSS',
+                          subtitle: '在书架页面显示 RSS 功能入口',
+                          value:
+                              AppConfig.getBool('show_rss', defaultValue: true),
+                          onChanged: (value) async {
+                            await AppConfig.setBool('show_rss', value);
+                            setState(() {});
+                          },
+                        ),
+                        _buildSettingDivider(context),
+                        _buildSettingItem(
+                          context,
+                          icon: Icons.wb_sunny_outlined,
+                          iconColor: const Color(0xFFF59E0B),
+                          title: '欢迎页配置',
+                          subtitle: '自定义启动页样式',
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => const WelcomeConfigPage(),
+                              ),
+                            );
+                          },
+                        ),
+                        _buildSettingDivider(context),
+                        _buildSettingItem(
+                          context,
+                          icon: Icons.image_outlined,
+                          iconColor: const Color(0xFF8B5CF6),
+                          title: '封面配置',
+                          subtitle: '设置默认封面和显示选项',
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => const CoverConfigPage(),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 90),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  /// User Agent设置
-  Widget _buildUserAgentSetting() {
-    // 使用 getUserAgentWithDefault() 获取 User-Agent（包括默认值）
-    final userAgent = AppConfig.getUserAgentWithDefault();
-    return ListTile(
-      leading: const Icon(Icons.language),
-      title: const Text('User Agent'),
-      subtitle: Text(userAgent),
-      onTap: () => _showUserAgentDialog(),
-    );
-  }
-
-  /// 预下载数量设置
-  Widget _buildPreDownloadNumSetting() {
-    final preDownloadNum = AppConfig.getInt('pre_download_num', defaultValue: 0);
-    return ListTile(
-      leading: const Icon(Icons.download),
-      title: const Text('预下载数量'),
-      subtitle: Text('$preDownloadNum 章'),
-      onTap: () => _showNumberPickerDialog(
-        title: '预下载数量',
-        currentValue: preDownloadNum,
-        minValue: 0,
-        maxValue: 9999,
-        onChanged: (value) async {
-          await AppConfig.setInt('pre_download_num', value);
-          setState(() {});
-        },
-      ),
-    );
-  }
-
-  /// 线程数设置
-  Widget _buildThreadCountSetting() {
-    final threadCount = AppConfig.getInt('thread_count', defaultValue: 10);
-    return ListTile(
-      leading: const Icon(Icons.speed),
-      title: const Text('线程数'),
-      subtitle: Text('$threadCount 个'),
-      onTap: () => _showNumberPickerDialog(
-        title: '线程数',
-        currentValue: threadCount,
-        minValue: 1,
-        maxValue: 999,
-        onChanged: (value) async {
-          await AppConfig.setInt('thread_count', value);
-          setState(() {});
-        },
-      ),
-    );
-  }
-
-  /// Web端口设置
-  Widget _buildWebPortSetting() {
-    final webPort = AppConfig.getInt('web_port', defaultValue: 1122);
-    return ListTile(
-      leading: const Icon(Icons.web),
-      title: const Text('Web服务端口'),
-      subtitle: Text('$webPort'),
-      onTap: () => _showNumberPickerDialog(
-        title: 'Web服务端口',
-        currentValue: webPort,
-        minValue: 1024,
-        maxValue: 60000,
-        onChanged: (value) async {
-          await AppConfig.setInt('web_port', value);
-          setState(() {});
-        },
-      ),
-    );
-  }
-
-  /// 缓存大小信息
-  Widget _buildCacheSizeInfo() {
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _getCacheInfo(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const ListTile(
-            leading: Icon(Icons.storage),
-            title: Text('缓存大小'),
-            subtitle: Text('计算中...'),
-          );
-        }
-
-        final info = snapshot.data!;
-        final totalSize = info['totalSize'] as int;
-        final fileCount = info['fileCount'] as int;
-
-        return ListTile(
-          leading: const Icon(Icons.storage),
-          title: const Text('缓存大小'),
-          subtitle: Text('${_formatFileSize(totalSize)} • $fileCount 个文件'),
-        );
-      },
-    );
-  }
-
-  /// 清除缓存设置
-  Widget _buildClearCacheSetting() {
-    return ListTile(
-      leading: const Icon(Icons.delete_outline, color: Colors.red),
-      title: const Text('清除所有缓存', style: TextStyle(color: Colors.red)),
-      subtitle: const Text('清除所有书籍的章节缓存'),
-      onTap: () => _showClearCacheDialog(),
-    );
-  }
-
-  /// 记录日志设置
-  Widget _buildRecordLogSetting() {
-    final recordLog = AppConfig.getBool('record_log', defaultValue: false);
-    return CustomSwitchListTile(
-      secondary: const Icon(Icons.bug_report),
-      title: const Text('记录日志'),
-      subtitle: const Text('开启后记录应用运行日志'),
-      value: recordLog,
-      onChanged: (value) async {
-        await AppConfig.setBool('record_log', value);
-        setState(() {});
-      },
-    );
-  }
-
-  /// 显示发现设置
-  Widget _buildShowDiscoverySetting() {
-    final showDiscovery = AppConfig.getBool('show_discovery', defaultValue: true);
-    return CustomSwitchListTile(
-      secondary: const Icon(Icons.explore),
-      title: const Text('显示发现'),
-      subtitle: const Text('在书架页面显示发现功能'),
-      value: showDiscovery,
-      onChanged: (value) async {
-        await AppConfig.setBool('show_discovery', value);
-        setState(() {});
-      },
-    );
-  }
-
-  /// 欢迎页配置设置
-  Widget _buildWelcomeConfigSetting() {
-    return ListTile(
-      leading: const Icon(Icons.wb_sunny),
-      title: const Text('欢迎页配置'),
-      subtitle: const Text('自定义启动页样式'),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => const WelcomeConfigPage(),
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      child: Row(
+        children: [
+          _buildHeaderButton(
+            context,
+            icon: Icons.arrow_back_ios_new_rounded,
+            onTap: () => Navigator.of(context).pop(),
           ),
-        );
-      },
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '其它设置',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: HomePalette.primaryText(context),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '网络、缓存与展示行为配置',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: HomePalette.tertiaryText(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  /// 显示RSS设置
-  Widget _buildShowRssSetting() {
+  Widget _buildHeroCard(BuildContext context) {
+    final logEnabled = AppConfig.getBool('record_log', defaultValue: false);
+    final showDiscovery =
+        AppConfig.getBool('show_discovery', defaultValue: true);
     final showRss = AppConfig.getBool('show_rss', defaultValue: true);
-    return CustomSwitchListTile(
-      secondary: const Icon(Icons.rss_feed),
-      title: const Text('显示RSS'),
-      subtitle: const Text('在书架页面显示RSS功能'),
-      value: showRss,
-      onChanged: (value) async {
-        await AppConfig.setBool('show_rss', value);
-        setState(() {});
-      },
-    );
-  }
 
-  /// 封面配置设置
-  Widget _buildCoverConfigSetting() {
-    return ListTile(
-      leading: const Icon(Icons.image),
-      title: const Text('封面配置'),
-      subtitle: const Text('设置默认封面和显示选项'),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => const CoverConfigPage(),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF06B6D4), Color(0xFF1677FF)],
+        ),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1677FF).withValues(alpha: 0.22),
+            blurRadius: 28,
+            offset: const Offset(0, 16),
           ),
-        );
-      },
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '行为控制台',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: Colors.white.withValues(alpha: 0.98),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '这些设置主要影响网络请求、缓存策略和书架入口显示，调整后通常立即生效。',
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.5,
+              color: Colors.white.withValues(alpha: 0.82),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              _buildHeroMetric(
+                value: logEnabled ? '开启' : '关闭',
+                label: '日志',
+              ),
+              const SizedBox(width: 10),
+              _buildHeroMetric(
+                value: showDiscovery ? '显示' : '隐藏',
+                label: '发现',
+              ),
+              const SizedBox(width: 10),
+              _buildHeroMetric(
+                value: showRss ? '显示' : '隐藏',
+                label: 'RSS',
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
-  /// 显示User Agent对话框
+  Widget _buildHeroMetric({
+    required String value,
+    required String label,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withValues(alpha: 0.78),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSection(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required List<Widget> children,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HomeSectionTitle(title: title, subtitle: subtitle),
+        const SizedBox(height: 10),
+        HomeSectionCard(
+          margin: EdgeInsets.zero,
+          padding: EdgeInsets.zero,
+          child: Column(children: children),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSettingItem(
+    BuildContext context, {
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    VoidCallback? onTap,
+    bool danger = false,
+  }) {
+    final titleColor =
+        danger ? const Color(0xFFE34D59) : HomePalette.primaryText(context);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, size: 20, color: iconColor),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: titleColor,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: HomePalette.tertiaryText(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (onTap != null)
+              Icon(
+                Icons.chevron_right_rounded,
+                color: HomePalette.tertiaryText(context),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSwitchItem(
+    BuildContext context, {
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return InkWell(
+      onTap: () => onChanged(!value),
+      borderRadius: BorderRadius.circular(18),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, size: 20, color: iconColor),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: HomePalette.primaryText(context),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: HomePalette.tertiaryText(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Switch(
+              value: value,
+              onChanged: onChanged,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingDivider(BuildContext context) {
+    return Container(
+      height: 1,
+      margin: const EdgeInsets.only(left: 68, right: 16),
+      color: HomePalette.lineColor(context),
+    );
+  }
+
+  Widget _buildHeaderButton(
+    BuildContext context, {
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: HomePalette.card(context).withValues(alpha: 0.88),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: HomePalette.lineColor(context)),
+          ),
+          alignment: Alignment.center,
+          child: Icon(
+            icon,
+            size: 20,
+            color: HomePalette.primaryText(context),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _showUserAgentDialog() async {
-    // 使用 getUserAgentWithDefault() 显示默认值，而不是留空
     final defaultUserAgent = AppConfig.getUserAgentWithDefault();
     final customUserAgent = AppConfig.getString('user_agent', defaultValue: '');
-    // 如果有自定义值，使用自定义值；否则显示默认值
-    final initialValue = customUserAgent.isNotEmpty ? customUserAgent : defaultUserAgent;
-    
+    final initialValue =
+        customUserAgent.isNotEmpty ? customUserAgent : defaultUserAgent;
     final controller = TextEditingController(text: initialValue);
 
     String? result;
@@ -271,7 +589,7 @@ class _OtherSettingsPageState extends State<OtherSettingsPage> {
           content: TextField(
             controller: controller,
             decoration: const InputDecoration(
-              hintText: '留空使用默认User Agent',
+              hintText: '留空使用默认 User Agent',
               border: OutlineInputBorder(),
             ),
             maxLines: 3,
@@ -284,7 +602,6 @@ class _OtherSettingsPageState extends State<OtherSettingsPage> {
             TextButton(
               onPressed: () {
                 final text = controller.text.trim();
-                // 如果输入的内容等于默认值，清空配置（使用默认值）
                 if (text == defaultUserAgent) {
                   Navigator.of(context).pop('');
                 } else {
@@ -297,7 +614,6 @@ class _OtherSettingsPageState extends State<OtherSettingsPage> {
         ),
       );
     } finally {
-      // 确保在对话框关闭后清理 controller，避免 UndoHistoryState 断言失败
       controller.dispose();
     }
 
@@ -307,7 +623,6 @@ class _OtherSettingsPageState extends State<OtherSettingsPage> {
     }
   }
 
-  /// 显示数字选择器对话框
   Future<void> _showNumberPickerDialog({
     required String title,
     required int currentValue,
@@ -325,38 +640,35 @@ class _OtherSettingsPageState extends State<OtherSettingsPage> {
           title: Text(title),
           content: TextField(
             controller: controller,
-          decoration: InputDecoration(
-            labelText: '请输入 $minValue - $maxValue 之间的数字',
-            border: const OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: '请输入 $minValue - $maxValue 之间的数字',
+              border: const OutlineInputBorder(),
+            ),
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+            ],
           ),
-          keyboardType: TextInputType.number,
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () {
+                final value = int.tryParse(controller.text);
+                if (value != null && value >= minValue && value <= maxValue) {
+                  Navigator.of(context).pop(value);
+                } else {
+                  _showMessage('请输入 $minValue - $maxValue 之间的数字');
+                }
+              },
+              child: const Text('确定'),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () {
-              final value = int.tryParse(controller.text);
-              if (value != null && value >= minValue && value <= maxValue) {
-                Navigator.of(context).pop(value);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('请输入 $minValue - $maxValue 之间的数字')),
-                );
-              }
-            },
-            child: const Text('确定'),
-          ),
-        ],
-      ),
-    );
+      );
     } finally {
-      // 确保在对话框关闭后清理 controller，避免 UndoHistoryState 断言失败
       controller.dispose();
     }
 
@@ -365,7 +677,6 @@ class _OtherSettingsPageState extends State<OtherSettingsPage> {
     }
   }
 
-  /// 显示清除缓存对话框
   Future<void> _showClearCacheDialog() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -379,7 +690,7 @@ class _OtherSettingsPageState extends State<OtherSettingsPage> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('清除', style: TextStyle(color: Colors.red)),
+            child: const Text('清除'),
           ),
         ],
       ),
@@ -389,27 +700,18 @@ class _OtherSettingsPageState extends State<OtherSettingsPage> {
 
     try {
       final success = await CacheService.instance.clearAllCache();
-      if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('缓存已清除')),
-        );
-        setState(() {}); // 刷新缓存大小显示
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('清除缓存失败')),
-        );
+      if (success) {
+        _showMessage('缓存已清除');
+        setState(() {});
+      } else {
+        _showMessage('清除缓存失败');
       }
     } catch (e) {
       AppLog.instance.put('清除缓存失败', error: e);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('清除缓存失败: $e')),
-        );
-      }
+      _showMessage('清除缓存失败: $e');
     }
   }
 
-  /// 获取缓存信息
   Future<Map<String, dynamic>> _getCacheInfo() async {
     try {
       final cacheDir = await CacheService.instance.getCacheDir();
@@ -417,8 +719,8 @@ class _OtherSettingsPageState extends State<OtherSettingsPage> {
         return {'totalSize': 0, 'fileCount': 0};
       }
 
-      int totalSize = 0;
-      int fileCount = 0;
+      var totalSize = 0;
+      var fileCount = 0;
 
       await for (final entity in cacheDir.list(recursive: true)) {
         if (entity is File) {
@@ -426,29 +728,26 @@ class _OtherSettingsPageState extends State<OtherSettingsPage> {
             final stat = await entity.stat();
             totalSize += stat.size;
             fileCount++;
-          } catch (e) {
-            // 跳过无法访问的文件
-          }
+          } catch (_) {}
         }
       }
 
       return {'totalSize': totalSize, 'fileCount': fileCount};
-    } catch (e) {
+    } catch (_) {
       return {'totalSize': 0, 'fileCount': 0};
     }
   }
 
-  /// 格式化文件大小
   String _formatFileSize(int bytes) {
     if (bytes < 1024) {
       return '$bytes B';
-    } else if (bytes < 1024 * 1024) {
-      return '${(bytes / 1024).toStringAsFixed(2)} KB';
-    } else if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
-    } else {
-      return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
     }
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(2)} KB';
+    }
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+    }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
 }
-

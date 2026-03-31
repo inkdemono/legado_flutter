@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>字典规则 - Legado Flutter UI设计稿</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #1677ff;
+            --bg-color: #f7f8fa;
+            --card-bg: #ffffff;
+            --text-primary: #1f2329;
+            --text-secondary: #4e5969;
+            --text-hint: #86909c;
+            --divider: #e5e6eb;
+        }
+
+        body {
+            background: #1a1a2e;
+        }
+
+        .phone-frame {
+            width: 375px;
+            height: 812px;
+            background: var(--bg-color);
+            border-radius: 40px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .status-bar {
+            height: 44px;
+            background: var(--card-bg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            padding-top: 10px;
+        }
+
+        /* App Bar */
+        .app-bar {
+            background: var(--card-bg);
+            padding: 0 8px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--divider);
+        }
+
+        .back-btn {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--text-primary);
+        }
+
+        .app-bar-title {
+            flex: 1;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .app-bar-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .action-btn {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: var(--text-primary);
+        }
+
+        /* Search Bar */
+        .search-bar {
+            background: var(--card-bg);
+            padding: 12px 16px;
+        }
+
+        .search-input {
+            width: 100%;
+            height: 40px;
+            background: var(--bg-color);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            padding: 0 14px;
+            gap: 10px;
+            color: var(--text-hint);
+            font-size: 14px;
+        }
+
+        /* Content */
+        .content-area {
+            height: calc(100% - 44px - 56px - 64px - 80px);
+            overflow-y: auto;
+            background: var(--bg-color);
+            padding: 8px 12px;
+        }
+
+        /* Rule Item */
+        .rule-item {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .rule-drag-handle {
+            color: var(--text-hint);
+            font-size: 18px;
+            cursor: grab;
+        }
+
+        .rule-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .rule-icon.style-2 { background: linear-gradient(135deg, #fb7185 0%, #ff7aa5 100%); }
+        .rule-icon.style-3 { background: linear-gradient(135deg, #4f7cff 0%, #7c5cff 100%); }
+        .rule-icon.style-4 { background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%); }
+
+        .rule-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .rule-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .rule-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-hint);
+        }
+
+        .rule-type {
+            padding: 2px 8px;
+            background: #F3E5F5;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #7c3aed;
+        }
+
+        .rule-url {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .rule-enabled {
+            width: 44px;
+            height: 24px;
+            background: #E0E0E0;
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .rule-enabled.active {
+            background: #7c3aed;
+        }
+
+        .rule-enabled::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+
+        .rule-enabled.active::after {
+            transform: translateX(20px);
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-hint);
+            padding: 40px;
+            text-align: center;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-text {
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .empty-hint {
+            font-size: 13px;
+            color: var(--text-hint);
+        }
+
+        /* FAB */
+        .fab {
+            position: absolute;
+            bottom: 96px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: white;
+            box-shadow: 0 4px 12px rgba(156, 39, 176, 0.4);
+        }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-around;
+            padding-top: 8px;
+            border-top: 1px solid var(--divider);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .nav-icon {
+            font-size: 24px;
+            color: var(--text-hint);
+        }
+
+        .nav-item.active .nav-icon {
+            color: var(--primary-color);
+        }
+
+        .nav-label {
+            font-size: 11px;
+            color: var(--text-hint);
+        }
+
+        .nav-item.active .nav-label {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        /* Dark Mode */
+        .phone-frame.dark {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-primary: #E0E0E0;
+            --text-secondary: #A0A0A0;
+            --text-hint: #4e5969;
+            --divider: #1f2329;
+        }
+
+        .phone-frame.dark .app-bar,
+        .phone-frame.dark .search-bar {
+            background: var(--card-bg);
+        }
+
+        .phone-frame.dark .search-input {
+            background: #2A2A2A;
+        }
+
+        .phone-frame.dark .rule-type {
+            background: #3A1A4A;
+        }
+
+        .phone-frame.dark .bottom-nav {
+            background: rgba(30,30,30,0.95);
+        }
+
+        .phone-frame.dark .rule-enabled.active {
+            background: #7c3aed;
+        }
+
+        .phone-frame.dark .fab {
+            box-shadow: 0 4px 12px rgba(156, 39, 176, 0.6);
+        }
+
+        .label {
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+
+        /* Popup Menu */
+        .popup-overlay {
+            position: absolute;
+            top: 100px;
+            right: 16px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            padding: 8px 0;
+            min-width: 160px;
+            z-index: 200;
+        }
+
+        .popup-item {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .popup-divider {
+            height: 1px;
+            background: var(--divider);
+            margin: 4px 0;
+        }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>📖 字典规则 - Dict Rule</h1>
+            <p>Legado Flutter UI设计稿 | 词典与翻译源配置</p>
+        </div>
+
+        <div class="phones-container">
+            <!-- 有规则列表 - 日间模式 -->
+            <div>
+                <div class="phone-frame">
+                    <div class="status-bar">
+                        <span>9:41</span>
+                        <span>📶 🔋</span>
+                    </div>
+
+                    <div class="app-bar">
+                        <div class="back-btn">‹</div>
+                        <div class="app-bar-title">字典规则</div>
+                        <div class="app-bar-actions">
+                            <div class="action-btn">☰</div>
+                        </div>
+                    </div>
+
+                    <div class="search-bar">
+                        <div class="search-input">
+                            <span>🔍</span>
+                            <span>搜索字典名称</span>
+                        </div>
+                    </div>
+
+                    <div class="content-area">
+                        <div class="rule-item">
+                            <span class="rule-drag-handle">⋮⋮</span>
+                            <div class="rule-icon">📖</div>
+                            <div class="rule-info">
+                                <div class="rule-name">汉典字典</div>
+                                <div class="rule-meta">
+                                    <span class="rule-type">字典</span>
+                                    <span class="rule-url">zdic.net</span>
+                                </div>
+                            </div>
+                            <div class="rule-enabled active"></div>
+                        </div>
+
+                        <div class="rule-item">
+                            <span class="rule-drag-handle">⋮⋮</span>
+                            <div class="rule-icon style-2">🌐</div>
+                            <div class="rule-info">
+                                <div class="rule-name">百度翻译</div>
+                                <div class="rule-meta">
+                                    <span class="rule-type">翻译</span>
+                                    <span class="rule-url">fanyi.baidu.com</span>
+                                </div>
+                            </div>
+                            <div class="rule-enabled active"></div>
+                        </div>
+
+                        <div class="rule-item">
+                            <span class="rule-drag-handle">⋮⋮</span>
+                            <div class="rule-icon style-3">🌐</div>
+                            <div class="rule-info">
+                                <div class="rule-name">有道词典</div>
+                                <div class="rule-meta">
+                                    <span class="rule-type">词典</span>
+                                    <span class="rule-url">dict.youdao.com</span>
+                                </div>
+                            </div>
+                            <div class="rule-enabled active"></div>
+                        </div>
+
+                        <div class="rule-item">
+                            <span class="rule-drag-handle">⋮⋮</span>
+                            <div class="rule-icon style-4">🌐</div>
+                            <div class="rule-info">
+                                <div class="rule-name">谷歌翻译</div>
+                                <div class="rule-meta">
+                                    <span class="rule-type">翻译</span>
+                                    <span class="rule-url">translate.google.com</span>
+                                </div>
+                            </div>
+                            <div class="rule-enabled"></div>
+                        </div>
+
+                        <div class="rule-item">
+                            <span class="rule-drag-handle">⋮⋮</span>
+                            <div class="rule-icon">📖</div>
+                            <div class="rule-info">
+                                <div class="rule-name">萌典</div>
+                                <div class="rule-meta">
+                                    <span class="rule-type">字典</span>
+                                    <span class="rule-url">moedict.tw</span>
+                                </div>
+                            </div>
+                            <div class="rule-enabled"></div>
+                        </div>
+
+                        <div class="rule-item">
+                            <span class="rule-drag-handle">⋮⋮</span>
+                            <div class="rule-icon style-2">🌐</div>
+                            <div class="rule-info">
+                                <div class="rule-name">必应词典</div>
+                                <div class="rule-meta">
+                                    <span class="rule-type">词典</span>
+                                    <span class="rule-url">bing.com/dict</span>
+                                </div>
+                            </div>
+                            <div class="rule-enabled active"></div>
+                        </div>
+                    </div>
+
+                    <div class="fab">+</div>
+
+                    <div class="bottom-nav">
+                        <div class="nav-item">
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">书架</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🔍</span>
+                            <span class="nav-label">发现</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🎬</span>
+                            <span class="nav-label">媒体</span>
+                        </div>
+                        <div class="nav-item active">
+                            <span class="nav-icon">👤</span>
+                            <span class="nav-label">我的</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="label">规则列表（日间模式）</p>
+            </div>
+
+            <!-- 夜间模式 + 菜单 -->
+            <div>
+                <div class="phone-frame dark">
+                    <div class="status-bar">
+                        <span>9:41</span>
+                        <span>📶 🔋</span>
+                    </div>
+
+                    <div class="app-bar">
+                        <div class="back-btn">‹</div>
+                        <div class="app-bar-title">字典规则</div>
+                        <div class="app-bar-actions">
+                            <div class="action-btn">☰</div>
+                        </div>
+                    </div>
+
+                    <div class="search-bar">
+                        <div class="search-input">
+                            <span>🔍</span>
+                            <span>搜索字典名称</span>
+                        </div>
+                    </div>
+
+                    <div class="content-area">
+                        <div class="rule-item">
+                            <span class="rule-drag-handle">⋮⋮</span>
+                            <div class="rule-icon">📖</div>
+                            <div class="rule-info">
+                                <div class="rule-name">汉典字典</div>
+                                <div class="rule-meta">
+                                    <span class="rule-type">字典</span>
+                                    <span class="rule-url">zdic.net</span>
+                                </div>
+                            </div>
+                            <div class="rule-enabled active"></div>
+                        </div>
+
+                        <div class="rule-item">
+                            <span class="rule-drag-handle">⋮⋮</span>
+                            <div class="rule-icon style-2">🌐</div>
+                            <div class="rule-info">
+                                <div class="rule-name">百度翻译</div>
+                                <div class="rule-meta">
+                                    <span class="rule-type">翻译</span>
+                                    <span class="rule-url">fanyi.baidu.com</span>
+                                </div>
+                            </div>
+                            <div class="rule-enabled active"></div>
+                        </div>
+
+                        <div class="rule-item">
+                            <span class="rule-drag-handle">⋮⋮</span>
+                            <div class="rule-icon style-3">🌐</div>
+                            <div class="rule-info">
+                                <div class="rule-name">有道词典</div>
+                                <div class="rule-meta">
+                                    <span class="rule-type">词典</span>
+                                    <span class="rule-url">dict.youdao.com</span>
+                                </div>
+                            </div>
+                            <div class="rule-enabled active"></div>
+                        </div>
+                    </div>
+
+                    <!-- Popup Menu -->
+                    <div class="popup-overlay">
+                        <div class="popup-item">➕ 新建规则</div>
+                        <div class="popup-item">📥 导入规则</div>
+                        <div class="popup-item">📤 导出规则</div>
+                        <div class="popup-divider"></div>
+                        <div class="popup-item">📦 批量管理</div>
+                        <div class="popup-divider"></div>
+                        <div class="popup-item">🗑️ 清空规则</div>
+                    </div>
+
+                    <div class="fab">+</div>
+
+                    <div class="bottom-nav">
+                        <div class="nav-item">
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">书架</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🔍</span>
+                            <span class="nav-label">发现</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🎬</span>
+                            <span class="nav-label">媒体</span>
+                        </div>
+                        <div class="nav-item active">
+                            <span class="nav-icon">👤</span>
+                            <span class="nav-label">我的</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="label">菜单弹出（夜间模式）</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

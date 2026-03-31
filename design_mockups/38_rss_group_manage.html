@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSS分组管理 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #32140a, #121826 62%);
+        }
+        .phone-frame {
+            width: 375px; height: 812px; border-radius: 40px; overflow: hidden; position: relative;
+            background:
+                linear-gradient(180deg, rgba(0,0,0,0.34), rgba(0,0,0,0.54)),
+                linear-gradient(135deg, #fff3e8, #f0e4d8);
+            box-shadow: 0 26px 60px rgba(0,0,0,0.34);
+        }
+        .sheet {
+            position: absolute; left: 10px; right: 10px; bottom: 10px; top: 90px; background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(16px); border-radius: 30px; padding: 14px 16px 18px;
+        }
+        .handle { width: 42px; height: 5px; border-radius: 999px; background: #d8cfc6; margin: 0 auto 14px; }
+        .head { display: flex; align-items: center; margin-bottom: 14px; }
+        .title { font-size: 20px; font-weight: 800; color: #1f2329; }
+        .plus {
+            margin-left: auto; width: 42px; height: 42px; border-radius: 21px; background: #fff7ed; color: #c2410c;
+            display: flex; align-items: center; justify-content: center; font-size: 20px;
+        }
+        .group-list { display: grid; gap: 10px; }
+        .group {
+            display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 20px; background: #f8f9fc; border: 1px solid #edf0f4;
+        }
+        .icon {
+            width: 40px; height: 40px; border-radius: 14px; background: linear-gradient(135deg, #fb923c, #ea580c);
+            color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px;
+        }
+        .info { flex: 1; }
+        .g-title { font-size: 14px; font-weight: 700; color: #1f2329; }
+        .g-sub { margin-top: 4px; font-size: 12px; color: #86909c; }
+        .ops { display: flex; gap: 6px; color: #b8bec8; font-size: 18px; }
+        .footer { position: absolute; left: 16px; right: 16px; bottom: 18px; }
+        .btn {
+            height: 50px; border-radius: 16px; background: linear-gradient(135deg, #fb923c, #ea580c); color: #fff;
+            display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700;
+        }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>RSS分组管理</h1>
+            <p>补充“发现”模块里的 RSS 分组管理弹层，支持新增、编辑、删除，并维持与源管理页一致的色彩语义。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="sheet">
+                    <div class="handle"></div>
+                    <div class="head">
+                        <div class="title">分组管理</div>
+                        <div class="plus">＋</div>
+                    </div>
+                    <div class="group-list">
+                        <div class="group">
+                            <div class="icon">📰</div>
+                            <div class="info">
+                                <div class="g-title">科技资讯</div>
+                                <div class="g-sub">8 个 RSS 源</div>
+                            </div>
+                            <div class="ops">✎ 🗑</div>
+                        </div>
+                        <div class="group">
+                            <div class="icon">💻</div>
+                            <div class="info">
+                                <div class="g-title">开发</div>
+                                <div class="g-sub">5 个 RSS 源</div>
+                            </div>
+                            <div class="ops">✎ 🗑</div>
+                        </div>
+                        <div class="group">
+                            <div class="icon">🌍</div>
+                            <div class="info">
+                                <div class="g-title">英文资讯</div>
+                                <div class="g-sub">3 个 RSS 源</div>
+                            </div>
+                            <div class="ops">✎ 🗑</div>
+                        </div>
+                    </div>
+                    <div class="footer">
+                        <div class="btn">新增分组</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

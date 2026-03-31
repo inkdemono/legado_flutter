@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'models/page_range.dart';
 import 'paginator.dart';
-import 'pagination_cache.dart';
 
 /// 阅读位置管理器 (参考Gemini文档的阅读位置保持功能)
 ///

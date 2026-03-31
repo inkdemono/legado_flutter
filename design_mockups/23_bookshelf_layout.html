@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>书架布局 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #f4f5f7;
+            --card: #fff;
+            --text: #1d2129;
+            --sub: #4e5969;
+            --hint: #86909c;
+            --line: #e5e6eb;
+            --primary: #7b5cff;
+        }
+        body {
+            background: linear-gradient(135deg, #1d1533, #10151f 65%);
+        }
+        .design-header p { font-size: 14px; color: rgba(255,255,255,0.66); }
+        .phone-frame {
+            width: 375px; height: 812px; border-radius: 40px; overflow: hidden; position: relative; background: var(--bg);
+            box-shadow: 0 26px 60px rgba(0,0,0,0.34);
+        }
+        .status-bar, .app-bar { background: rgba(255,255,255,0.94); display: flex; align-items: center; }
+        .status-bar { height: 44px; justify-content: space-between; padding: 10px 24px 0; font-size: 14px; font-weight: 600; }
+        .app-bar { height: 56px; border-bottom: 1px solid var(--line); padding: 0 12px; }
+        .app-bar-title { flex: 1; font-size: 18px; font-weight: 700; color: var(--text); }
+        .btn-icon {
+            width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 20px;
+            font-size: 18px; color: var(--text);
+        }
+        .content-area {
+            height: calc(100% - 44px - 56px - 92px);
+            overflow-y: auto; padding: 16px;
+            background:
+                radial-gradient(circle at top right, rgba(123,92,255,0.08), transparent 26%),
+                linear-gradient(180deg, #f7f8fb, #f4f5f7 180px);
+        }
+        .section {
+            background: var(--card); border-radius: 22px; padding: 16px; margin-bottom: 14px;
+            box-shadow: 0 10px 24px rgba(17,23,35,0.05);
+        }
+        .section-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 14px; }
+        .option-row {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            padding: 14px 0; border-bottom: 1px solid var(--line);
+        }
+        .option-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .option-row:first-child { padding-top: 0; }
+        .option-title { font-size: 14px; font-weight: 600; color: var(--text); }
+        .option-desc { font-size: 12px; color: var(--hint); margin-top: 4px; }
+        .option-value {
+            padding: 7px 12px; border-radius: 999px; background: #f2efff; color: var(--primary); font-size: 12px; font-weight: 700;
+            flex-shrink: 0;
+        }
+        .switch {
+            width: 48px; height: 30px; border-radius: 15px; background: #d7dbe2; position: relative; flex-shrink: 0;
+        }
+        .switch.active { background: rgba(123,92,255,0.35); }
+        .switch::after {
+            content: ""; position: absolute; top: 4px; left: 4px; width: 22px; height: 22px; border-radius: 50%;
+            background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        }
+        .switch.active::after { left: 22px; background: var(--primary); }
+        .layout-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .layout-card {
+            border-radius: 18px; padding: 14px; border: 1px solid var(--line); background: #fbfbfd;
+        }
+        .layout-card.active { border-color: rgba(123,92,255,0.38); background: #f5f2ff; box-shadow: inset 0 0 0 1px rgba(123,92,255,0.10); }
+        .layout-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+        .mini-preview { display: grid; gap: 6px; }
+        .mini-preview.grid3 { grid-template-columns: repeat(3, 1fr); }
+        .mini-preview.grid2 { grid-template-columns: repeat(2, 1fr); }
+        .mini-preview.list { grid-template-columns: 1fr; }
+        .mini-item { height: 44px; border-radius: 10px; background: linear-gradient(160deg, #8476ff, #5c46ff); opacity: 0.95; }
+        .mini-preview.list .mini-item { height: 28px; }
+        .bottom-bar {
+            position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 16px 24px; background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(18px); border-top: 1px solid var(--line);
+        }
+        .bottom-actions { display: flex; gap: 10px; }
+        .action {
+            height: 54px; border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700;
+        }
+        .action.ghost { flex: 1; background: #fff; border: 1px solid var(--line); color: var(--text); }
+        .action.primary { flex: 1.3; background: linear-gradient(135deg, #7b5cff, #9c7dff); color: #fff; }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>书架布局</h1>
+            <p>补充“书架”模块的设置页，把分组、显示项、布局和排序都集中在一个低学习成本的配置界面里。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="status-bar"><span>9:41</span><span>5G 100%</span></div>
+                <div class="app-bar">
+                    <div class="btn-icon">✕</div>
+                    <div class="app-bar-title">书架布局</div>
+                    <div class="btn-icon">⋯</div>
+                </div>
+                <div class="content-area">
+                    <div class="section">
+                        <div class="section-title">分组样式</div>
+                        <div class="option-row">
+                            <div>
+                                <div class="option-title">分组方式</div>
+                                <div class="option-desc">在不打断阅读流的前提下快速切换分类维度</div>
+                            </div>
+                            <div class="option-value">按标签</div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">显示选项</div>
+                        <div class="option-row">
+                            <div>
+                                <div class="option-title">显示未读标志</div>
+                                <div class="option-desc">突出最近未打开的书籍</div>
+                            </div>
+                            <div class="switch active"></div>
+                        </div>
+                        <div class="option-row">
+                            <div>
+                                <div class="option-title">显示上次更新时间</div>
+                                <div class="option-desc">适合追更书籍较多的场景</div>
+                            </div>
+                            <div class="switch active"></div>
+                        </div>
+                        <div class="option-row">
+                            <div>
+                                <div class="option-title">显示等待更新数量</div>
+                                <div class="option-desc">在封面角标上提示待更新章节数</div>
+                            </div>
+                            <div class="switch"></div>
+                        </div>
+                        <div class="option-row">
+                            <div>
+                                <div class="option-title">显示快速滚动条</div>
+                                <div class="option-desc">适合书架藏书量大的用户</div>
+                            </div>
+                            <div class="switch active"></div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">布局预设</div>
+                        <div class="layout-grid">
+                            <div class="layout-card">
+                                <div class="layout-name">列表布局</div>
+                                <div class="mini-preview list">
+                                    <div class="mini-item"></div>
+                                    <div class="mini-item"></div>
+                                    <div class="mini-item"></div>
+                                </div>
+                            </div>
+                            <div class="layout-card">
+                                <div class="layout-name">2 列网格</div>
+                                <div class="mini-preview grid2">
+                                    <div class="mini-item"></div><div class="mini-item"></div>
+                                    <div class="mini-item"></div><div class="mini-item"></div>
+                                </div>
+                            </div>
+                            <div class="layout-card active">
+                                <div class="layout-name">3 列网格</div>
+                                <div class="mini-preview grid3">
+                                    <div class="mini-item"></div><div class="mini-item"></div><div class="mini-item"></div>
+                                    <div class="mini-item"></div><div class="mini-item"></div><div class="mini-item"></div>
+                                </div>
+                            </div>
+                            <div class="layout-card">
+                                <div class="layout-name">4 列网格</div>
+                                <div class="mini-preview grid3">
+                                    <div class="mini-item"></div><div class="mini-item"></div><div class="mini-item"></div>
+                                    <div class="mini-item"></div><div class="mini-item"></div><div class="mini-item"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">排序</div>
+                        <div class="option-row">
+                            <div>
+                                <div class="option-title">当前排序</div>
+                                <div class="option-desc">按最近阅读优先，更贴近阅读行为</div>
+                            </div>
+                            <div class="option-value">最近阅读</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bottom-bar">
+                    <div class="bottom-actions">
+                        <div class="action ghost">取消</div>
+                        <div class="action primary">应用设置</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

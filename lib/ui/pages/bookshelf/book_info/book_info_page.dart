@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
 import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../reader/reader_page.dart';
@@ -11,6 +12,7 @@ import '../../../../data/models/book_source.dart';
 import '../../../../services/book/book_service.dart';
 import '../../../../services/source/book_source_service.dart';
 import '../../../../services/book_group_service.dart';
+import '../../../../services/network/network_service.dart';
 import '../../../../data/models/book_group.dart';
 import '../../../../providers/book_provider.dart';
 import '../../../../utils/app_log.dart';
@@ -33,6 +35,8 @@ class BookInfoPage extends ConsumerStatefulWidget {
   final String? sourceUrl;
   final String? coverUrl;
   final String? intro;
+  final String? initialInfoHtml;
+  final String? initialVariable;
 
   const BookInfoPage({
     super.key,
@@ -42,13 +46,16 @@ class BookInfoPage extends ConsumerStatefulWidget {
     this.sourceUrl,
     this.coverUrl,
     this.intro,
+    this.initialInfoHtml,
+    this.initialVariable,
   });
 
   @override
   ConsumerState<BookInfoPage> createState() => _BookInfoPageState();
 }
 
-class _BookInfoPageState extends ConsumerState<BookInfoPage> {
+class _BookInfoPageState extends ConsumerState<BookInfoPage>
+    with WidgetsBindingObserver {
   Book? _book;
   bool _isLoading = true;
   bool _isInBookshelf = false;
@@ -56,10 +63,76 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
   String? _chapterError; // 章节列表加载错误（分离处理）
   List<BookChapter>? _chapters; // 保存章节列表用于显示
   bool _isLoadingChapters = false; // 章节加载状态
+  bool _hasFullChapterList = false;
+  late final ValueNotifier<List<BookChapter>> _chapterListNotifier;
+  late final ValueNotifier<bool> _chapterListLoadingNotifier;
+  OverlayEntry? _hintOverlayEntry;
+  Timer? _hintDismissTimer;
+
+  void _clearCenteredHint() {
+    _hintDismissTimer?.cancel();
+    _hintDismissTimer = null;
+    _hintOverlayEntry?.remove();
+    _hintOverlayEntry = null;
+  }
+
+  Future<void> _showCenteredHint(String message) async {
+    if (!mounted) return;
+    _hintDismissTimer?.cancel();
+    _hintOverlayEntry?.remove();
+    _hintOverlayEntry = null;
+
+    final overlay = Overlay.of(context, rootOverlay: true);
+
+    _hintOverlayEntry = OverlayEntry(
+      builder: (context) {
+        return IgnorePointer(
+          child: Material(
+            color: Colors.transparent,
+            child: Center(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.12),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  message,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    overlay.insert(_hintOverlayEntry!);
+    _hintDismissTimer = Timer(const Duration(milliseconds: 900), () {
+      _hintOverlayEntry?.remove();
+      _hintOverlayEntry = null;
+    });
+  }
+
+  bool get _hasExternalPreviewData =>
+      (widget.coverUrl != null && widget.coverUrl!.trim().isNotEmpty) ||
+      (widget.intro != null && widget.intro!.trim().isNotEmpty) ||
+      (widget.initialInfoHtml != null && widget.initialInfoHtml!.isNotEmpty);
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _chapterListNotifier = ValueNotifier<List<BookChapter>>(<BookChapter>[]);
+    _chapterListLoadingNotifier = ValueNotifier<bool>(false);
     // 重置状态，确保每次打开页面都是全新的状态
     _book = null;
     _isInBookshelf = false;
@@ -77,26 +150,54 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
         oldWidget.author != widget.author ||
         oldWidget.sourceUrl != widget.sourceUrl ||
         oldWidget.coverUrl != widget.coverUrl ||
-        oldWidget.intro != widget.intro) {
+        oldWidget.intro != widget.intro ||
+        oldWidget.initialVariable != widget.initialVariable) {
       // 重置状态
       _book = null;
       _isInBookshelf = false;
       _error = null;
       _isLoading = true;
+      _hasFullChapterList = false;
+      _chapterListNotifier.value = const <BookChapter>[];
+      _chapterListLoadingNotifier.value = false;
       // 重新加载
       _loadBook();
     }
   }
 
-  Future<void> _loadBook() async {
-    // 输出调试信息
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _clearCenteredHint();
+    _chapterListNotifier.dispose();
+    _chapterListLoadingNotifier.dispose();
+    super.dispose();
+  }
 
-    // 先重置状态，确保不会显示旧数据
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      _clearCenteredHint();
+    }
+  }
+
+  Future<void> _loadBook() async {
+    final placeholderBook = _createPlaceholderBook();
+
     setState(() {
-      _book = null;
-      _isLoading = true;
+      _book = placeholderBook;
+      _isLoading = placeholderBook == null;
       _error = null;
+      _chapterError = null;
+      _chapters = null;
+      _isLoadingChapters = false;
+      _hasFullChapterList = false;
       _isInBookshelf = false;
+      _chapterListNotifier.value = const <BookChapter>[];
+      _chapterListLoadingNotifier.value = false;
     });
 
     try {
@@ -146,98 +247,15 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
         }
       }
 
-      // 如果通过 bookUrl 没找到，且提供了 bookName 和 sourceUrl，直接创建临时 Book 对象
-      // 注意：不通过名称和作者查找，因为可能找到同名但不同 bookUrl 的书籍
-      if (book == null && widget.bookName != null && widget.sourceUrl != null) {
-        // 获取书源信息
-        final source = await BookSourceService.instance
-            .getBookSourceByUrl(widget.sourceUrl!);
-        if (source != null) {
-          // 创建临时 Book 对象，用于显示书籍详情
-          // 确保使用最新的 widget 参数
-          book = Book(
-            bookUrl: widget.bookUrl,
-            name: widget.bookName!,
-            author: widget.author ?? '',
-            origin: widget.sourceUrl!,
-            originName: source.bookSourceName,
-            coverUrl: widget.coverUrl,
-            intro: widget.intro,
-            canUpdate: true,
-          );
-
-          // 如果书籍不在书架，需要加载书籍详情和章节列表
-          if (!isInShelf) {
-            try {
-              // 确保使用最新的 book 对象（包含正确的 bookUrl）
-              final bookInfo = await BookService.instance.getBookInfo(book);
-              if (bookInfo != null) {
-                book = bookInfo;
-                // 尝试加载章节列表（但不保存到数据库）
-                try {
-                  setState(() {
-                    _isLoadingChapters = true;
-                  });
-                  final chapters = await BookService.instance
-                      .getChapterListWithoutSave(book);
-
-                  // 如果有章节，更新书籍的章节信息用于显示
-                  if (chapters.isNotEmpty) {
-                    book = book.copyWith(
-                      totalChapterNum: chapters.length,
-                      durChapterTitle: chapters[0].title,
-                    );
-                  } else {
-                    // 记录警告：章节列表为空
-                    AppLog.instance.put(
-                        'BookInfoPage: 章节列表为空 - bookUrl=${book.bookUrl}, tocUrl=${book.tocUrl}, origin=${book.origin}');
-                  }
-
-                  if (mounted) {
-                    setState(() {
-                      _chapters = chapters;
-                      _isLoadingChapters = false;
-                      _book = book; // 更新书籍对象，确保章节信息被保存
-                      // 如果章节列表为空，设置章节错误信息（不影响详情页显示）
-                      if (chapters.isEmpty) {
-                        _chapterError = '解析目录失败：未找到章节列表';
-                      }
-                    });
-                  }
-                } catch (e, stackTrace) {
-                  // 章节列表加载失败，记录错误但不影响详情页显示
-                  AppLog.instance.put('BookInfoPage: 章节列表加载失败', error: e);
-                  AppLog.instance.put('错误堆栈: $stackTrace');
-                  if (mounted) {
-                    setState(() {
-                      _chapters = [];
-                      _isLoadingChapters = false;
-                      // 使用章节错误字段，不影响整个页面
-                      _chapterError = '解析目录失败: ${e.toString()}';
-                    });
-                  }
-                }
-              } else {
-                AppLog.instance.put(
-                    'BookInfoPage: 获取书籍详情返回null - bookUrl=${book.bookUrl}, origin=${book.origin}');
-              }
-            } catch (e, stackTrace) {
-              // 获取详情失败，记录错误并继续使用基本信息
-              AppLog.instance.put('BookInfoPage: 获取书籍详情失败', error: e);
-              AppLog.instance.put('错误堆栈: $stackTrace');
-              if (mounted) {
-                setState(() {
-                  _error = '获取书籍详情失败: ${e.toString()}';
-                });
-              }
-            }
-          }
-        } else {}
+      if (book == null && placeholderBook != null) {
+        book = placeholderBook;
       }
 
       if (book == null) {
         throw Exception('未找到书籍');
       }
+
+      book = _mergeWidgetPreviewIntoBook(book);
 
       // 再次检查 widget 参数是否变化（防止异步操作期间参数已变化）
       if (widget.bookUrl != book.bookUrl) {
@@ -257,7 +275,9 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
 
         // 如果书籍在书架，也加载章节列表用于显示
         if (isInShelf) {
-          _loadChaptersForDisplay();
+          unawaited(_loadChaptersForDisplay());
+        } else {
+          unawaited(_hydrateTransientBook(book));
         }
       }
     } catch (e) {
@@ -267,6 +287,133 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Book? _createPlaceholderBook() {
+    if (widget.bookName == null || widget.sourceUrl == null) {
+      return null;
+    }
+
+    return Book(
+      bookUrl: widget.bookUrl,
+      name: widget.bookName!,
+      author: widget.author ?? '',
+      origin: widget.sourceUrl!,
+      originName: '',
+      coverUrl: widget.coverUrl != null && widget.coverUrl!.isNotEmpty
+          ? NetworkService.joinUrl(widget.sourceUrl!, widget.coverUrl!)
+          : null,
+      intro: widget.intro,
+      infoHtml: widget.initialInfoHtml,
+      variable: widget.initialVariable,
+      canUpdate: true,
+    );
+  }
+
+  Book _mergeWidgetPreviewIntoBook(Book book) {
+    final widgetCover = widget.coverUrl?.trim();
+    final resolvedWidgetCover =
+        widgetCover != null && widgetCover.isNotEmpty && widget.sourceUrl != null
+            ? NetworkService.joinUrl(widget.sourceUrl!, widgetCover)
+            : null;
+    final widgetIntro = widget.intro?.trim();
+
+    return book.copyWith(
+      name: book.name.trim().isNotEmpty
+          ? book.name
+          : (widget.bookName?.trim().isNotEmpty == true ? widget.bookName!.trim() : book.name),
+      author: book.author.trim().isNotEmpty
+          ? book.author
+          : (widget.author?.trim().isNotEmpty == true ? widget.author!.trim() : book.author),
+      coverUrl:
+          resolvedWidgetCover != null && resolvedWidgetCover.isNotEmpty
+              ? resolvedWidgetCover
+              : book.coverUrl,
+      intro: (book.intro == null || book.intro!.trim().isEmpty)
+          ? (widgetIntro?.isNotEmpty == true ? widgetIntro : book.intro)
+          : book.intro,
+      infoHtml: (book.infoHtml == null || book.infoHtml!.isEmpty)
+          ? widget.initialInfoHtml
+          : book.infoHtml,
+      variable: (book.variable == null || book.variable!.isEmpty)
+          ? widget.initialVariable
+          : book.variable,
+    );
+  }
+
+  Future<void> _hydrateTransientBook(Book baseBook) async {
+    try {
+      final source = await BookSourceService.instance
+          .getBookSourceByUrl(baseBook.origin);
+      if (source == null || !mounted) return;
+
+      var workingBook = baseBook;
+      if (workingBook.originName.isEmpty) {
+        workingBook = workingBook.copyWith(originName: source.bookSourceName);
+        if (mounted) {
+          setState(() {
+            _book = workingBook;
+          });
+        }
+      }
+
+      final bookInfo = await BookService.instance.getBookInfo(workingBook);
+      if (bookInfo != null) {
+        workingBook = _mergeWidgetPreviewIntoBook(bookInfo);
+        if (mounted) {
+          setState(() {
+            _book = workingBook;
+          });
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _isLoadingChapters = true;
+        _chapterError = null;
+      });
+
+      final chapters =
+          await BookService.instance.getChapterListWithoutSave(workingBook);
+      if (!mounted) return;
+
+      if (chapters.isNotEmpty) {
+        workingBook = workingBook.copyWith(
+          totalChapterNum: chapters.length,
+          durChapterTitle: chapters.first.title,
+        );
+      } else {
+        AppLog.instance.put(
+          'BookInfoPage: 章节列表为空 - bookUrl=${workingBook.bookUrl}, tocUrl=${workingBook.tocUrl}, origin=${workingBook.origin}',
+        );
+      }
+
+      setState(() {
+        _book = workingBook;
+        _chapters = chapters;
+        _isLoadingChapters = false;
+        _hasFullChapterList = true;
+        _chapterError = chapters.isEmpty ? '解析目录失败：未找到章节列表' : null;
+      });
+      _chapterListNotifier.value = chapters;
+      _chapterListLoadingNotifier.value = false;
+      if (_isInBookshelf && chapters.isNotEmpty) {
+        await BookService.instance.saveChapters(chapters);
+      }
+    } catch (e, stackTrace) {
+      AppLog.instance.put('BookInfoPage: 异步补全详情失败', error: e);
+      AppLog.instance.put('错误堆栈: $stackTrace');
+      if (!mounted) return;
+      setState(() {
+        _isLoadingChapters = false;
+        if (_book == null) {
+          _error = '获取书籍详情失败: ${e.toString()}';
+        } else {
+          _chapterError = '解析目录失败: ${e.toString()}';
+        }
+      });
+      _chapterListLoadingNotifier.value = false;
     }
   }
 
@@ -302,35 +449,15 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
     if (_book == null) return;
 
     try {
-      // 如果书籍不是本地书籍，需要先获取章节列表
-      if (!_book!.isLocal) {
-        try {
-          final chapters = await BookService.instance.getChapterList(_book!);
-          if (chapters.isNotEmpty) {
-            await BookService.instance.saveChapters(chapters);
-          }
-        } catch (e) {
-          // 章节列表获取失败不影响添加书籍
-        }
-      }
-
-      // 保存书籍
       await BookService.instance.createBook(_book!);
-
-      // 刷新书架 Provider
-      ref.invalidate(refreshBookshelfProvider);
-      ref.invalidate(bookshelfBooksProvider);
-
-      // 刷新所有分组的书籍列表
-      final groupsAsync = ref.read(bookGroupsProvider);
-      final groups = groupsAsync.value ?? [];
-      for (final group in groups) {
-        ref.invalidate(booksByGroupProvider(group.groupId));
-      }
 
       setState(() {
         _isInBookshelf = true;
       });
+
+      _refreshBookshelfProviders();
+
+      unawaited(_persistChaptersAfterAddToShelf());
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -343,6 +470,37 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
           SnackBar(content: Text('添加失败: $e')),
         );
       }
+    }
+  }
+
+  void _refreshBookshelfProviders() {
+    ref.invalidate(refreshBookshelfProvider);
+    ref.invalidate(bookshelfBooksProvider);
+
+    final groupsAsync = ref.read(bookGroupsProvider);
+    final groups = groupsAsync.value ?? [];
+    for (final group in groups) {
+      ref.invalidate(booksByGroupProvider(group.groupId));
+    }
+  }
+
+  Future<void> _persistChaptersAfterAddToShelf() async {
+    if (_book == null || _book!.isLocal) return;
+
+    try {
+      if (_chapters != null && _chapters!.isNotEmpty) {
+        await BookService.instance.saveChapters(_chapters!);
+      }
+
+      if (_hasFullChapterList || _isLoadingChapters) {
+        return;
+      }
+
+      await _upgradeChapterListInBackground(
+        shouldPreferLiveChapters: _hasExternalPreviewData,
+      );
+    } catch (_) {
+      // 目录后台保存失败不影响加入书架结果
     }
   }
 
@@ -443,14 +601,49 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
     if (_book == null) return;
 
     try {
-      final chapters = await BookService.instance.getChapterList(_book!);
+      final chapters = _hasExternalPreviewData
+          ? await BookService.instance.getChapterListWithoutSave(_book!)
+          : await BookService.instance.getChapterList(_book!);
       if (mounted) {
         setState(() {
           _chapters = chapters;
+          _hasFullChapterList = true;
         });
+        _chapterListNotifier.value = chapters;
+      }
+      if (_isInBookshelf && chapters.isNotEmpty) {
+        await BookService.instance.saveChapters(chapters);
       }
     } catch (e) {
       // 加载失败不影响显示
+    }
+  }
+
+  Future<void> _upgradeChapterListInBackground({
+    required bool shouldPreferLiveChapters,
+  }) async {
+    if (_book == null || _hasFullChapterList) return;
+
+    try {
+      _chapterListLoadingNotifier.value = true;
+      final chapters = (_isInBookshelf && !shouldPreferLiveChapters)
+          ? await BookService.instance.getChapterList(_book!)
+          : await BookService.instance.getChapterListWithoutSave(_book!);
+      if (!mounted || chapters.isEmpty) return;
+
+      setState(() {
+        _chapters = chapters;
+        _hasFullChapterList = true;
+        _chapterError = null;
+      });
+      _chapterListNotifier.value = chapters;
+      if (_isInBookshelf) {
+        await BookService.instance.saveChapters(chapters);
+      }
+    } catch (_) {
+      // 后台补全失败不影响当前目录页使用
+    } finally {
+      _chapterListLoadingNotifier.value = false;
     }
   }
 
@@ -458,37 +651,49 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
     if (_book == null) return;
 
     try {
-      List<BookChapter> chapters;
+      if (_isLoadingChapters && (_chapters == null || _chapters!.isEmpty)) {
+        unawaited(_showCenteredHint('目录加载中...'));
+        return;
+      }
 
-      // 如果已经有缓存的章节列表（不在书架时）且没有错误，直接使用
-      if (!_isInBookshelf && 
-          _chapters != null && 
-          _chapters!.isNotEmpty && 
-          _chapterError == null) {
+      if (!_isLoadingChapters &&
+          (_chapters == null || _chapters!.isEmpty) &&
+          _chapterError != null) {
+        unawaited(_showCenteredHint('目录获取失败'));
+        return;
+      }
+
+      List<BookChapter> chapters;
+      final shouldPreferLiveChapters = _hasExternalPreviewData;
+
+      if (_chapters != null && _chapters!.isNotEmpty && _chapterError == null) {
         chapters = _chapters!;
       } else {
-        // 显示加载状态
         if (mounted) {
           setState(() {
             _isLoadingChapters = true;
             _chapterError = null;
           });
         }
-        
-        // 加载章节列表
-        // 如果书籍不在书架，使用不保存到数据库的方法
-        chapters = _isInBookshelf
-            ? await BookService.instance.getChapterList(_book!)
-            : await BookService.instance.getChapterListWithoutSave(_book!);
 
-        // 更新缓存的章节列表
+        _chapterListLoadingNotifier.value = true;
+        chapters = (_isInBookshelf && !shouldPreferLiveChapters)
+            ? await BookService.instance.getChapterList(_book!, loadAllPages: false)
+            : await BookService.instance.getChapterListWithoutSave(
+                _book!,
+                loadAllPages: false,
+              );
+
         if (mounted) {
           setState(() {
             _chapters = chapters;
             _isLoadingChapters = false;
+            _hasFullChapterList = false;
             _chapterError = chapters.isEmpty ? '未找到章节' : null;
           });
         }
+        _chapterListNotifier.value = chapters;
+        _chapterListLoadingNotifier.value = false;
       }
 
       if (!mounted) return;
@@ -503,6 +708,8 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
         MaterialPageRoute(
           builder: (context) => ChapterListPage(
             chapters: chapters,
+            chaptersListenable: _chapterListNotifier,
+            loadingListenable: _chapterListLoadingNotifier,
             currentChapterIndex: currentIndex,
             onChapterSelected: (chapterIndex) {
               Navigator.of(context).pop();
@@ -511,7 +718,14 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
           ),
         ),
       );
+
+      unawaited(
+        _upgradeChapterListInBackground(
+          shouldPreferLiveChapters: shouldPreferLiveChapters,
+        ),
+      );
     } catch (e) {
+      _chapterListLoadingNotifier.value = false;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('加载章节列表失败: $e')),
@@ -836,6 +1050,9 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage> {
                               imageFilter:
                                   ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                               child: CachedNetworkImage(
+                                key: ValueKey(
+                                  'book_info_background_${_book!.displayCover!}',
+                                ),
                                 imageUrl: _book!.displayCover!,
                                 fit: BoxFit.cover,
                                 placeholder: (context, url) => Container(

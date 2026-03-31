@@ -19,7 +19,11 @@ class HtmlParser {
     if (container is html_dom.Document) {
       return container.querySelectorAll(selector);
     } else if (container is html_dom.Element) {
-      return container.querySelectorAll(selector);
+      final elements = container.querySelectorAll(selector);
+      if (_matchesSimpleSelector(container, selector)) {
+        return [container, ...elements.where((e) => !identical(e, container))];
+      }
+      return elements;
     }
     return [];
   }
@@ -32,9 +36,68 @@ class HtmlParser {
     if (container is html_dom.Document) {
       return container.querySelector(selector);
     } else if (container is html_dom.Element) {
+      if (_matchesSimpleSelector(container, selector)) {
+        return container;
+      }
       return container.querySelector(selector);
     }
     return null;
+  }
+
+  static bool _matchesSimpleSelector(
+    html_dom.Element element,
+    String selector,
+  ) {
+    final trimmed = selector.trim();
+    if (trimmed.isEmpty) return false;
+    if (trimmed == '*') return true;
+
+    // 仅处理简单选择器，自身匹配主要用于 Legado 常见的 a / .class / #id / tag.class 规则。
+    if (RegExp(r'[\s>+~:\[,]').hasMatch(trimmed)) {
+      return false;
+    }
+
+    String remaining = trimmed;
+    String? expectedTag;
+    String? expectedId;
+    final expectedClasses = <String>[];
+
+    final tagMatch = RegExp(r'^[a-zA-Z][\w-]*').firstMatch(remaining);
+    if (tagMatch != null) {
+      expectedTag = tagMatch.group(0)?.toLowerCase();
+      remaining = remaining.substring(tagMatch.end);
+    }
+
+    while (remaining.isNotEmpty) {
+      if (remaining.startsWith('.')) {
+        final classMatch = RegExp(r'^\.([\w-]+)').firstMatch(remaining);
+        if (classMatch == null) return false;
+        expectedClasses.add(classMatch.group(1)!);
+        remaining = remaining.substring(classMatch.end);
+        continue;
+      }
+      if (remaining.startsWith('#')) {
+        final idMatch = RegExp(r'^#([\w-]+)').firstMatch(remaining);
+        if (idMatch == null) return false;
+        expectedId = idMatch.group(1);
+        remaining = remaining.substring(idMatch.end);
+        continue;
+      }
+      return false;
+    }
+
+    if (expectedTag != null && element.localName?.toLowerCase() != expectedTag) {
+      return false;
+    }
+    if (expectedId != null && element.id != expectedId) {
+      return false;
+    }
+    for (final className in expectedClasses) {
+      if (!element.classes.contains(className)) {
+        return false;
+      }
+    }
+    return expectedTag != null || expectedId != null || expectedClasses.isNotEmpty;
   }
 
   /// 使用 XPath 获取元素

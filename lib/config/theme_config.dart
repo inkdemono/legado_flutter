@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:tdesign_flutter/tdesign_flutter.dart';
 import 'app_config.dart';
+import '../ui/theme/td_theme_adapter.dart';
+import '../ui/theme/eink_td_theme.dart';
 
 /// 主题模式 Provider
 final themeModeProvider = Provider<ThemeMode>((ref) {
@@ -22,89 +25,111 @@ void setThemeMode(WidgetRef ref, ThemeMode mode) {
   ref.invalidate(themeModeProvider);
 }
 
+/// 是否启用 EInk 模式 Provider
+final einkModeProvider = Provider<bool>((ref) {
+  return AppConfig.getBool('eink_mode', defaultValue: false);
+});
+
+/// 设置 EInk 模式
+void setEinkMode(WidgetRef ref, bool enabled) {
+  AppConfig.setBool('eink_mode', enabled);
+  ref.invalidate(einkModeProvider);
+  ref.invalidate(tdThemeProvider);
+  ref.invalidate(appThemeProvider);
+}
+
+/// TDesign 主题 Provider
+final tdThemeProvider = Provider<TDThemeData>((ref) {
+  final isEink = ref.watch(einkModeProvider);
+
+  // EInk 模式使用专用主题
+  if (isEink) {
+    return EInkTDTheme.getEInkTheme();
+  }
+
+  // 从配置读取自定义颜色
+  final primary = Color(AppConfig.getInt('c_primary', defaultValue: 0xFF0052D9));
+  final accent = Color(AppConfig.getInt('c_accent', defaultValue: 0xFF0052D9));
+  final background = Color(AppConfig.getInt('c_background', defaultValue: 0xFFF5F5F5));
+  final bottomBackground = Color(AppConfig.getInt('c_b_background', defaultValue: 0xFFFFFFFF));
+
+  // 创建浅色主题
+  return TDesignThemeAdapter.createLightTheme(
+    primary: primary,
+    accent: accent,
+    background: background,
+    bottomBackground: bottomBackground,
+  );
+});
+
+/// TDesign 深色主题 Provider
+final tdDarkThemeProvider = Provider<TDThemeData>((ref) {
+  final isEink = ref.watch(einkModeProvider);
+
+  // EInk 模式使用专用主题
+  if (isEink) {
+    return EInkTDTheme.getEInkTheme();
+  }
+
+  // 从配置读取自定义颜色（深色模式使用更亮的默认值）
+  final primary = Color(AppConfig.getInt('c_n_primary', defaultValue: 0xFF4A90D9));
+  final accent = Color(AppConfig.getInt('c_n_accent', defaultValue: 0xFF4A90D9));
+  final background = Color(AppConfig.getInt('c_n_background', defaultValue: 0xFF121212));
+  final bottomBackground = Color(AppConfig.getInt('c_n_b_background', defaultValue: 0xFF1E1E1E));
+
+  // 创建深色主题
+  return TDesignThemeAdapter.createDarkTheme(
+    primary: primary,
+    accent: accent,
+    background: background,
+    bottomBackground: bottomBackground,
+  );
+});
+
 /// 应用主题 Provider
 final appThemeProvider = Provider<AppTheme>((ref) {
-  return AppTheme();
+  final tdTheme = ref.watch(tdThemeProvider);
+  final tdDarkTheme = ref.watch(tdDarkThemeProvider);
+  final isEink = ref.watch(einkModeProvider);
+  return AppTheme(tdTheme: tdTheme, tdDarkTheme: tdDarkTheme, isEink: isEink);
 });
 
 class AppTheme {
-  ThemeData get lightTheme {
-    // 从配置读取自定义颜色
-    final primary =
-        Color(AppConfig.getInt('c_primary', defaultValue: 0xFF795548));
-    final accent =
-        Color(AppConfig.getInt('c_accent', defaultValue: 0xFFD32F2F));
-    final background =
-        Color(AppConfig.getInt('c_background', defaultValue: 0xFFF5F5F5));
-    final bottomBackground =
-        Color(AppConfig.getInt('c_b_background', defaultValue: 0xFFEEEEEE));
+  final TDThemeData tdTheme;
+  final TDThemeData tdDarkTheme;
+  final bool isEink;
 
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.light,
-      colorScheme: ColorScheme.light(
-        primary: primary,
-        secondary: accent,
-        surface: background,
-      ),
-      scaffoldBackgroundColor: background,
-      appBarTheme: AppBarTheme(
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
-      ),
-      cardTheme: CardThemeData(
-        elevation: 2,
-        color: bottomBackground,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: bottomBackground,
-      ),
-    );
+  AppTheme({
+    required this.tdTheme,
+    required this.tdDarkTheme,
+    this.isEink = false,
+  });
+
+  ThemeData get lightTheme {
+    // EInk 模式使用专用主题
+    if (isEink) {
+      return EInkTDTheme.toEInkFlutterTheme(EInkTDTheme.getEInkTheme());
+    }
+
+    // 使用 TDesign 主题适配器生成 ThemeData
+    return TDesignThemeAdapter.toFlutterTheme(tdTheme, isDark: false);
   }
 
   ThemeData get darkTheme {
-    // 从配置读取自定义颜色
-    final primary =
-        Color(AppConfig.getInt('c_n_primary', defaultValue: 0xFF546E7A));
-    final accent =
-        Color(AppConfig.getInt('c_n_accent', defaultValue: 0xFFBF360C));
-    final background =
-        Color(AppConfig.getInt('c_n_background', defaultValue: 0xFF212121));
-    final bottomBackground =
-        Color(AppConfig.getInt('c_n_b_background', defaultValue: 0xFF303030));
+    // EInk 模式使用专用主题
+    if (isEink) {
+      return EInkTDTheme.toEInkFlutterTheme(EInkTDTheme.getEInkTheme());
+    }
 
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-      colorScheme: ColorScheme.dark(
-        primary: primary,
-        secondary: accent,
-        surface: background,
-      ),
-      scaffoldBackgroundColor: background,
-      appBarTheme: AppBarTheme(
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
-      ),
-      cardTheme: CardThemeData(
-        elevation: 2,
-        color: bottomBackground,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: bottomBackground,
-      ),
-    );
+    // 使用 TDesign 主题适配器生成 ThemeData
+    return TDesignThemeAdapter.toFlutterTheme(tdDarkTheme, isDark: true);
   }
+
+  /// 获取当前 TDesign 主题
+  TDThemeData get currentTDTheme => tdTheme;
+
+  /// 获取深色 TDesign 主题
+  TDThemeData get darkTDTheme => tdDarkTheme;
 
   static Future<void> init() async {
     // 初始化主题配置

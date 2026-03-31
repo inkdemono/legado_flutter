@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legado Flutter UI 设计稿总览</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "SF Pro Display", "PingFang SC", "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at top, rgba(79, 124, 255, 0.16), transparent 28%),
+                linear-gradient(135deg, #101821 0%, #1c314c 58%, #0f172a 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 1240px;
+            margin: 0 auto;
+            padding: 64px 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .logo {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #4f7cff 0%, #7c5cff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.68);
+            margin-bottom: 24px;
+        }
+
+        .info-bar {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            flex-wrap: wrap;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.72);
+            padding: 10px 14px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(12px);
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: linear-gradient(135deg, #4f7cff 0%, #7c5cff 100%);
+            border-radius: 2px;
+        }
+
+        .design-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 60px;
+        }
+
+        .design-card {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 26px;
+            overflow: hidden;
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            backdrop-filter: blur(16px);
+        }
+
+        .design-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 24px 56px rgba(0,0,0,0.28);
+        }
+
+        .card-preview {
+            height: 200px;
+            background-size: cover;
+            background-position: top center;
+            position: relative;
+        }
+
+        .card-preview::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+        }
+
+        .card-number {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .card-content {
+            padding: 22px;
+        }
+
+        .card-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .card-desc {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.62);
+            margin-bottom: 16px;
+        }
+
+        .card-tags {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            padding: 4px 12px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 999px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.68);
+        }
+
+        .tag.primary {
+            background: rgba(22, 119, 255, 0.14);
+            color: #1677ff;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 40px 0;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .footer-text {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.48);
+            margin-bottom: 16px;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+        }
+
+        .footer-link {
+            color: rgba(255, 255, 255, 0.62);
+            text-decoration: none;
+            font-size: 13px;
+            transition: color 0.3s;
+        }
+
+        .footer-link:hover {
+            color: #1677ff;
+        }
+
+        /* Design specific backgrounds */
+        .preview-bookshelf {
+            background: linear-gradient(135deg, #f7f8fa 0%, #e5e6eb 100%);
+        }
+
+        .preview-detail {
+            background: linear-gradient(135deg, #4f7cff 0%, #7c5cff 100%);
+        }
+
+        .preview-reader {
+            background: linear-gradient(135deg, #F5E6C8 0%, #E8D4B8 100%);
+        }
+
+        .preview-discover {
+            background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+        }
+
+        .preview-media {
+            background: linear-gradient(135deg, #fb7185 0%, #ff7aa5 100%);
+        }
+
+        .preview-my {
+            background: linear-gradient(135deg, #4f7cff 0%, #7c5cff 100%);
+        }
+
+        .preview-book-source {
+            background: linear-gradient(135deg, #4f7cff 0%, #7c5cff 100%);
+        }
+
+        .preview-txt-toc {
+            background: linear-gradient(135deg, #34d399 0%, #14b8a6 100%);
+        }
+
+        .preview-replace-rule {
+            background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+        }
+
+        .preview-dict-rule {
+            background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+        }
+
+        .preview-backup-restore {
+            background: linear-gradient(135deg, #52C41A 0%, #389E0D 100%);
+        }
+
+        .preview-theme-settings {
+            background: linear-gradient(135deg, #4f7cff 0%, #7c5cff 100%);
+        }
+
+        .preview-other-settings {
+            background: linear-gradient(135deg, #FA8C16 0%, #D46B08 100%);
+        }
+
+        .preview-bookmark {
+            background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+        }
+
+        .preview-read-record {
+            background: linear-gradient(135deg, #4f7cff 0%, #7c5cff 100%);
+        }
+
+        .preview-cache-manage {
+            background: linear-gradient(135deg, #34d399 0%, #14b8a6 100%);
+        }
+
+        .preview-file-manage {
+            background: linear-gradient(135deg, #1677ff 0%, #0f62fe 100%);
+        }
+
+        .preview-cache-manage {
+            background: linear-gradient(135deg, #34d399 0%, #14b8a6 100%);
+        }
+
+        .preview-help {
+            background: linear-gradient(135deg, #FA8C16 0%, #FA541C 100%);
+        }
+
+        .preview-about {
+            background: linear-gradient(135deg, #4f7cff 0%, #7c5cff 100%);
+        }
+
+        .preview-backup-config {
+            background: linear-gradient(135deg, #1677FF 0%, #69B1FF 100%);
+        }
+
+        .preview-theme-editor {
+            background: linear-gradient(135deg, #7D5C43 0%, #C96D3A 100%);
+        }
+
+        .preview-book-manage {
+            background: linear-gradient(135deg, #165DFF 0%, #0E42D2 100%);
+        }
+
+        .preview-bookshelf-layout {
+            background: linear-gradient(135deg, #7B5CFF 0%, #9C7DFF 100%);
+        }
+
+        .preview-explore-results {
+            background: linear-gradient(135deg, #0F766E 0%, #14B8A6 100%);
+        }
+
+        .preview-rss-articles {
+            background: linear-gradient(135deg, #FB923C 0%, #EA580C 100%);
+        }
+
+        .preview-music-player {
+            background: linear-gradient(135deg, #FF7AA5 0%, #7C5CFF 100%);
+        }
+
+        .preview-video-player {
+            background: linear-gradient(135deg, #0EA5E9 0%, #312E81 100%);
+        }
+
+        .preview-file-detail {
+            background: linear-gradient(135deg, #1C3F66 0%, #69B1FF 100%);
+        }
+
+        .preview-bookshelf-empty {
+            background: linear-gradient(135deg, #165DFF 0%, #A0CFFF 100%);
+        }
+
+        .preview-add-book-sheet {
+            background: linear-gradient(135deg, #1677FF 0%, #FA8C16 100%);
+        }
+
+        .preview-rss-source-manage {
+            background: linear-gradient(135deg, #FB923C 0%, #C2410C 100%);
+        }
+
+        .preview-music-library {
+            background: linear-gradient(135deg, #FF7AA5 0%, #6B4DFF 100%);
+        }
+
+        .preview-video-library {
+            background: linear-gradient(135deg, #0EA5E9 0%, #2563EB 100%);
+        }
+
+        .preview-bookmark-editor {
+            background: linear-gradient(135deg, #f59e0b 0%, #C77700 100%);
+        }
+
+        .preview-group-manage {
+            background: linear-gradient(135deg, #7B5CFF 0%, #B2A5FF 100%);
+        }
+
+        .preview-rss-source-edit {
+            background: linear-gradient(135deg, #FB923C 0%, #EA580C 100%);
+        }
+
+        .preview-rss-import {
+            background: linear-gradient(135deg, #FDBA74 0%, #EA580C 100%);
+        }
+
+        .preview-rss-group-manage {
+            background: linear-gradient(135deg, #F59E0B 0%, #C2410C 100%);
+        }
+
+        .preview-music-empty {
+            background: linear-gradient(135deg, #FF7AA5 0%, #7C5CFF 100%);
+        }
+
+        .preview-video-history {
+            background: linear-gradient(135deg, #0EA5E9 0%, #1D4ED8 100%);
+        }
+
+        .preview-bookshelf-manage {
+            background: linear-gradient(135deg, #165DFF 0%, #69B1FF 100%);
+        }
+
+        .preview-group-edit {
+            background: linear-gradient(135deg, #7B5CFF 0%, #C4B5FD 100%);
+        }
+
+        .preview-rss-read {
+            background: linear-gradient(135deg, #FB923C 0%, #7C2D12 100%);
+        }
+
+        .preview-rss-favorites {
+            background: linear-gradient(135deg, #F59E0B 0%, #EA580C 100%);
+        }
+
+        .preview-rss-read-record {
+            background: linear-gradient(135deg, #FB923C 0%, #475569 100%);
+        }
+
+        .preview-move-to-group {
+            background: linear-gradient(135deg, #165DFF 0%, #93C5FD 100%);
+        }
+
+        .preview-batch-actions {
+            background: linear-gradient(135deg, #165DFF 0%, #1E293B 100%);
+        }
+
+        .preview-rss-sort {
+            background: linear-gradient(135deg, #FB923C 0%, #F59E0B 100%);
+        }
+
+        .preview-remote-book {
+            background: linear-gradient(135deg, #1677FF 0%, #69B1FF 100%);
+        }
+
+        .preview-log-dialog {
+            background: linear-gradient(135deg, #0F172A 0%, #1D4ED8 100%);
+        }
+
+        .preview-cache-export {
+            background: linear-gradient(135deg, #1677FF 0%, #7C3AED 100%);
+        }
+
+        .preview-change-source {
+            background: linear-gradient(135deg, #16A34A 0%, #1677FF 100%);
+        }
+
+        .preview-change-cover {
+            background: linear-gradient(135deg, #1677FF 0%, #F59E0B 100%);
+        }
+
+        .preview-book-edit {
+            background: linear-gradient(135deg, #1677FF 0%, #93C5FD 100%);
+        }
+
+        .preview-export-confirm {
+            background: linear-gradient(135deg, #7C3AED 0%, #A78BFA 100%);
+        }
+
+        .preview-theme-mode {
+            background: linear-gradient(135deg, #7C3AED 0%, #C4B5FD 100%);
+        }
+
+        .preview-exit-confirm {
+            background: linear-gradient(135deg, #F53F3F 0%, #FB7185 100%);
+        }
+
+        .preview-music-sleep-timer {
+            background: linear-gradient(135deg, #FF7AA5 0%, #7C5CFF 100%);
+        }
+
+        .preview-web-service-menu {
+            background: linear-gradient(135deg, #16A34A 0%, #69B1FF 100%);
+        }
+
+        .preview-music-speed {
+            background: linear-gradient(135deg, #FF7AA5 0%, #7C5CFF 100%);
+        }
+
+        .preview-video-speed {
+            background: linear-gradient(135deg, #0EA5E9 0%, #2563EB 100%);
+        }
+
+        .preview-playlist-empty {
+            background: linear-gradient(135deg, #FF7AA5 0%, #7C5CFF 100%);
+        }
+
+        .preview-video-ratio {
+            background: linear-gradient(135deg, #0EA5E9 0%, #38BDF8 100%);
+        }
+
+        .preview-video-track-select {
+            background: linear-gradient(135deg, #14B8A6 0%, #0EA5E9 100%);
+        }
+
+        .preview-cache-clear-confirm {
+            background: linear-gradient(135deg, #F53F3F 0%, #FB7185 100%);
+        }
+
+        .preview-book-source-batch-delete {
+            background: linear-gradient(135deg, #F53F3F 0%, #6B7280 100%);
+        }
+
+        .preview-book-source-import {
+            background: linear-gradient(135deg, #1677FF 0%, #69B1FF 100%);
+        }
+
+        .icon-large {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 64px;
+            opacity: 0.3;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">📚</div>
+            <h1>Legado Flutter UI 设计稿</h1>
+            <p class="subtitle">现代化阅读应用的完整UI设计方案 · 已接入共享 Design System 2.0</p>
+            <div class="info-bar">
+                <div class="info-item">
+                    <span>📱</span>
+                    <span>67个页面</span>
+                </div>
+                <div class="info-item">
+                    <span>🎨</span>
+                    <span>日间/夜间模式</span>
+                </div>
+                <div class="info-item">
+                    <span>📐</span>
+                    <span>375x812 设计基准</span>
+                </div>
+                <div class="info-item">
+                    <span>✨</span>
+                    <span>Material Design 3</span>
+                </div>
+                <div class="info-item">
+                    <span>🧩</span>
+                    <span>待补 13 组功能界面</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="design-grid">
+            <a href="01_bookshelf.html" class="design-card">
+                <div class="card-preview preview-bookshelf">
+                    <span class="icon-large">📚</span>
+                    <span class="card-number">01</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">书架页面 Bookshelf</h3>
+                    <p class="card-desc">书籍网格展示、分组筛选、阅读进度、更新提醒</p>
+                    <div class="card-tags">
+                        <span class="tag primary">核心页面</span>
+                        <span class="tag">网格布局</span>
+                        <span class="tag">分组管理</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="02_book_detail.html" class="design-card">
+                <div class="card-preview preview-detail">
+                    <span class="icon-large">📖</span>
+                    <span class="card-number">02</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">书籍详情 Book Detail</h3>
+                    <p class="card-desc">沉浸式封面背景、书籍信息、快捷操作、章节目录</p>
+                    <div class="card-tags">
+                        <span class="tag primary">核心页面</span>
+                        <span class="tag">沉浸式设计</span>
+                        <span class="tag">毛玻璃效果</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="03_reader.html" class="design-card">
+                <div class="card-preview preview-reader">
+                    <span class="icon-large">📄</span>
+                    <span class="card-number">03</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">阅读器页面 Reader</h3>
+                    <p class="card-desc">沉浸式阅读、多种主题、翻页交互、设置面板</p>
+                    <div class="card-tags">
+                        <span class="tag primary">核心功能</span>
+                        <span class="tag">多主题</span>
+                        <span class="tag">手势交互</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="04_discover.html" class="design-card">
+                <div class="card-preview preview-discover">
+                    <span class="icon-large">🔍</span>
+                    <span class="card-number">04</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">发现页面 Discover</h3>
+                    <p class="card-desc">搜索、推荐、排行榜、分类浏览、RSS订阅</p>
+                    <div class="card-tags">
+                        <span class="tag primary">内容发现</span>
+                        <span class="tag">Tab切换</span>
+                        <span class="tag">RSS</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="05_media.html" class="design-card">
+                <div class="card-preview preview-media">
+                    <span class="icon-large">🎵</span>
+                    <span class="card-number">05</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">媒体页面 Media</h3>
+                    <p class="card-desc">音乐播放、视频播放、歌单管理、迷你播放器</p>
+                    <div class="card-tags">
+                        <span class="tag">媒体播放</span>
+                        <span class="tag">歌单</span>
+                        <span class="tag">迷你播放器</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="06_my.html" class="design-card">
+                <div class="card-preview preview-my">
+                    <span class="icon-large">👤</span>
+                    <span class="card-number">06</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">我的页面 Profile</h3>
+                    <p class="card-desc">个人设置、主题配置、书源管理、备份恢复</p>
+                    <div class="card-tags">
+                        <span class="tag">设置中心</span>
+                        <span class="tag">主题切换</span>
+                        <span class="tag">数据管理</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <h2 class="section-title">规则管理</h2>
+
+        <div class="design-grid">
+            <a href="07_book_source.html" class="design-card">
+                <div class="card-preview preview-book-source">
+                    <span class="icon-large">📚</span>
+                    <span class="card-number">07</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">书源管理 Book Source</h3>
+                    <p class="card-desc">书源导入、管理、排序、批量操作</p>
+                    <div class="card-tags">
+                        <span class="tag primary">规则管理</span>
+                        <span class="tag">导入导出</span>
+                        <span class="tag">批量操作</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="08_txt_toc_rule.html" class="design-card">
+                <div class="card-preview preview-txt-toc">
+                    <span class="icon-large">📄</span>
+                    <span class="card-number">08</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">TXT目录规则 TXT TOC</h3>
+                    <p class="card-desc">本地TXT文件目录解析规则配置</p>
+                    <div class="card-tags">
+                        <span class="tag">规则管理</span>
+                        <span class="tag">正则表达式</span>
+                        <span class="tag">本地解析</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="09_replace_rule.html" class="design-card">
+                <div class="card-preview preview-replace-rule">
+                    <span class="icon-large">🔄</span>
+                    <span class="card-number">09</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">替换规则 Replace Rule</h3>
+                    <p class="card-desc">内容净化、广告过滤、格式优化</p>
+                    <div class="card-tags">
+                        <span class="tag">规则管理</span>
+                        <span class="tag">广告过滤</span>
+                        <span class="tag">内容净化</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="10_dict_rule.html" class="design-card">
+                <div class="card-preview preview-dict-rule">
+                    <span class="icon-large">📖</span>
+                    <span class="card-number">10</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">字典规则 Dict Rule</h3>
+                    <p class="card-desc">词典与翻译源配置管理</p>
+                    <div class="card-tags">
+                        <span class="tag">规则管理</span>
+                        <span class="tag">翻译</span>
+                        <span class="tag">词典</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <h2 class="section-title">设置与工具</h2>
+
+        <div class="design-grid">
+            <a href="11_backup_restore.html" class="design-card">
+                <div class="card-preview preview-backup-restore">
+                    <span class="icon-large">💾</span>
+                    <span class="card-number">11</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">备份恢复 Backup</h3>
+                    <p class="card-desc">本地备份、WebDAV云备份</p>
+                    <div class="card-tags">
+                        <span class="tag">数据备份</span>
+                        <span class="tag">WebDAV</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="12_theme_settings.html" class="design-card">
+                <div class="card-preview preview-theme-settings">
+                    <span class="icon-large">🎨</span>
+                    <span class="card-number">12</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">主题设置 Theme</h3>
+                    <p class="card-desc">自定义主题配色方案</p>
+                    <div class="card-tags">
+                        <span class="tag">主题定制</span>
+                        <span class="tag">颜色配置</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="13_other_settings.html" class="design-card">
+                <div class="card-preview preview-other-settings">
+                    <span class="icon-large">⚙️</span>
+                    <span class="card-number">13</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">其他设置 Settings</h3>
+                    <p class="card-desc">网络设置、缓存管理、更多选项</p>
+                    <div class="card-tags">
+                        <span class="tag">系统设置</span>
+                        <span class="tag">网络配置</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="14_bookmark.html" class="design-card">
+                <div class="card-preview preview-bookmark">
+                    <span class="icon-large">🔖</span>
+                    <span class="card-number">14</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">书签 Bookmark</h3>
+                    <p class="card-desc">书签管理与导出</p>
+                    <div class="card-tags">
+                        <span class="tag">书签管理</span>
+                        <span class="tag">导出</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <h2 class="section-title">统计与管理</h2>
+
+        <div class="design-grid">
+            <a href="15_read_record.html" class="design-card">
+                <div class="card-preview preview-read-record">
+                    <span class="icon-large">⏱️</span>
+                    <span class="card-number">15</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">阅读记录 Read Record</h3>
+                    <p class="card-desc">阅读时长统计与历史</p>
+                    <div class="card-tags">
+                        <span class="tag">阅读统计</span>
+                        <span class="tag">时长</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="16_cache_manage.html" class="design-card">
+                <div class="card-preview preview-cache-manage">
+                    <span class="icon-large">💾</span>
+                    <span class="card-number">16</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">缓存管理 Cache</h3>
+                    <p class="card-desc">章节缓存管理</p>
+                    <div class="card-tags">
+                        <span class="tag">缓存</span>
+                        <span class="tag">存储</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="17_file_manage.html" class="design-card">
+                <div class="card-preview preview-file-manage">
+                    <span class="icon-large">📁</span>
+                    <span class="card-number">17</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">文件管理 File</h3>
+                    <p class="card-desc">应用文件浏览器</p>
+                    <div class="card-tags">
+                        <span class="tag">文件浏览</span>
+                        <span class="tag">本地导入</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <h2 class="section-title">帮助与关于</h2>
+
+        <div class="design-grid">
+            <a href="18_help.html" class="design-card">
+                <div class="card-preview preview-help">
+                    <span class="icon-large">❓</span>
+                    <span class="card-number">18</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">帮助 Help</h3>
+                    <p class="card-desc">使用教程、常见问题、功能介绍</p>
+                    <div class="card-tags">
+                        <span class="tag">教程</span>
+                        <span class="tag">FAQ</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="19_about.html" class="design-card">
+                <div class="card-preview preview-about">
+                    <span class="icon-large">ℹ️</span>
+                    <span class="card-number">19</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">关于 About</h3>
+                    <p class="card-desc">应用信息与更新</p>
+                    <div class="card-tags">
+                        <span class="tag">版本</span>
+                        <span class="tag">更新</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <h2 class="section-title">新增补充界面</h2>
+
+        <div class="design-grid">
+            <a href="20_backup_config.html" class="design-card">
+                <div class="card-preview preview-backup-config">
+                    <span class="icon-large">☁️</span>
+                    <span class="card-number">20</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">备份恢复设置 Backup Config</h3>
+                    <p class="card-desc">我的模块补充页，聚焦 WebDAV 配置、连接测试与保存动作分层</p>
+                    <div class="card-tags">
+                        <span class="tag primary">我的</span>
+                        <span class="tag">表单设计</span>
+                        <span class="tag">WebDAV</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="21_theme_editor.html" class="design-card">
+                <div class="card-preview preview-theme-editor">
+                    <span class="icon-large">🖌️</span>
+                    <span class="card-number">21</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">主题编辑 Theme Editor</h3>
+                    <p class="card-desc">我的模块补充页，支持主题命名、配色调节与即时预览</p>
+                    <div class="card-tags">
+                        <span class="tag primary">我的</span>
+                        <span class="tag">主题配置</span>
+                        <span class="tag">预览</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="22_book_manage.html" class="design-card">
+                <div class="card-preview preview-book-manage">
+                    <span class="icon-large">🗂️</span>
+                    <span class="card-number">22</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">书籍管理 Book Manage</h3>
+                    <p class="card-desc">书架模块补充页，覆盖批量选择、底部动作栏和高密度信息列表</p>
+                    <div class="card-tags">
+                        <span class="tag primary">书架</span>
+                        <span class="tag">批量管理</span>
+                        <span class="tag">选择态</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="23_bookshelf_layout.html" class="design-card">
+                <div class="card-preview preview-bookshelf-layout">
+                    <span class="icon-large">🧩</span>
+                    <span class="card-number">23</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">书架布局 Bookshelf Layout</h3>
+                    <p class="card-desc">书架模块补充页，统一承载布局预设、显示开关与排序项</p>
+                    <div class="card-tags">
+                        <span class="tag primary">书架</span>
+                        <span class="tag">设置页</span>
+                        <span class="tag">布局预览</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="24_explore_results.html" class="design-card">
+                <div class="card-preview preview-explore-results">
+                    <span class="icon-large">🧭</span>
+                    <span class="card-number">24</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">发现分类结果 Explore Results</h3>
+                    <p class="card-desc">发现模块补充页，展示书源分类下的书籍结果列表与持续加载状态</p>
+                    <div class="card-tags">
+                        <span class="tag primary">发现</span>
+                        <span class="tag">二级列表</span>
+                        <span class="tag">来源感</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="25_rss_articles.html" class="design-card">
+                <div class="card-preview preview-rss-articles">
+                    <span class="icon-large">📰</span>
+                    <span class="card-number">25</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">RSS文章列表 RSS Articles</h3>
+                    <p class="card-desc">发现模块补充页，强化 RSS 源信息、已读未读与收藏态</p>
+                    <div class="card-tags">
+                        <span class="tag primary">发现</span>
+                        <span class="tag">RSS</span>
+                        <span class="tag">信息流</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="26_music_player.html" class="design-card">
+                <div class="card-preview preview-music-player">
+                    <span class="icon-large">🎧</span>
+                    <span class="card-number">26</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">音乐播放器 Music Player</h3>
+                    <p class="card-desc">媒体模块补充页，突出沉浸式封面、播放控制和二级工具入口</p>
+                    <div class="card-tags">
+                        <span class="tag primary">媒体</span>
+                        <span class="tag">播放器</span>
+                        <span class="tag">沉浸式</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="27_video_player.html" class="design-card">
+                <div class="card-preview preview-video-player">
+                    <span class="icon-large">🎬</span>
+                    <span class="card-number">27</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">视频播放器 Video Player</h3>
+                    <p class="card-desc">媒体模块补充页，覆盖视频控制层、锁定态与倍速比例工具</p>
+                    <div class="card-tags">
+                        <span class="tag primary">媒体</span>
+                        <span class="tag">视频播放</span>
+                        <span class="tag">控制层</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="28_file_detail.html" class="design-card">
+                <div class="card-preview preview-file-detail">
+                    <span class="icon-large">📄</span>
+                    <span class="card-number">28</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">文件详情 File Detail</h3>
+                    <p class="card-desc">我的模块补充页，覆盖文件管理里的详情与操作浮层</p>
+                    <div class="card-tags">
+                        <span class="tag primary">我的</span>
+                        <span class="tag">文件管理</span>
+                        <span class="tag">浮层</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="29_bookshelf_empty.html" class="design-card">
+                <div class="card-preview preview-bookshelf-empty">
+                    <span class="icon-large">🫧</span>
+                    <span class="card-number">29</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">书架空态 Bookshelf Empty</h3>
+                    <p class="card-desc">书架模块补充页，明确无书数据下的两个主入口</p>
+                    <div class="card-tags">
+                        <span class="tag primary">书架</span>
+                        <span class="tag">空状态</span>
+                        <span class="tag">引导</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="30_add_book_sheet.html" class="design-card">
+                <div class="card-preview preview-add-book-sheet">
+                    <span class="icon-large">➕</span>
+                    <span class="card-number">30</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">添加书籍弹层 Add Book Sheet</h3>
+                    <p class="card-desc">书架模块补充页，单独设计添加书籍入口底部弹层</p>
+                    <div class="card-tags">
+                        <span class="tag primary">书架</span>
+                        <span class="tag">底部弹层</span>
+                        <span class="tag">入口选择</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="31_rss_source_manage.html" class="design-card">
+                <div class="card-preview preview-rss-source-manage">
+                    <span class="icon-large">📡</span>
+                    <span class="card-number">31</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">RSS源管理 RSS Source Manage</h3>
+                    <p class="card-desc">发现模块补充页，承载 RSS 源搜索、批量操作和启用切换</p>
+                    <div class="card-tags">
+                        <span class="tag primary">发现</span>
+                        <span class="tag">RSS</span>
+                        <span class="tag">管理页</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="32_music_library.html" class="design-card">
+                <div class="card-preview preview-music-library">
+                    <span class="icon-large">🎼</span>
+                    <span class="card-number">32</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">音乐库 Music Library</h3>
+                    <p class="card-desc">媒体模块补充页，展示标签切换、曲目列表和迷你播放器关系</p>
+                    <div class="card-tags">
+                        <span class="tag primary">媒体</span>
+                        <span class="tag">音乐</span>
+                        <span class="tag">列表页</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="33_video_library.html" class="design-card">
+                <div class="card-preview preview-video-library">
+                    <span class="icon-large">📺</span>
+                    <span class="card-number">33</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">视频库 Video Library</h3>
+                    <p class="card-desc">媒体模块补充页，突出网格缩略图、观看进度和本地标识</p>
+                    <div class="card-tags">
+                        <span class="tag primary">媒体</span>
+                        <span class="tag">视频</span>
+                        <span class="tag">网格库</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="34_bookmark_editor.html" class="design-card">
+                <div class="card-preview preview-bookmark-editor">
+                    <span class="icon-large">📝</span>
+                    <span class="card-number">34</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">书签编辑 Bookmark Editor</h3>
+                    <p class="card-desc">我的模块补充页，覆盖书签摘录与摘要编辑的底部弹层</p>
+                    <div class="card-tags">
+                        <span class="tag primary">我的</span>
+                        <span class="tag">书签</span>
+                        <span class="tag">编辑态</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="35_group_manage.html" class="design-card">
+                <div class="card-preview preview-group-manage">
+                    <span class="icon-large">🗃️</span>
+                    <span class="card-number">35</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">分组管理 Group Manage</h3>
+                    <p class="card-desc">书架模块补充页，展示分组显隐、编辑和删除等管理动作</p>
+                    <div class="card-tags">
+                        <span class="tag primary">书架</span>
+                        <span class="tag">分组</span>
+                        <span class="tag">弹层管理</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="36_rss_source_edit.html" class="design-card">
+                <div class="card-preview preview-rss-source-edit">
+                    <span class="icon-large">✏️</span>
+                    <span class="card-number">36</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">RSS源编辑 RSS Source Edit</h3>
+                    <p class="card-desc">发现模块补充页，聚焦 RSS 源的名称、分组和启用状态编辑</p>
+                    <div class="card-tags">
+                        <span class="tag primary">发现</span>
+                        <span class="tag">RSS</span>
+                        <span class="tag">编辑表单</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="37_rss_import.html" class="design-card">
+                <div class="card-preview preview-rss-import">
+                    <span class="icon-large">📥</span>
+                    <span class="card-number">37</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">RSS源导入 RSS Import</h3>
+                    <p class="card-desc">发现模块补充页，承载 URL、JSON 和本地文件导入路径</p>
+                    <div class="card-tags">
+                        <span class="tag primary">发现</span>
+                        <span class="tag">导入</span>
+                        <span class="tag">错误态</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="38_rss_group_manage.html" class="design-card">
+                <div class="card-preview preview-rss-group-manage">
+                    <span class="icon-large">🗂️</span>
+                    <span class="card-number">38</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">RSS分组管理 RSS Group Manage</h3>
+                    <p class="card-desc">发现模块补充页，展示 RSS 分组新增、编辑和删除流</p>
+                    <div class="card-tags">
+                        <span class="tag primary">发现</span>
+                        <span class="tag">分组</span>
+                        <span class="tag">管理态</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="39_music_empty.html" class="design-card">
+                <div class="card-preview preview-music-empty">
+                    <span class="icon-large">🎶</span>
+                    <span class="card-number">39</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">音乐空态 Music Empty</h3>
+                    <p class="card-desc">媒体模块补充页，明确音乐库无数据时的扫描入口</p>
+                    <div class="card-tags">
+                        <span class="tag primary">媒体</span>
+                        <span class="tag">音乐</span>
+                        <span class="tag">空状态</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="40_video_history.html" class="design-card">
+                <div class="card-preview preview-video-history">
+                    <span class="icon-large">🕘</span>
+                    <span class="card-number">40</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">视频历史 Video History</h3>
+                    <p class="card-desc">媒体模块补充页，突出最近观看记录与续播进度</p>
+                    <div class="card-tags">
+                        <span class="tag primary">媒体</span>
+                        <span class="tag">视频</span>
+                        <span class="tag">历史态</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="41_bookshelf_manage.html" class="design-card">
+                <div class="card-preview preview-bookshelf-manage">
+                    <span class="icon-large">🗄️</span>
+                    <span class="card-number">41</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">书架管理 Bookshelf Manage</h3>
+                    <p class="card-desc">书架模块补充页，覆盖分组筛选下的批量选择、缓存清理和移动分组流</p>
+                    <div class="card-tags">
+                        <span class="tag primary">书架</span>
+                        <span class="tag">批量管理</span>
+                        <span class="tag">真实功能补全</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="42_group_edit.html" class="design-card">
+                <div class="card-preview preview-group-edit">
+                    <span class="icon-large">🪄</span>
+                    <span class="card-number">42</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">分组编辑 Group Edit</h3>
+                    <p class="card-desc">书架模块补充页，承载分组名称、排序方式、刷新开关与删除提示</p>
+                    <div class="card-tags">
+                        <span class="tag primary">书架</span>
+                        <span class="tag">编辑弹窗</span>
+                        <span class="tag">表单态</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="43_rss_read.html" class="design-card">
+                <div class="card-preview preview-rss-read">
+                    <span class="icon-large">📰</span>
+                    <span class="card-number">43</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">RSS阅读页 RSS Read</h3>
+                    <p class="card-desc">发现模块补充页，补齐 RSS 正文阅读、收藏切换和文本模式入口</p>
+                    <div class="card-tags">
+                        <span class="tag primary">发现</span>
+                        <span class="tag">RSS</span>
+                        <span class="tag">阅读页</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="44_rss_favorites.html" class="design-card">
+                <div class="card-preview preview-rss-favorites">
+                    <span class="icon-large">⭐</span>
+                    <span class="card-number">44</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">RSS收藏 RSS Favorites</h3>
+                    <p class="card-desc">发现模块补充页，补齐 RSS 收藏分组筛选、搜索和快速删除流</p>
+                    <div class="card-tags">
+                        <span class="tag primary">发现</span>
+                        <span class="tag">RSS</span>
+                        <span class="tag">收藏页</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="45_rss_read_record.html" class="design-card">
+                <div class="card-preview preview-rss-read-record">
+                    <span class="icon-large">🕘</span>
+                    <span class="card-number">45</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">RSS阅读记录 RSS Read Record</h3>
+                    <p class="card-desc">发现模块补充页，补齐 RSS 阅读记录弹窗和清空记录危险动作</p>
+                    <div class="card-tags">
+                        <span class="tag primary">发现</span>
+                        <span class="tag">RSS</span>
+                        <span class="tag">记录弹窗</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="46_move_to_group.html" class="design-card">
+                <div class="card-preview preview-move-to-group">
+                    <span class="icon-large">📂</span>
+                    <span class="card-number">46</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">移动到分组 Move To Group</h3>
+                    <p class="card-desc">书架模块补充页，补齐书籍移动分组时的选择弹窗和确认动作</p>
+                    <div class="card-tags">
+                        <span class="tag primary">书架</span>
+                        <span class="tag">分组选择</span>
+                        <span class="tag">确认流</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="47_batch_actions.html" class="design-card">
+                <div class="card-preview preview-batch-actions">
+                    <span class="icon-large">🧰</span>
+                    <span class="card-number">47</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">批量操作菜单 Batch Actions</h3>
+                    <p class="card-desc">书架模块补充页，补齐多选后的批量动作菜单和风险分层表达</p>
+                    <div class="card-tags">
+                        <span class="tag primary">书架</span>
+                        <span class="tag">批量操作</span>
+                        <span class="tag">底部菜单</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="48_rss_sort.html" class="design-card">
+                <div class="card-preview preview-rss-sort">
+                    <span class="icon-large">🗂️</span>
+                    <span class="card-number">48</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">RSS分类排序页 RSS Sort</h3>
+                    <p class="card-desc">发现模块补充页，补齐 RSS 源多分类 tab 和分类下文章列表流</p>
+                    <div class="card-tags">
+                        <span class="tag primary">发现</span>
+                        <span class="tag">RSS</span>
+                        <span class="tag">Tab分类</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="49_remote_book.html" class="design-card">
+                <div class="card-preview preview-remote-book">
+                    <span class="icon-large">☁️</span>
+                    <span class="card-number">49</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">远程书籍 Remote Book</h3>
+                    <p class="card-desc">书架模块补充页，补齐 WebDAV 远程目录浏览与多选导入书架流程</p>
+                    <div class="card-tags">
+                        <span class="tag primary">书架</span>
+                        <span class="tag">WebDAV</span>
+                        <span class="tag">远程导入</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="50_log_dialog.html" class="design-card">
+                <div class="card-preview preview-log-dialog">
+                    <span class="icon-large">🪵</span>
+                    <span class="card-number">50</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">应用日志 Log Dialog</h3>
+                    <p class="card-desc">书架模块补充页，补齐应用日志查看、自动滚动和复制清空动作</p>
+                    <div class="card-tags">
+                        <span class="tag primary">书架</span>
+                        <span class="tag">调试工具</span>
+                        <span class="tag">日志弹层</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="51_cache_export.html" class="design-card">
+                <div class="card-preview preview-cache-export">
+                    <span class="icon-large">📦</span>
+                    <span class="card-number">51</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">缓存导出 Cache Export</h3>
+                    <p class="card-desc">书架模块补充页，补齐缓存进度、多选缓存与导出动作的管理界面</p>
+                    <div class="card-tags">
+                        <span class="tag primary">书架</span>
+                        <span class="tag">缓存</span>
+                        <span class="tag">导出</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="52_change_source.html" class="design-card">
+                <div class="card-preview preview-change-source">
+                    <span class="icon-large">🔄</span>
+                    <span class="card-number">52</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">换源弹窗 Change Source</h3>
+                    <p class="card-desc">书架模块补充页，补齐换源搜索、分组过滤和当前来源标识</p>
+                    <div class="card-tags">
+                        <span class="tag primary">书架</span>
+                        <span class="tag">换源</span>
+                        <span class="tag">搜索结果</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="53_change_cover.html" class="design-card">
+                <div class="card-preview preview-change-cover">
+                    <span class="icon-large">🖼️</span>
+                    <span class="card-number">53</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">更换封面 Change Cover</h3>
+                    <p class="card-desc">书架模块补充页，补齐封面搜索、相册拍照和 URL 输入的统一编辑弹层</p>
+                    <div class="card-tags">
+                        <span class="tag primary">书架</span>
+                        <span class="tag">封面编辑</span>
+                        <span class="tag">搜索结果</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="54_book_edit.html" class="design-card">
+                <div class="card-preview preview-book-edit">
+                    <span class="icon-large">✍️</span>
+                    <span class="card-number">54</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">编辑书籍信息 Book Edit</h3>
+                    <p class="card-desc">书架模块补充页，补齐书籍类型、作者、封面和简介的完整编辑表单</p>
+                    <div class="card-tags">
+                        <span class="tag primary">书架</span>
+                        <span class="tag">编辑页</span>
+                        <span class="tag">元信息</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="55_export_confirm.html" class="design-card">
+                <div class="card-preview preview-export-confirm">
+                    <span class="icon-large">📤</span>
+                    <span class="card-number">55</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">导出确认 Export Confirm</h3>
+                    <p class="card-desc">书架模块补充页，补齐导出格式选择和批量导出中的进度提示态</p>
+                    <div class="card-tags">
+                        <span class="tag primary">书架</span>
+                        <span class="tag">导出</span>
+                        <span class="tag">确认弹窗</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="56_theme_mode.html" class="design-card">
+                <div class="card-preview preview-theme-mode">
+                    <span class="icon-large">🌓</span>
+                    <span class="card-number">56</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">主题模式选择 Theme Mode</h3>
+                    <p class="card-desc">我的模块补充页，补齐浅色、深色和跟随系统的主题模式选择弹窗</p>
+                    <div class="card-tags">
+                        <span class="tag primary">我的</span>
+                        <span class="tag">主题</span>
+                        <span class="tag">选择弹窗</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="57_exit_confirm.html" class="design-card">
+                <div class="card-preview preview-exit-confirm">
+                    <span class="icon-large">🚪</span>
+                    <span class="card-number">57</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">退出确认 Exit Confirm</h3>
+                    <p class="card-desc">我的模块补充页，补齐退出应用时的危险动作确认弹窗</p>
+                    <div class="card-tags">
+                        <span class="tag primary">我的</span>
+                        <span class="tag">确认态</span>
+                        <span class="tag">危险操作</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="58_music_sleep_timer.html" class="design-card">
+                <div class="card-preview preview-music-sleep-timer">
+                    <span class="icon-large">⏰</span>
+                    <span class="card-number">58</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">定时关闭 Music Sleep Timer</h3>
+                    <p class="card-desc">媒体模块补充页，补齐音乐播放器里的定时关闭底部弹层</p>
+                    <div class="card-tags">
+                        <span class="tag primary">媒体</span>
+                        <span class="tag">音乐</span>
+                        <span class="tag">控制弹层</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="59_web_service_menu.html" class="design-card">
+                <div class="card-preview preview-web-service-menu">
+                    <span class="icon-large">🌐</span>
+                    <span class="card-number">59</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">Web 服务菜单 Web Service Menu</h3>
+                    <p class="card-desc">我的模块补充页，补齐 Web 服务启动后的地址复制与浏览器打开菜单</p>
+                    <div class="card-tags">
+                        <span class="tag primary">我的</span>
+                        <span class="tag">Web 服务</span>
+                        <span class="tag">底部菜单</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="60_music_speed.html" class="design-card">
+                <div class="card-preview preview-music-speed">
+                    <span class="icon-large">🎚️</span>
+                    <span class="card-number">60</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">音乐播放速度 Music Speed</h3>
+                    <p class="card-desc">媒体模块补充页，补齐音乐播放器里的滑杆倍速调节弹层</p>
+                    <div class="card-tags">
+                        <span class="tag primary">媒体</span>
+                        <span class="tag">音乐</span>
+                        <span class="tag">倍速控制</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="61_video_speed.html" class="design-card">
+                <div class="card-preview preview-video-speed">
+                    <span class="icon-large">⏩</span>
+                    <span class="card-number">61</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">视频播放速度 Video Speed</h3>
+                    <p class="card-desc">媒体模块补充页，补齐视频播放器里的离散倍速选择弹层</p>
+                    <div class="card-tags">
+                        <span class="tag primary">媒体</span>
+                        <span class="tag">视频</span>
+                        <span class="tag">倍速控制</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="62_playlist_empty.html" class="design-card">
+                <div class="card-preview preview-playlist-empty">
+                    <span class="icon-large">🎼</span>
+                    <span class="card-number">62</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">播放列表空态 Playlist Empty</h3>
+                    <p class="card-desc">媒体模块补充页，补齐音乐库播放列表标签下的空状态和新建入口</p>
+                    <div class="card-tags">
+                        <span class="tag primary">媒体</span>
+                        <span class="tag">音乐</span>
+                        <span class="tag">空状态</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="63_video_ratio.html" class="design-card">
+                <div class="card-preview preview-video-ratio">
+                    <span class="icon-large">▣</span>
+                    <span class="card-number">63</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">视频画面比例 Video Ratio</h3>
+                    <p class="card-desc">媒体模块补充页，补齐视频播放器里的画面比例选择弹层</p>
+                    <div class="card-tags">
+                        <span class="tag primary">媒体</span>
+                        <span class="tag">视频</span>
+                        <span class="tag">画面比例</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="64_video_track_select.html" class="design-card">
+                <div class="card-preview preview-video-track-select">
+                    <span class="icon-large">CC</span>
+                    <span class="card-number">64</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">字幕音轨选择 Track Select</h3>
+                    <p class="card-desc">媒体模块补充页，补齐视频播放器里的字幕和音轨选择控制层</p>
+                    <div class="card-tags">
+                        <span class="tag primary">媒体</span>
+                        <span class="tag">视频</span>
+                        <span class="tag">字幕音轨</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="65_cache_clear_confirm.html" class="design-card">
+                <div class="card-preview preview-cache-clear-confirm">
+                    <span class="icon-large">🧹</span>
+                    <span class="card-number">65</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">缓存清理确认 Cache Clear</h3>
+                    <p class="card-desc">我的模块补充页，补齐缓存管理里的全量清理确认弹窗</p>
+                    <div class="card-tags">
+                        <span class="tag primary">我的</span>
+                        <span class="tag">缓存管理</span>
+                        <span class="tag">确认态</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="66_book_source_batch_delete.html" class="design-card">
+                <div class="card-preview preview-book-source-batch-delete">
+                    <span class="icon-large">🗑️</span>
+                    <span class="card-number">66</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">书源批量删除 Source Batch Delete</h3>
+                    <p class="card-desc">我的模块补充页，补齐书源管理里的批量删除确认和待删列表预览</p>
+                    <div class="card-tags">
+                        <span class="tag primary">我的</span>
+                        <span class="tag">书源管理</span>
+                        <span class="tag">批量删除</span>
+                    </div>
+                </div>
+            </a>
+
+            <a href="67_book_source_import.html" class="design-card">
+                <div class="card-preview preview-book-source-import">
+                    <span class="icon-large">📥</span>
+                    <span class="card-number">67</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="card-title">书源导入 Source Import</h3>
+                    <p class="card-desc">我的模块补充页，补齐书源解析后的预览、全选与导入弹层</p>
+                    <div class="card-tags">
+                        <span class="tag primary">我的</span>
+                        <span class="tag">书源管理</span>
+                        <span class="tag">导入弹层</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="footer">
+            <p class="footer-text">
+                基于 Legado 阅读 Flutter 版设计 · 遵循 Material Design 3 规范
+            </p>
+            <div class="footer-links">
+                <a href="README.md" class="footer-link">设计规范文档</a>
+                <a href="README.md" class="footer-link">覆盖清单</a>
+                <a href="design_system.css" class="footer-link">Design System</a>
+                <a href="#" class="footer-link">GitHub</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>发现分类结果 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #eef4f8;
+            --card: #fff;
+            --text: #1f2329;
+            --sub: #4e5969;
+            --hint: #86909c;
+            --line: #e5e6eb;
+            --primary: #14b8a6;
+        }
+        body {
+            background: linear-gradient(135deg, #082f35, #101827 60%);
+        }
+        .phone-frame {
+            width: 375px; height: 812px; border-radius: 40px; overflow: hidden; position: relative; background: var(--bg);
+            box-shadow: 0 26px 60px rgba(0,0,0,0.34);
+        }
+        .status-bar, .app-bar { background: rgba(255,255,255,0.94); display: flex; align-items: center; }
+        .status-bar { height: 44px; justify-content: space-between; padding: 10px 24px 0; font-size: 14px; font-weight: 600; }
+        .app-bar { height: 56px; padding: 0 12px; border-bottom: 1px solid var(--line); }
+        .icon-btn { width: 40px; height: 40px; border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--text); }
+        .app-bar-title { flex: 1; font-size: 18px; font-weight: 700; color: var(--text); }
+        .top-banner {
+            margin: 14px 16px 12px; padding: 18px; border-radius: 24px;
+            background: linear-gradient(135deg, #0f766e, #14b8a6 55%, #67e8f9);
+            color: #fff; box-shadow: 0 14px 28px rgba(20,184,166,0.24);
+        }
+        .top-banner h2 { font-size: 20px; margin-bottom: 6px; }
+        .top-banner p { font-size: 13px; line-height: 1.5; color: rgba(255,255,255,0.82); }
+        .banner-tags { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+        .banner-tag { padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,0.16); font-size: 11px; }
+        .content-area {
+            height: calc(100% - 44px - 56px - 142px);
+            overflow-y: auto; padding: 0 16px 18px;
+        }
+        .book-card {
+            display: flex; gap: 12px; padding: 12px; border-radius: 20px; background: var(--card);
+            margin-bottom: 10px; box-shadow: 0 8px 20px rgba(15,23,32,0.05);
+        }
+        .cover {
+            width: 72px; height: 96px; border-radius: 14px; flex-shrink: 0;
+            background: linear-gradient(160deg, #22c1c3, #144870);
+        }
+        .cover.c2 { background: linear-gradient(160deg, #ff8a5b, #d94343); }
+        .cover.c3 { background: linear-gradient(160deg, #8b5cf6, #4c1d95); }
+        .book-info { flex: 1; min-width: 0; }
+        .book-title { font-size: 15px; font-weight: 700; color: var(--text); }
+        .book-author { font-size: 12px; color: var(--sub); margin-top: 4px; }
+        .book-intro { font-size: 12px; color: var(--hint); line-height: 1.45; margin-top: 8px; }
+        .book-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+        .chip-group { display: flex; gap: 6px; flex-wrap: wrap; }
+        .chip {
+            padding: 4px 8px; border-radius: 999px; background: #ecfeff; color: #0f766e; font-size: 11px;
+        }
+        .score { font-size: 12px; font-weight: 700; color: #f59e0b; }
+        .load-more {
+            text-align: center; padding: 14px 0 18px; color: var(--hint); font-size: 12px;
+        }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>发现分类结果</h1>
+            <p>补充“发现”模块里从分类进入后的结果页，重点是来源感、内容卡片效率和持续加载状态。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="status-bar"><span>9:41</span><span>5G 100%</span></div>
+                <div class="app-bar">
+                    <div class="icon-btn">‹</div>
+                    <div class="app-bar-title">玄幻推荐</div>
+                    <div class="icon-btn">↻</div>
+                </div>
+                <div class="top-banner">
+                    <h2>起点中文网 · 玄幻推荐</h2>
+                    <p>把来源、分类名称和筛选标签合并到一个顶部英雄区，用户进入二级列表时仍然知道自己来自哪个书源。</p>
+                    <div class="banner-tags">
+                        <span class="banner-tag">热门</span>
+                        <span class="banner-tag">连载优先</span>
+                        <span class="banner-tag">支持分页</span>
+                    </div>
+                </div>
+                <div class="content-area">
+                    <div class="book-card">
+                        <div class="cover"></div>
+                        <div class="book-info">
+                            <div class="book-title">深空彼岸</div>
+                            <div class="book-author">辰东 · 连载中</div>
+                            <div class="book-intro">现代都市与超凡世界并轨后的长期连载作品，卡片简介控制在两行半，保留决策信息但不抢阅读焦点。</div>
+                            <div class="book-footer">
+                                <div class="chip-group">
+                                    <span class="chip">玄幻</span>
+                                    <span class="chip">高人气</span>
+                                </div>
+                                <div class="score">9.2</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="book-card">
+                        <div class="cover c2"></div>
+                        <div class="book-info">
+                            <div class="book-title">完美世界</div>
+                            <div class="book-author">辰东 · 已完结</div>
+                            <div class="book-intro">封面、书名、作者和一句概要组成稳定的信息扫描节奏，适合无图源质量参差不齐的真实书源场景。</div>
+                            <div class="book-footer">
+                                <div class="chip-group">
+                                    <span class="chip">史诗</span>
+                                    <span class="chip">经典</span>
+                                </div>
+                                <div class="score">9.0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="book-card">
+                        <div class="cover c3"></div>
+                        <div class="book-info">
+                            <div class="book-title">诡秘之主</div>
+                            <div class="book-author">爱潜水的乌贼 · 完结</div>
+                            <div class="book-intro">二级页比首页更适合强调内容本身，因此减少装饰性控件，把刷新和返回收敛到导航栏。</div>
+                            <div class="book-footer">
+                                <div class="chip-group">
+                                    <span class="chip">蒸汽朋克</span>
+                                    <span class="chip">悬疑</span>
+                                </div>
+                                <div class="score">9.5</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="load-more">正在加载更多内容…</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

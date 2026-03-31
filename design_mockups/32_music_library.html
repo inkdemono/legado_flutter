@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音乐库 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #1b1030, #0b0f17 62%);
+        }
+        .phone-frame {
+            width: 375px; height: 812px; border-radius: 40px; overflow: hidden; position: relative;
+            background:
+                radial-gradient(circle at top right, rgba(255,122,165,0.18), transparent 24%),
+                linear-gradient(180deg, #fbf7ff, #f4f3f9 200px, #f6f7fb);
+            box-shadow: 0 26px 60px rgba(0,0,0,0.34);
+        }
+        .status-bar, .tab-strip { display: flex; align-items: center; }
+        .status-bar { height: 44px; justify-content: space-between; padding: 10px 24px 0; font-size: 14px; font-weight: 600; color: #1f2329; }
+        .hero { padding: 18px 16px 14px; }
+        .hero-card {
+            padding: 18px; border-radius: 26px; color: #fff;
+            background: linear-gradient(135deg, #ff7aa5, #7c5cff 58%, #5eb6ff);
+            box-shadow: 0 18px 32px rgba(124,92,255,0.20);
+        }
+        .hero-title { font-size: 24px; font-weight: 800; }
+        .hero-sub { font-size: 13px; color: rgba(255,255,255,0.82); margin-top: 8px; line-height: 1.5; }
+        .hero-stats { display: flex; gap: 10px; margin-top: 16px; }
+        .stat {
+            flex: 1; padding: 10px 12px; border-radius: 16px; background: rgba(255,255,255,0.14);
+        }
+        .stat-value { font-size: 16px; font-weight: 700; }
+        .stat-label { font-size: 11px; color: rgba(255,255,255,0.76); margin-top: 4px; }
+        .tab-strip { padding: 0 16px 10px; gap: 8px; overflow-x: auto; }
+        .tab-strip::-webkit-scrollbar { display: none; }
+        .tab {
+            padding: 8px 14px; border-radius: 999px; background: #ece8ff; color: #6b4dff; font-size: 12px; white-space: nowrap;
+        }
+        .tab.active { background: #6b4dff; color: #fff; font-weight: 700; }
+        .content-area {
+            height: calc(100% - 44px - 170px - 46px - 82px);
+            overflow-y: auto; padding: 0 16px 10px;
+        }
+        .song {
+            display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 20px; background: #fff;
+            margin-bottom: 10px; box-shadow: 0 8px 20px rgba(15,23,32,0.05);
+        }
+        .cover {
+            width: 54px; height: 54px; border-radius: 16px; flex-shrink: 0;
+            background: linear-gradient(135deg, #ff7aa5, #7c5cff);
+        }
+        .cover.c2 { background: linear-gradient(135deg, #ffd36f, #ff8a5b); }
+        .cover.c3 { background: linear-gradient(135deg, #5eb6ff, #2f6bff); }
+        .song-info { flex: 1; min-width: 0; }
+        .song-title { font-size: 15px; font-weight: 700; color: #1f2329; }
+        .song-meta { margin-top: 4px; font-size: 12px; color: #86909c; }
+        .song-badge { margin-top: 8px; display: inline-block; padding: 4px 8px; border-radius: 999px; background: #f3f0ff; color: #6b4dff; font-size: 11px; }
+        .song-more { color: #b8bec8; font-size: 18px; }
+        .mini-player {
+            position: absolute; left: 0; right: 0; bottom: 0; height: 82px; background: rgba(255,255,255,0.96);
+            backdrop-filter: blur(16px); border-top: 1px solid #e5e6eb; padding: 8px 10px 16px;
+        }
+        .progress { height: 2px; background: #ece8ff; overflow: hidden; border-radius: 999px; }
+        .progress-fill { width: 36%; height: 100%; background: #6b4dff; }
+        .mini-row { margin-top: 8px; display: flex; align-items: center; gap: 12px; }
+        .mini-cover { width: 46px; height: 46px; border-radius: 14px; background: linear-gradient(135deg, #ff7aa5, #7c5cff); }
+        .mini-title { font-size: 14px; font-weight: 700; color: #1f2329; }
+        .mini-sub { font-size: 12px; color: #86909c; margin-top: 4px; }
+        .mini-controls { margin-left: auto; display: flex; gap: 6px; }
+        .mini-btn {
+            width: 38px; height: 38px; border-radius: 19px; background: #f4f5f7; display: flex; align-items: center; justify-content: center;
+            color: #4e5969; font-size: 16px;
+        }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>音乐库</h1>
+            <p>补充“媒体”模块的音乐库页面，单独体现标签切换、曲目列表和底部迷你播放器的组合关系。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="status-bar"><span>9:41</span><span>5G 100%</span></div>
+                <div class="hero">
+                    <div class="hero-card">
+                        <div class="hero-title">Music</div>
+                        <div class="hero-sub">媒体主首页已经有概念展示，但真实使用里更重要的是音乐库本身的密度与迷你播放器位置。</div>
+                        <div class="hero-stats">
+                            <div class="stat"><div class="stat-value">128</div><div class="stat-label">歌曲</div></div>
+                            <div class="stat"><div class="stat-value">18</div><div class="stat-label">专辑</div></div>
+                            <div class="stat"><div class="stat-value">11</div><div class="stat-label">歌单</div></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-strip">
+                    <div class="tab active">歌曲</div>
+                    <div class="tab">专辑</div>
+                    <div class="tab">艺术家</div>
+                    <div class="tab">播放列表</div>
+                </div>
+                <div class="content-area">
+                    <div class="song">
+                        <div class="cover"></div>
+                        <div class="song-info">
+                            <div class="song-title">人间蜉蝣</div>
+                            <div class="song-meta">房东的猫 · 03:48</div>
+                            <span class="song-badge">正在播放</span>
+                        </div>
+                        <div class="song-more">⋯</div>
+                    </div>
+                    <div class="song">
+                        <div class="cover c2"></div>
+                        <div class="song-info">
+                            <div class="song-title">夜曲</div>
+                            <div class="song-meta">周杰伦 · 03:32</div>
+                        </div>
+                        <div class="song-more">⋯</div>
+                    </div>
+                    <div class="song">
+                        <div class="cover c3"></div>
+                        <div class="song-info">
+                            <div class="song-title">Yellow</div>
+                            <div class="song-meta">Coldplay · 04:26</div>
+                        </div>
+                        <div class="song-more">⋯</div>
+                    </div>
+                </div>
+                <div class="mini-player">
+                    <div class="progress"><div class="progress-fill"></div></div>
+                    <div class="mini-row">
+                        <div class="mini-cover"></div>
+                        <div>
+                            <div class="mini-title">人间蜉蝣</div>
+                            <div class="mini-sub">房东的猫</div>
+                        </div>
+                        <div class="mini-controls">
+                            <div class="mini-btn">⏸</div>
+                            <div class="mini-btn">⏭</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

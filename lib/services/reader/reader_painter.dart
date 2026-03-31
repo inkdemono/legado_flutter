@@ -77,7 +77,7 @@ class ReaderPainter extends CustomPainter {
     // 页码样式
     final pageInfoStyle = TextStyle(
       fontSize: 12,
-      color: config.textColor.withOpacity(0.6),
+      color: config.textColor.withValues(alpha: 0.6),
       fontFamily: config.fontFamily,
     );
 
@@ -168,7 +168,7 @@ class AdvancedReaderPainter extends CustomPainter {
   void _drawTopInfo(Canvas canvas, Size size) {
     final infoStyle = TextStyle(
       fontSize: 11,
-      color: config.textColor.withOpacity(0.5),
+      color: config.textColor.withValues(alpha: 0.5),
       fontFamily: config.fontFamily,
     );
 
@@ -237,8 +237,8 @@ class AdvancedReaderPainter extends CustomPainter {
 
   /// 获取电量颜色
   Color _getBatteryColor(double level) {
-    if (level > 0.2) return config.textColor.withOpacity(0.5);
-    return Colors.red.withOpacity(0.7);
+    if (level > 0.2) return config.textColor.withValues(alpha: 0.5);
+    return Colors.red.withValues(alpha: 0.7);
   }
 
   /// 绘制正文内容
@@ -271,7 +271,7 @@ class AdvancedReaderPainter extends CustomPainter {
 
     final pageInfoStyle = TextStyle(
       fontSize: 11,
-      color: config.textColor.withOpacity(0.5),
+      color: config.textColor.withValues(alpha: 0.5),
       fontFamily: config.fontFamily,
     );
 

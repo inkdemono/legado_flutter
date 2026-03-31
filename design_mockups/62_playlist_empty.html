@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>播放列表空态 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --text: #1f2329;
+            --sub: #4e5969;
+            --hint: #86909c;
+            --primary: #ff7aa5;
+        }
+        body { background: linear-gradient(135deg, #151425, #382451 58%, #101827); }
+        .phone-frame {
+            background:
+                radial-gradient(circle at top, rgba(255,122,165,0.10), transparent 30%),
+                linear-gradient(180deg, #fff7fb, #f4f3ff);
+        }
+        .status-bar, .app-bar { display: flex; align-items: center; background: rgba(255,255,255,0.95); }
+        .status-bar {
+            height: 44px; justify-content: space-between; padding: 10px 24px 0;
+            font-size: 14px; font-weight: 600; color: #1f2329;
+        }
+        .app-bar {
+            height: 56px; padding: 0 12px; border-bottom: 1px solid #eceff5;
+        }
+        .icon-btn {
+            width: 40px; height: 40px; border-radius: 20px; display: flex; align-items: center; justify-content: center;
+            font-size: 18px; color: #1f2329;
+        }
+        .app-bar-title { flex: 1; font-size: 18px; font-weight: 700; color: #1f2329; }
+        .tabs {
+            display: flex; gap: 8px; padding: 10px 16px 12px; border-bottom: 1px solid #eceff5; background: #fff;
+        }
+        .tab {
+            padding: 8px 12px; border-radius: 999px; background: #f2f3f5; color: #4e5969; font-size: 12px;
+        }
+        .tab.active { background: #ffe8f1; color: #ff4d8d; font-weight: 700; }
+        .empty {
+            height: calc(100% - 44px - 56px - 57px - 80px); display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 0 36px; text-align: center;
+        }
+        .art {
+            width: 140px; height: 140px; border-radius: 36px; margin-bottom: 22px;
+            background:
+                radial-gradient(circle at 35% 30%, rgba(255,255,255,0.9), transparent 20%),
+                linear-gradient(135deg, #ff7aa5, #7c5cff);
+            box-shadow: 0 20px 40px rgba(124,92,255,0.18);
+            position: relative;
+        }
+        .art::after {
+            content: "♪";
+            position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+            color: rgba(255,255,255,0.88); font-size: 54px; font-weight: 800;
+        }
+        .title { font-size: 22px; font-weight: 800; color: #1f2329; }
+        .sub { margin-top: 10px; font-size: 14px; color: #4e5969; line-height: 1.7; }
+        .btn {
+            margin-top: 22px; height: 50px; padding: 0 24px; border-radius: 18px; background: linear-gradient(135deg, #ff7aa5, #7c5cff);
+            display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; font-weight: 700;
+        }
+        .mini {
+            position: absolute; left: 12px; right: 12px; bottom: 12px; height: 68px; border-radius: 22px;
+            background: rgba(255,255,255,0.94); box-shadow: 0 10px 28px rgba(17,24,39,0.08);
+            display: flex; align-items: center; padding: 0 14px; gap: 12px;
+        }
+        .mini-cover {
+            width: 46px; height: 46px; border-radius: 14px; background: linear-gradient(135deg, #ff7aa5, #7c5cff);
+        }
+        .mini-info { flex: 1; }
+        .mini-title { font-size: 14px; font-weight: 700; color: #1f2329; }
+        .mini-sub { margin-top: 4px; font-size: 12px; color: #86909c; }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>播放列表空态</h1>
+            <p>补充“媒体”模块音乐库里的播放列表标签空态，承接新建歌单和从歌曲列表加入歌单的入口提示。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="status-bar"><span>9:41</span><span>5G 100%</span></div>
+                <div class="app-bar">
+                    <div class="icon-btn">‹</div>
+                    <div class="app-bar-title">音乐库</div>
+                    <div class="icon-btn">＋</div>
+                </div>
+                <div class="tabs">
+                    <div class="tab">歌曲</div>
+                    <div class="tab">专辑</div>
+                    <div class="tab">艺术家</div>
+                    <div class="tab active">播放列表</div>
+                </div>
+                <div class="empty">
+                    <div class="art"></div>
+                    <div class="title">暂无播放列表</div>
+                    <div class="sub">你可以先新建一个歌单，或者在歌曲菜单里把喜欢的曲目添加到播放列表。</div>
+                    <div class="btn">新建播放列表</div>
+                </div>
+                <div class="mini">
+                    <div class="mini-cover"></div>
+                    <div class="mini-info">
+                        <div class="mini-title">Moonlit Drive</div>
+                        <div class="mini-sub">Luna Echoes · 正在播放</div>
+                    </div>
+                    <div class="icon-btn">❚❚</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

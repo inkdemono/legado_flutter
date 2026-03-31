@@ -1,10 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:html/parser.dart' as html_parser;
-import 'package:html/dom.dart' as html_dom;
 import 'rule_parser.dart';
 import '../../data/models/book_source.dart';
-import '../../data/models/book_source_rule.dart';
 import '../app_log.dart';
 
 /// Legado规则解析器 (参考Gemini文档: 书源解析器原型.md)
@@ -70,6 +66,7 @@ class LegadoParser {
         'intro': rule.intro,
         'coverUrl': rule.coverUrl,
         'bookUrl': rule.bookUrl,
+        'checkKeyWord': rule.checkKeyWord,
       },
       baseUrl: baseUrl,
       variables: variables,
@@ -140,12 +137,22 @@ class LegadoParser {
     String content = htmlContent;
     if (rule.init != null && rule.init!.isNotEmpty) {
       try {
-        final initResult = await RuleParser.parseRuleAsync(
-          content,
-          rule.init,
-          baseUrl: baseUrl,
-          variables: variables,
-        );
+        final initRule = rule.init!.trim();
+        final initResult = initRule.startsWith(':')
+            ? await RuleParser.parseRuleAsync(
+                content,
+                initRule,
+                baseUrl: baseUrl,
+                variables: variables,
+                allowRegexRule: true,
+              )
+            : await RuleParser.executeJs(
+                content,
+                initRule,
+                baseUrl: baseUrl,
+                variables: variables,
+                source: bookSource,
+              );
         if (initResult != null) {
           content = initResult;
         }
@@ -197,11 +204,12 @@ class LegadoParser {
     String content = htmlContent;
     if (rule.preUpdateJs != null && rule.preUpdateJs!.isNotEmpty) {
       try {
-        final preResult = await RuleParser.parseRuleAsync(
+        final preResult = await RuleParser.executeJs(
           content,
-          rule.preUpdateJs,
+          rule.preUpdateJs!,
           baseUrl: baseUrl,
           variables: variables,
+          source: bookSource,
         );
         if (preResult != null) {
           content = preResult;
@@ -235,14 +243,15 @@ class LegadoParser {
             final jsVariables = <String, String>{
               ...?variables,
               'chapterName': chapter['chapterName'].toString(),
-              'chapterIndex': i.toString(),
             };
 
-            final formatted = await RuleParser.parseRuleAsync(
+            final formatted = await RuleParser.executeJs(
               chapter['chapterName'].toString(),
-              rule.formatJs,
+              rule.formatJs!,
               baseUrl: baseUrl,
               variables: jsVariables,
+              source: bookSource,
+              chapterTitle: chapter['chapterName'].toString(),
             );
 
             if (formatted != null) {
@@ -283,11 +292,12 @@ class LegadoParser {
     String content = htmlContent;
     if (rule.webJs != null && rule.webJs!.isNotEmpty) {
       try {
-        final webResult = await RuleParser.parseRuleAsync(
+        final webResult = await RuleParser.executeJs(
           content,
-          rule.webJs,
+          rule.webJs!,
           baseUrl: baseUrl,
           variables: variables,
+          source: bookSource,
         );
         if (webResult != null) {
           content = webResult;
@@ -299,46 +309,25 @@ class LegadoParser {
 
     final result = <String, dynamic>{};
 
-    // 解析正文
     if (rule.content != null && rule.content!.isNotEmpty) {
-      final contentText = await RuleParser.parseRuleAsync(
+      final contentText = await RuleParser.parseContentRule(
         content,
-        rule.content,
+        rule,
         baseUrl: baseUrl,
         variables: variables,
       );
       result['content'] = contentText;
-
-      // 处理sourceRegex(净化规则)
-      if (contentText != null &&
-          rule.sourceRegex != null &&
-          rule.sourceRegex!.isNotEmpty) {
-        result['content'] = _applyRegexReplace(
-          contentText,
-          rule.sourceRegex!,
-        );
-      }
-
-      // 处理replaceRegex(替换规则)
-      if (result['content'] != null &&
-          rule.replaceRegex != null &&
-          rule.replaceRegex!.isNotEmpty) {
-        result['content'] = _applyRegexReplace(
-          result['content']!,
-          rule.replaceRegex!,
-        );
-      }
     }
 
     // 解析下一页URL
     if (rule.nextContentUrl != null && rule.nextContentUrl!.isNotEmpty) {
-      result['nextContentUrl'] = await RuleParser.parseRuleAsync(
+      final nextUrls = await RuleParser.parseUrlListRuleAsync(
         content,
         rule.nextContentUrl,
         baseUrl: baseUrl,
         variables: variables,
-        isUrl: true,
       );
+      result['nextContentUrl'] = nextUrls.isNotEmpty ? nextUrls.first : null;
     }
 
     return result;
@@ -450,44 +439,6 @@ class LegadoParser {
 
     return result;
   }
-
-  /// 应用正则替换 (支持Legado的##格式)
-  ///
-  /// 格式: ##match##replace 或 ##match##replace##
-  ///
-  /// [text] 原始文本
-  /// [regexRule] 正则规则
-  ///
-  /// Returns: 替换后的文本
-  String _applyRegexReplace(String text, String regexRule) {
-    if (!regexRule.startsWith('##')) {
-      return text;
-    }
-
-    try {
-      // 分割规则: ##match##replace 或 ##match##replace##
-      final parts = regexRule.split('##');
-      if (parts.length < 3) {
-        AppLog.instance.put('LegadoParser: 正则规则格式错误: $regexRule');
-        return text;
-      }
-
-      final pattern = parts[1];
-      final replacement = parts.length > 2 ? parts[2] : '';
-
-      if (pattern.isEmpty) {
-        return text;
-      }
-
-      // 执行正则替换
-      final regex = RegExp(pattern);
-      return text.replaceAll(regex, replacement);
-    } catch (e) {
-      AppLog.instance.put('LegadoParser: 正则替换失败', error: e);
-      return text;
-    }
-  }
-
   /// 在后台线程执行解析(使用compute函数)
   ///
   /// 适用于大量数据或复杂规则的解析,避免阻塞UI

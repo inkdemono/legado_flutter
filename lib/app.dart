@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:tdesign_flutter/tdesign_flutter.dart';
 import 'config/theme_config.dart';
 import 'config/app_config.dart';
+import 'core/constants/prefer_key.dart';
 import 'ui/pages/welcome/welcome_page.dart';
 import 'ui/pages/search/search_page.dart';
 import 'services/receiver/media_button_handler.dart';
-import 'services/startup_flow_service.dart';
 import 'utils/localization_helper.dart';
 import 'providers/main_page_index_provider.dart';
 import 'utils/app_log.dart';
@@ -16,7 +17,7 @@ import 'ui/pages/book_source/book_source_manage_page.dart';
 import 'ui/dialogs/add_to_bookshelf_dialog.dart';
 import 'ui/dialogs/unsupported_file_dialog.dart';
 import 'package:open_filex/open_filex.dart';
-import 'ui/pages/splash_screen.dart';
+import 'ui/pages/main/main_page.dart';
 import 'dart:async';
 
 class LegadoApp extends ConsumerStatefulWidget {
@@ -26,35 +27,32 @@ class LegadoApp extends ConsumerStatefulWidget {
   ConsumerState<LegadoApp> createState() => _LegadoAppState();
 }
 
-class _LegadoAppState extends ConsumerState<LegadoApp> {
-  Timer? _navigationCheckTimer;
-  bool _initialized = false;
+class _LegadoAppState extends ConsumerState<LegadoApp>
+    with WidgetsBindingObserver {
 
   @override
   void initState() {
     super.initState();
-    _navigationCheckTimer =
-        Timer.periodic(const Duration(milliseconds: 500), (timer) {
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkPendingNavigation();
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeOnStart();
-    });
+    // 注意：StartupFlowService.run() 移到 MainPage 中调用
+    // 因为这里 context 在 MaterialApp 外部，无法显示 Material 对话框
   }
 
   @override
   void dispose() {
-    _navigationCheckTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
-  /// 启动时初始化，委托 StartupFlowService 按顺序执行各项检查。
-  /// 参考项目：MainActivity.onPostCreate()
-  Future<void> _initializeOnStart() async {
-    if (_initialized) return;
-    _initialized = true;
-    if (!mounted) return;
-    await StartupFlowService.run(context, ref, () => mounted);
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      _checkPendingNavigation();
+    }
   }
 
   Future<void> _checkPendingNavigation() async {
@@ -163,6 +161,7 @@ class _LegadoAppState extends ConsumerState<LegadoApp> {
           await AppConfig.setString('pending_book_url', '');
           if (bookUrl.isNotEmpty) {
             try {
+              if (!mounted) return;
               showDialog(
                 context: context,
                 barrierDismissible: false,
@@ -186,6 +185,7 @@ class _LegadoAppState extends ConsumerState<LegadoApp> {
           await AppConfig.setString('pending_unsupported_file_extension', '');
           if (fileName.isNotEmpty) {
             try {
+              if (!mounted) return;
               await UnsupportedFileDialog.show(
                 context,
                 fileName,
@@ -206,32 +206,42 @@ class _LegadoAppState extends ConsumerState<LegadoApp> {
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
     final theme = ref.watch(appThemeProvider);
+    final tdTheme = ref.watch(tdThemeProvider);
     final localizationHelper = LocalizationHelper.instance;
+    final customWelcome =
+        AppConfig.getBool(PreferKey.customWelcome, defaultValue: false);
+    final defaultToRead =
+        AppConfig.getBool(PreferKey.defaultToRead, defaultValue: false);
+    final initialHome =
+        (customWelcome || defaultToRead) ? const WelcomePage() : const MainPage();
 
-    return MaterialApp(
-      title: 'Legado',
-      debugShowCheckedModeBanner: false,
-      theme: theme.lightTheme,
-      darkTheme: theme.darkTheme,
-      themeMode: themeMode,
-      locale: localizationHelper.getCurrentLocale(),
-      supportedLocales: LocalizationHelper.supportedLocales,
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      builder: (context, child) {
-        // 应用字体缩放
-        final mediaQuery = MediaQuery.of(context);
-        final textScaleFactor = localizationHelper.getTextScaleFactor();
-        return MediaQuery(
-          data: mediaQuery.copyWith(
-              textScaler: TextScaler.linear(textScaleFactor)),
-          child: child!,
-        );
-      },
-      home: SplashScreen(home: const WelcomePage()),
+    return TDTheme(
+      data: tdTheme,
+      child: MaterialApp(
+        title: 'Legado',
+        debugShowCheckedModeBanner: false,
+        theme: theme.lightTheme,
+        darkTheme: theme.darkTheme,
+        themeMode: themeMode,
+        locale: localizationHelper.getCurrentLocale(),
+        supportedLocales: LocalizationHelper.supportedLocales,
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        builder: (context, child) {
+          // 应用字体缩放
+          final mediaQuery = MediaQuery.of(context);
+          final textScaleFactor = localizationHelper.getTextScaleFactor();
+          return MediaQuery(
+            data: mediaQuery.copyWith(
+                textScaler: TextScaler.linear(textScaleFactor)),
+            child: child!,
+          );
+        },
+        home: initialHome,
+      ),
     );
   }
 }

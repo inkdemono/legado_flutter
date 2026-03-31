@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>导出确认 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --text: #1f2329;
+            --sub: #4e5969;
+            --hint: #86909c;
+            --line: #e5e6eb;
+            --primary: #7c3aed;
+            --accent: #1677ff;
+        }
+        body { background: linear-gradient(135deg, #111924, #24324c 60%, #0f172a); }
+        .phone-frame {
+            background:
+                linear-gradient(180deg, rgba(0,0,0,0.28), rgba(0,0,0,0.48)),
+                linear-gradient(135deg, #eef4ff, #dfe6ff);
+        }
+        .dialog {
+            position: absolute; left: 22px; right: 22px; top: 160px;
+            border-radius: 28px; overflow: hidden; background: rgba(255,255,255,0.96);
+            box-shadow: 0 24px 60px rgba(17,24,39,0.20); backdrop-filter: blur(18px);
+        }
+        .dialog-head {
+            padding: 18px 18px 12px; border-bottom: 1px solid var(--line);
+        }
+        .title { font-size: 18px; font-weight: 800; color: var(--text); }
+        .sub { margin-top: 6px; font-size: 13px; color: var(--sub); line-height: 1.6; }
+        .content { padding: 16px 18px; }
+        .label { font-size: 13px; font-weight: 700; color: var(--hint); margin-bottom: 10px; }
+        .option {
+            display: flex; align-items: center; gap: 12px; padding: 14px; margin-bottom: 10px; border-radius: 18px;
+            background: #f7f9fc; border: 1px solid #edf0f4;
+        }
+        .option.active { background: #f6f0ff; border-color: #ddd0ff; }
+        .radio {
+            width: 22px; height: 22px; border-radius: 50%; border: 2px solid #c9cdd4; flex-shrink: 0;
+        }
+        .option.active .radio { border-color: var(--primary); background: var(--primary); box-shadow: inset 0 0 0 4px #fff; }
+        .name { font-size: 15px; font-weight: 800; color: var(--text); }
+        .desc { margin-top: 4px; font-size: 12px; color: var(--sub); }
+        .progress-box {
+            margin-top: 14px; padding: 14px; border-radius: 18px; background: #eef4ff; display: flex; gap: 12px; align-items: center;
+        }
+        .spinner {
+            width: 34px; height: 34px; border-radius: 17px; background: linear-gradient(135deg, #1677ff, #7c3aed);
+            color: #fff; display: flex; align-items: center; justify-content: center; font-size: 16px;
+        }
+        .progress-title { font-size: 14px; font-weight: 800; color: var(--text); }
+        .progress-sub { margin-top: 4px; font-size: 12px; color: var(--sub); }
+        .footer {
+            display: flex; gap: 10px; padding: 0 18px 18px;
+        }
+        .btn {
+            flex: 1; height: 48px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700;
+        }
+        .btn.ghost { background: #f2f3f5; color: var(--sub); }
+        .btn.primary { background: linear-gradient(135deg, #7c3aed, #a78bfa); color: #fff; }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>导出确认</h1>
+            <p>补充“书架”模块缓存导出流程里的确认弹窗，覆盖格式选择以及导出中的进度提示层。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="dialog">
+                    <div class="dialog-head">
+                        <div class="title">导出书籍</div>
+                        <div class="sub">确定要导出选中的 3 本书籍吗？导出格式决定后续分享与阅读方式。</div>
+                    </div>
+                    <div class="content">
+                        <div class="label">导出格式</div>
+                        <div class="option active">
+                            <div class="radio"></div>
+                            <div>
+                                <div class="name">TXT</div>
+                                <div class="desc">纯文本导出，兼容性高，适合二次处理</div>
+                            </div>
+                        </div>
+                        <div class="option">
+                            <div class="radio"></div>
+                            <div>
+                                <div class="name">EPUB</div>
+                                <div class="desc">保留更完整的书籍结构，适合电子书阅读器</div>
+                            </div>
+                        </div>
+                        <div class="progress-box">
+                            <div class="spinner">⟳</div>
+                            <div>
+                                <div class="progress-title">正在批量导出...</div>
+                                <div class="progress-sub">已完成 2 / 3，本轮结果会在完成后统一反馈</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="footer">
+                        <div class="btn ghost">取消</div>
+                        <div class="btn primary">确定</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

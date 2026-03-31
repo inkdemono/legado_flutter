@@ -1,6 +1,7 @@
 #!/usr/bin/env dart
-/// 书源搜索功能测试工具
-/// 实际测试书源的搜索功能是否可用
+// ignore_for_file: avoid_print
+// 书源搜索功能测试工具
+// 实际测试书源的搜索功能是否可用
 
 import 'dart:async';
 import 'dart:convert';
@@ -355,4 +356,3 @@ void main(List<String> args) async {
   print('');
   print('完成！');
 }
-

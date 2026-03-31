@@ -9,7 +9,7 @@ import '../../../config/app_config.dart';
 import '../../../core/constants/app_status.dart';
 import 'custom_color_dialog.dart';
 import 'font_select_dialog.dart';
-import '../../widgets/common/custom_switch.dart';
+import '../../widgets/td/td_widgets.dart';
 
 /// 阅读设置页面（底部弹出式）
 class ReaderSettingsPage extends ConsumerStatefulWidget {
@@ -783,7 +783,7 @@ class _ReaderSettingsPageState extends ConsumerState<ReaderSettingsPage> {
                     style: TextStyle(color: Colors.white, fontSize: 10),
                   ),
                   const SizedBox(width: 8),
-                  CustomSwitch(
+                  TDThemedSwitch(
                     value: showLineValue,
                     onChanged: onShowLineChanged ?? (value) {},
                   ),

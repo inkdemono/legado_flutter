@@ -28,6 +28,7 @@ class DatabaseMigrations {
         17: _migration16To17,
         18: _migration17To18,
         19: _migration18To19,
+        20: _migration19To20,
       };
 
   /// 执行迁移
@@ -628,22 +629,22 @@ class DatabaseMigrations {
   }
 
   /// 从版本18升级到版本19：添加 chapters.localPath 字段
-  /// 
+  ///
   /// **重大改进: 章节内容分文件存储**
-  /// 
+  ///
   /// 将章节内容从数据库中分离,存储到独立的文本文件中
-  /// 
+  ///
   /// **优势:**
   /// 1. 读取性能: 直接文件IO,避免SQL解析,读取5万字章节速度稳定
   /// 2. 数据库精简: 移除大文本字段,数据库体积减小80%+
   /// 3. 备份加速: 数据库备份从秒级降至毫秒级
   /// 4. 内存优化: 按需加载,不占用数据库连接池
-  /// 
+  ///
   /// **迁移说明:**
   /// - 添加 localPath 字段存储文件相对路径
   /// - 不删除现有数据,保持向后兼容
   /// - 新下载的章节将使用文件存储
-  /// 
+  ///
   /// 参考项目: io.legado.app (Legado 原版使用文件存储策略)
   static Future<void> _migration18To19(Database db) async {
     // 检查 chapters 表是否已有 localPath 字段
@@ -653,11 +654,144 @@ class DatabaseMigrations {
     if (!hasLocalPathColumn) {
       // 添加 localPath 字段
       await db.execute('ALTER TABLE chapters ADD COLUMN localPath TEXT');
-      
+
       // 创建索引,加速基于 localPath 的查询
       await db.execute(
         'CREATE INDEX idx_chapters_localPath ON chapters(localPath) WHERE localPath IS NOT NULL'
       );
+    }
+  }
+
+  /// 从版本19升级到版本20：添加媒体播放器相关表
+  ///
+  /// **新增功能: 独立媒体播放器**
+  ///
+  /// 添加音乐播放器和视频播放器的数据存储支持
+  ///
+  /// **新增表:**
+  /// - music_tracks: 音乐曲目表
+  /// - music_playlists: 播放列表表
+  /// - video_items: 视频项表
+  static Future<void> _migration19To20(Database db) async {
+    // ========== 音乐曲目表 ==========
+    final musicTracksTables = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='music_tracks'",
+    );
+
+    if (musicTracksTables.isEmpty) {
+      await db.execute('''
+        CREATE TABLE music_tracks (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          artist TEXT,
+          album TEXT,
+          duration INTEGER,
+          file_path TEXT,
+          url TEXT,
+          cover_path TEXT,
+          cover_url TEXT,
+          lyrics_path TEXT,
+          lyrics TEXT,
+          is_local INTEGER DEFAULT 0,
+          file_size INTEGER,
+          added_at INTEGER NOT NULL,
+          play_count INTEGER DEFAULT 0,
+          last_played_at INTEGER,
+          metadata TEXT
+        )
+      ''');
+
+      // 创建索引
+      await db.execute('CREATE INDEX idx_music_tracks_artist ON music_tracks(artist)');
+      await db.execute('CREATE INDEX idx_music_tracks_album ON music_tracks(album)');
+      await db.execute('CREATE INDEX idx_music_tracks_added_at ON music_tracks(added_at)');
+      await db.execute('CREATE INDEX idx_music_tracks_play_count ON music_tracks(play_count)');
+    }
+
+    // ========== 播放列表表 ==========
+    final musicPlaylistsTables = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='music_playlists'",
+    );
+
+    if (musicPlaylistsTables.isEmpty) {
+      await db.execute('''
+        CREATE TABLE music_playlists (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          description TEXT,
+          cover_path TEXT,
+          track_ids TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          is_system INTEGER DEFAULT 0
+        )
+      ''');
+
+      // 创建索引
+      await db.execute('CREATE INDEX idx_music_playlists_name ON music_playlists(name)');
+      await db.execute('CREATE INDEX idx_music_playlists_updated_at ON music_playlists(updated_at)');
+
+      // 初始化系统默认播放列表
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await db.insert('music_playlists', {
+        'id': 'favorites',
+        'name': '我喜欢',
+        'description': '收藏的歌曲',
+        'track_ids': '[]',
+        'created_at': now,
+        'updated_at': now,
+        'is_system': 1,
+      });
+      await db.insert('music_playlists', {
+        'id': 'recent',
+        'name': '最近播放',
+        'description': '最近播放的歌曲',
+        'track_ids': '[]',
+        'created_at': now,
+        'updated_at': now,
+        'is_system': 1,
+      });
+      await db.insert('music_playlists', {
+        'id': 'all_tracks',
+        'name': '全部歌曲',
+        'description': '所有本地歌曲',
+        'track_ids': '[]',
+        'created_at': now,
+        'updated_at': now,
+        'is_system': 1,
+      });
+    }
+
+    // ========== 视频项表 ==========
+    final videoItemsTables = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='video_items'",
+    );
+
+    if (videoItemsTables.isEmpty) {
+      await db.execute('''
+        CREATE TABLE video_items (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          description TEXT,
+          duration INTEGER,
+          file_path TEXT,
+          url TEXT,
+          thumbnail_path TEXT,
+          thumbnail_url TEXT,
+          is_local INTEGER DEFAULT 0,
+          file_size INTEGER,
+          width INTEGER,
+          height INTEGER,
+          added_at INTEGER NOT NULL,
+          watch_progress INTEGER DEFAULT 0,
+          last_watched_at INTEGER,
+          playback_speed REAL DEFAULT 1.0
+        )
+      ''');
+
+      // 创建索引
+      await db.execute('CREATE INDEX idx_video_items_added_at ON video_items(added_at)');
+      await db.execute('CREATE INDEX idx_video_items_last_watched ON video_items(last_watched_at)');
     }
   }
 }

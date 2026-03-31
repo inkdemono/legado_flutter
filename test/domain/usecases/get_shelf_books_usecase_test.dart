@@ -96,13 +96,19 @@ BookEntity _createTestBook(
 }) {
   return BookEntity(
     bookUrl: url,
+    tocUrl: '$url/toc',
+    originName: '测试书源',
     name: name,
     author: '作者',
     origin: 'https://test.com',
     kind: '',
     intro: '',
+    customTag: '',
     coverUrl: '',
-    tocUrl: '',
+    customCoverUrl: '',
+    customIntro: '',
+    charset: null,
+    type: 0,
     latestChapterTitle: '',
     latestChapterTime: updateTime,
     lastCheckTime: 0,
@@ -117,10 +123,7 @@ BookEntity _createTestBook(
     order: 0,
     originOrder: 0,
     variable: '',
-    readConfig: null,
+    syncTime: 0,
     group: group,
-    customCoverUrl: '',
-    customIntro: '',
-    customTag: '',
   );
 }

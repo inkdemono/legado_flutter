@@ -38,7 +38,7 @@ class AppDatabase {
 
     return await openDatabase(
       path,
-      version: 19, // 升级版本以支持章节内容分文件存储
+      version: 20, // 升级版本以支持媒体播放器
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -377,6 +377,7 @@ class AppDatabase {
 
   // 保留旧的迁移逻辑作为备份（已迁移到 DatabaseMigrations）
   @Deprecated('使用 DatabaseMigrations.migrate 代替')
+  // ignore: unused_element
   Future<void> _onUpgradeOld(
       Database db, int oldVersion, int newVersion) async {
     // 按版本顺序执行迁移，确保每个版本只执行一次

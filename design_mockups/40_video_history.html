@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频历史 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #07111d, #111827 62%);
+        }
+        .phone-frame {
+            width: 375px; height: 812px; border-radius: 40px; overflow: hidden; position: relative;
+            background:
+                radial-gradient(circle at top right, rgba(56,189,248,0.14), transparent 24%),
+                linear-gradient(180deg, #f7fbff, #f1f5f9 220px, #f6f7fb);
+            box-shadow: 0 26px 60px rgba(0,0,0,0.34);
+        }
+        .tabs { padding: 18px 16px 12px; display: flex; gap: 8px; }
+        .tab { padding: 8px 14px; border-radius: 999px; background: #e0f2fe; color: #0369a1; font-size: 12px; }
+        .tab.active { background: #0369a1; color: #fff; font-weight: 700; }
+        .content { padding: 0 16px 20px; display: grid; gap: 10px; }
+        .item {
+            display: flex; gap: 12px; padding: 12px; border-radius: 20px; background: #fff; box-shadow: 0 10px 24px rgba(15,23,32,0.06);
+        }
+        .thumb {
+            width: 120px; height: 68px; border-radius: 14px; position: relative; flex-shrink: 0;
+            background: linear-gradient(135deg, #0ea5e9, #312e81);
+        }
+        .thumb.t2 { background: linear-gradient(135deg, #fb7185, #7c3aed); }
+        .thumb.t3 { background: linear-gradient(135deg, #34d399, #0f766e); }
+        .thumb::before {
+            content: "▶"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #fff; font-size: 18px;
+        }
+        .duration {
+            position: absolute; right: 6px; bottom: 6px; padding: 3px 6px; border-radius: 8px; background: rgba(0,0,0,0.52); color: #fff; font-size: 10px;
+        }
+        .progress { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255,255,255,0.16); }
+        .progress-fill { width: 72%; height: 100%; background: #38bdf8; }
+        .info { flex: 1; min-width: 0; }
+        .title { font-size: 14px; font-weight: 700; color: #1f2329; line-height: 1.45; }
+        .meta { margin-top: 6px; font-size: 12px; color: #86909c; }
+        .actions { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .tag { padding: 4px 8px; border-radius: 999px; background: #eff6ff; color: #2563eb; font-size: 11px; }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>视频历史</h1>
+            <p>补充“媒体”模块里视频历史页，使用横向信息卡突出续播进度和最近观看时间。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="status-bar"><span>9:41</span><span>5G 100%</span></div>
+                <div class="tabs">
+                    <div class="tab">全部</div>
+                    <div class="tab">本地</div>
+                    <div class="tab active">历史</div>
+                </div>
+                <div class="content">
+                    <div class="item">
+                        <div class="thumb">
+                            <div class="duration">35:21</div>
+                            <div class="progress"><div class="progress-fill"></div></div>
+                        </div>
+                        <div class="info">
+                            <div class="title">Planet Earth II - Mountains</div>
+                            <div class="meta">昨天 22:14 · 已观看 72%</div>
+                            <div class="actions">
+                                <span class="tag">继续播放</span>
+                                <span class="tag">本地视频</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item">
+                        <div class="thumb t2">
+                            <div class="duration">18:06</div>
+                            <div class="progress"><div class="progress-fill" style="width:38%;"></div></div>
+                        </div>
+                        <div class="info">
+                            <div class="title">宇宙探索编辑精选</div>
+                            <div class="meta">今天 08:10 · 已观看 38%</div>
+                            <div class="actions">
+                                <span class="tag">稍后继续</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="item">
+                        <div class="thumb t3">
+                            <div class="duration">09:32</div>
+                            <div class="progress"><div class="progress-fill" style="width:100%;"></div></div>
+                        </div>
+                        <div class="info">
+                            <div class="title">短片：The Last Library</div>
+                            <div class="meta">3 天前 · 已看完</div>
+                            <div class="actions">
+                                <span class="tag">重播</span>
+                                <span class="tag">历史记录</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

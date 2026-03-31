@@ -42,7 +42,7 @@ Widget _buildHighlightedText({
         TextSpan(
           text: match,
           style: style.copyWith(
-            backgroundColor: Colors.yellow.withOpacity(0.5),
+            backgroundColor: Colors.yellow.withValues(alpha: 0.5),
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -83,7 +83,7 @@ class BookCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -130,7 +130,7 @@ class BookCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -253,10 +253,10 @@ class BookCard extends StatelessWidget {
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer.withOpacity(0.3),
+                  color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(4),
                   border: Border.all(
-                    color: theme.colorScheme.primary.withOpacity(0.1),
+                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
                     width: 0.5,
                   ),
                 ),
@@ -280,7 +280,7 @@ class BookCard extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 6),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Row(
@@ -309,7 +309,7 @@ class BookCard extends StatelessWidget {
                   '共${book.totalChapterNum}章',
                   style: TextStyle(
                     fontSize: 11,
-                    color: secondaryTextColor?.withOpacity(0.8),
+                    color: secondaryTextColor?.withValues(alpha: 0.8),
                   ),
                 ),
               if (book.latestChapterTitle != null && book.latestChapterTitle!.isNotEmpty) ...[
@@ -323,7 +323,7 @@ class BookCard extends StatelessWidget {
                     '更新：${book.latestChapterTitle}',
                     style: TextStyle(
                       fontSize: 11,
-                      color: theme.colorScheme.primary.withOpacity(0.8),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.8),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -491,4 +491,3 @@ class _DefaultCoverPainter extends CustomPainter {
         oldDelegate.accentColor != accentColor;
   }
 }
-

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分组编辑 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #f4f5fb;
+            --card: rgba(255,255,255,0.95);
+            --text: #1f2329;
+            --sub: #4e5969;
+            --hint: #86909c;
+            --line: #e5e6eb;
+            --primary: #7b5cff;
+            --danger: #f53f3f;
+        }
+        body { background: linear-gradient(135deg, #161924, #1f2847 58%, #342760); }
+        .phone-frame {
+            background:
+                radial-gradient(circle at top, rgba(123,92,255,0.24), transparent 30%),
+                linear-gradient(180deg, #ece8ff, #dfe4ff 46%, #f5f6fb);
+        }
+        .dialog {
+            position: absolute; left: 20px; right: 20px; top: 120px;
+            border-radius: 28px; overflow: hidden; background: var(--card);
+            box-shadow: 0 24px 60px rgba(26, 31, 56, 0.22); backdrop-filter: blur(18px);
+        }
+        .dialog-head {
+            padding: 18px 18px 16px; background: linear-gradient(135deg, #7b5cff, #9c7dff); color: #fff;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .dialog-title { font-size: 18px; font-weight: 800; }
+        .dialog-sub { margin-top: 4px; font-size: 12px; opacity: 0.86; }
+        .close {
+            margin-left: auto; width: 36px; height: 36px; border-radius: 18px; background: rgba(255,255,255,0.18);
+            display: flex; align-items: center; justify-content: center; font-size: 16px;
+        }
+        .dialog-body { padding: 18px; }
+        .panel {
+            padding: 14px; border-radius: 20px; background: rgba(247,248,252,0.92);
+            border: 1px solid #eceff5; margin-bottom: 12px;
+        }
+        .label { font-size: 12px; color: var(--hint); margin-bottom: 8px; }
+        .input {
+            height: 48px; border-radius: 16px; border: 1px solid #e5e6eb; background: #fff;
+            display: flex; align-items: center; padding: 0 14px; font-size: 15px; color: var(--text);
+        }
+        .select {
+            height: 48px; border-radius: 16px; border: 1px solid #e5e6eb; background: #fff;
+            display: flex; align-items: center; justify-content: space-between; padding: 0 14px; font-size: 15px; color: var(--text);
+        }
+        .switch-row {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        }
+        .switch-main { font-size: 15px; font-weight: 700; color: var(--text); }
+        .switch-sub { margin-top: 4px; font-size: 12px; color: var(--hint); }
+        .switch {
+            width: 48px; height: 28px; border-radius: 999px; background: rgba(123,92,255,0.26); position: relative; flex-shrink: 0;
+        }
+        .switch::after {
+            content: ""; position: absolute; top: 3px; left: 23px; width: 22px; height: 22px; border-radius: 50%; background: var(--primary);
+        }
+        .tip {
+            padding: 12px 14px; border-radius: 18px; background: #fff7e8; color: #b76e00; font-size: 12px; line-height: 1.6;
+        }
+        .dialog-footer {
+            display: flex; gap: 10px; padding: 0 18px 18px;
+        }
+        .btn {
+            flex: 1; height: 48px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700;
+        }
+        .btn.ghost { background: #f2f3f5; color: var(--sub); }
+        .btn.danger { flex: 0.88; background: #fff2f0; color: var(--danger); }
+        .btn.primary { background: linear-gradient(135deg, #7b5cff, #9c7dff); color: #fff; }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>分组编辑</h1>
+            <p>补充“书架”模块里的分组编辑弹窗，覆盖新增与编辑共用表单、排序方式、刷新开关和删除确认入口。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="dialog">
+                    <div class="dialog-head">
+                        <div>
+                            <div class="dialog-title">编辑分组</div>
+                            <div class="dialog-sub">组 ID 12 · 自定义分组</div>
+                        </div>
+                        <div class="close">✕</div>
+                    </div>
+                    <div class="dialog-body">
+                        <div class="panel">
+                            <div class="label">分组名称</div>
+                            <div class="input">科幻精选</div>
+                        </div>
+
+                        <div class="panel">
+                            <div class="label">书籍排序方式</div>
+                            <div class="select">
+                                <span>按阅读时间</span>
+                                <span>⌄</span>
+                            </div>
+                        </div>
+
+                        <div class="panel">
+                            <div class="switch-row">
+                                <div>
+                                    <div class="switch-main">启用刷新</div>
+                                    <div class="switch-sub">允许该分组自动检查更新</div>
+                                </div>
+                                <div class="switch"></div>
+                            </div>
+                        </div>
+
+                        <div class="tip">删除分组后，组内书籍将自动移动到“全部”分组。系统分组不允许删除或修改名称。</div>
+                    </div>
+                    <div class="dialog-footer">
+                        <div class="btn danger">删除</div>
+                        <div class="btn ghost">取消</div>
+                        <div class="btn primary">保存</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

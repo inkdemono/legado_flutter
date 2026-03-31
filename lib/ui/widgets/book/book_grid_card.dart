@@ -29,7 +29,7 @@ class BookGridCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -173,7 +173,7 @@ class BookGridCard extends StatelessWidget {
           Text(
             book.durChapterTitle!,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: secondaryColor?.withOpacity(0.7),
+              color: secondaryColor?.withValues(alpha: 0.7),
               fontSize: 9,
             ),
             maxLines: 1,

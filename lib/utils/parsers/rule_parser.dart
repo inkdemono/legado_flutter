@@ -34,6 +34,28 @@ class _RuleFragment {
   });
 }
 
+class _ListRuleEntry {
+  final String content;
+  final Map<String, String> groups;
+
+  const _ListRuleEntry({
+    required this.content,
+    this.groups = const {},
+  });
+}
+
+class _PreparedFieldRule {
+  final String rule;
+  final String? replaceRule;
+  final List<MapEntry<String, String>> putAssignments;
+
+  const _PreparedFieldRule({
+    required this.rule,
+    this.replaceRule,
+    this.putAssignments = const [],
+  });
+}
+
 /// 规则解析器
 /// 参考项目：io.legado.app.model.analyzeRule.AnalyzeRule
 ///
@@ -66,28 +88,39 @@ class RuleParser {
 
   /// 处理规则（变量替换、put规则、正则替换等）
   /// 参考项目：AnalyzeRule.splitSourceRule 和 SourceRule.makeUpRule
-  static String _processRule(String rule, Map<String, String> variables) {
+  static String _processRule(
+    String rule,
+    Map<String, String> variables, {
+    bool processPutGet = true,
+  }) {
     String result = rule;
 
-    // 1. 处理 @put:{key:value} 规则
-    final putPattern = RegexCache.instance.getOrCompile(r'@put:\s*(\{[^}]+\})', caseSensitive: false);
-    result = result.replaceAllMapped(putPattern, (match) {
-      try {
-        // 解析JSON对象
-        final jsonStr = match.group(1)!;
-        // 简单的JSON解析（只支持简单的key:value格式）
-        final keyValuePattern = RegexCache.instance.getOrCompile(r'"([^"]+)":\s*"([^"]*)"');
-        keyValuePattern.allMatches(jsonStr).forEach((m) {
-          final key = m.group(1)!;
-          final value = m.group(2) ?? '';
-          _variables[key] = value;
-          variables[key] = value;
-        });
-      } catch (e) {
-        AppLog.instance.put('_processRule: 解析@put规则失败: $e');
-      }
-      return ''; // 移除@put规则
-    });
+    if (processPutGet) {
+      // 1. 处理 @put:{key:value} 规则
+      final putPattern = RegexCache.instance.getOrCompile(
+        r'@put:\s*(\{[^}]+\})',
+        caseSensitive: false,
+      );
+      result = result.replaceAllMapped(putPattern, (match) {
+        try {
+          // 解析JSON对象
+          final jsonStr = match.group(1)!;
+          // 简单的JSON解析（只支持简单的key:value格式）
+          final keyValuePattern = RegexCache.instance.getOrCompile(
+            r'"([^"]+)":\s*"([^"]*)"',
+          );
+          keyValuePattern.allMatches(jsonStr).forEach((m) {
+            final key = m.group(1)!;
+            final value = m.group(2) ?? '';
+            _variables[key] = value;
+            variables[key] = value;
+          });
+        } catch (e) {
+          AppLog.instance.put('_processRule: 解析@put规则失败: $e');
+        }
+        return ''; // 移除@put规则
+      });
+    }
 
     // 2. 处理变量替换 {{key}} 和 @{{key}}
     variables.forEach((key, value) {
@@ -95,12 +128,17 @@ class RuleParser {
       result = result.replaceAll('@{{$key}}', value);
     });
 
-    // 3. 处理 @get:{key} 规则
-    final getPattern = RegexCache.instance.getOrCompile(r'@get:\s*\{([^}]+)\}', caseSensitive: false);
-    result = result.replaceAllMapped(getPattern, (match) {
-      final key = match.group(1)!.trim();
-      return variables[key] ?? _variables[key] ?? '';
-    });
+    if (processPutGet) {
+      // 3. 处理 @get:{key} 规则
+      final getPattern = RegexCache.instance.getOrCompile(
+        r'@get:\s*\{([^}]+)\}',
+        caseSensitive: false,
+      );
+      result = result.replaceAllMapped(getPattern, (match) {
+        final key = match.group(1)!.trim();
+        return variables[key] ?? _variables[key] ?? '';
+      });
+    }
 
     // 4. 处理 {{js}} JavaScript代码
     // 注意：{{js}} 的处理在 SourceRule.makeUpRule 中实现
@@ -123,6 +161,27 @@ class RuleParser {
     return result;
   }
 
+  static String _replaceTemplateVariables(
+    String rule,
+    Map<String, String>? variables,
+  ) {
+    return _replaceVariables(rule, variables);
+  }
+
+  static String? _encodeTransientVariables(
+    Map<String, String> originalVariables,
+    Map<String, String> currentVariables,
+  ) {
+    final diff = <String, String>{};
+    for (final entry in currentVariables.entries) {
+      if (originalVariables[entry.key] != entry.value) {
+        diff[entry.key] = entry.value;
+      }
+    }
+    if (diff.isEmpty) return null;
+    return jsonEncode(diff);
+  }
+
   /// 解析规则并提取内容（同步版本，不支持JavaScript执行）
   /// [isUrl] 如果为true，表示解析的是URL，需要特殊处理（参考 AnalyzeRule.getString with isUrl=true）
   /// 支持规则组合（&&/||）和变量替换
@@ -133,6 +192,7 @@ class RuleParser {
     String? baseUrl,
     Map<String, String>? variables,
     bool isUrl = false,
+    bool allowRegexRule = false,
   }) {
     if (rule == null || rule.isEmpty) {
       // 如果是URL且为空，返回baseUrl（参考项目逻辑）
@@ -157,7 +217,6 @@ class RuleParser {
 
       // 处理变量替换和put规则
       String processedRule = _processRule(rule, allVariables);
-      AppLog.instance.put('parseRule: 规则="$rule", 处理后="$processedRule"');
 
       // 判断是否包含规则组合（&&/||）
       final analyzer = RuleAnalyzer(processedRule);
@@ -166,14 +225,14 @@ class RuleParser {
 
       if (splitRules.length > 1) {
         // 有规则组合，需要分别解析每个规则
-        AppLog.instance.put(
-            'parseRule: 检测到规则组合，类型=$elementsType, 规则数=${splitRules.length}');
         return _parseRuleCombinationSync(
             html, splitRules, elementsType, baseUrl, allVariables,
+            allowRegexRule: allowRegexRule,
             isUrl: isUrl);
       } else {
         // 单个规则，直接解析
         return _parseSingleRuleSync(html, processedRule, baseUrl, allVariables,
+            allowRegexRule: allowRegexRule,
             isUrl: isUrl);
       }
     } catch (e, stackTrace) {
@@ -196,9 +255,13 @@ class RuleParser {
     String? baseUrl,
     Map<String, String>? variables,
     bool isUrl = false,
+    bool allowRegexRule = false,
   }) async {
     return _parseRuleAsync(html, rule,
-        baseUrl: baseUrl, variables: variables, isUrl: isUrl);
+        baseUrl: baseUrl,
+        variables: variables,
+        isUrl: isUrl,
+        allowRegexRule: allowRegexRule);
   }
 
   /// 异步解析规则（内部方法，支持JavaScript执行）
@@ -208,6 +271,7 @@ class RuleParser {
     String? baseUrl,
     Map<String, String>? variables,
     bool isUrl = false,
+    bool allowRegexRule = false,
   }) async {
     if (rule == null || rule.isEmpty) {
       // 如果是URL且为空，返回baseUrl（参考项目逻辑）
@@ -225,8 +289,7 @@ class RuleParser {
       }
 
       // 处理变量替换和put规则
-      String processedRule = _processRule(rule, allVariables);
-      AppLog.instance.put('_parseRuleAsync: 规则="$rule", 处理后="$processedRule"');
+      String processedRule = _replaceTemplateVariables(rule, allVariables);
 
       // 判断是否包含规则组合（&&/||）
       final analyzer = RuleAnalyzer(processedRule);
@@ -235,15 +298,15 @@ class RuleParser {
 
       if (splitRules.length > 1) {
         // 有规则组合，需要分别解析每个规则
-        AppLog.instance.put(
-            '_parseRuleAsync: 检测到规则组合，类型=$elementsType, 规则数=${splitRules.length}');
         return await _parseRuleCombination(
             html, splitRules, elementsType, baseUrl, allVariables,
+            allowRegexRule: allowRegexRule,
             isUrl: isUrl);
       } else {
         // 单个规则，直接解析
         return await _parseSingleRule(
             html, processedRule, baseUrl, allVariables,
+            allowRegexRule: allowRegexRule,
             isUrl: isUrl);
       }
     } catch (e, stackTrace) {
@@ -264,6 +327,7 @@ class RuleParser {
     String? baseUrl,
     Map<String, String> variables, {
     bool isUrl = false,
+    bool allowRegexRule = false,
   }) {
     // 检查是否包含正则替换规则
     String? replaceRule;
@@ -286,7 +350,7 @@ class RuleParser {
 
     // 处理 Regex 模式（以 : 开头，但注意与伪类选择器冲突）
     // 参考项目：if (allInOne && ruleStr.startsWith(":")) { mMode = Mode.Regex }
-    if (actualRule.startsWith(':') && actualRule.length > 1) {
+    if (allowRegexRule && actualRule.startsWith(':') && actualRule.length > 1) {
       final afterColon = actualRule.substring(1).trim();
       final isPseudoClass = RegExp(r'^[a-zA-Z-]').hasMatch(afterColon);
 
@@ -357,7 +421,6 @@ class RuleParser {
       result = _applyReplaceRegexInternal(result, replaceRule);
     }
 
-    AppLog.instance.put('_parseSingleRuleSync: 解析结果长度=${result?.length ?? 0}');
     return result;
   }
 
@@ -372,6 +435,7 @@ class RuleParser {
     String? baseUrl,
     Map<String, String> variables, {
     bool isUrl = false,
+    bool allowRegexRule = false,
   }) async {
     // 分离正则替换规则（##match##replace）
     String? replaceRule;
@@ -423,15 +487,31 @@ class RuleParser {
         // 如果有 JavaScript 代码，继续下面的分割处理
       } else {
         // 没有 {{...}}，直接按普通规则处理
-        return _parseSingleRuleSync(html, actualRule, baseUrl, variables,
-            isUrl: isUrl);
+        final processedNonJsRule = _processRule(actualRule, variables);
+        final putGetLiteral = _resolvePutGetLiteral(
+          actualRule,
+          processedNonJsRule,
+          baseUrl: baseUrl,
+          isUrl: isUrl,
+        );
+        if (putGetLiteral != null) {
+          return putGetLiteral;
+        }
+        return _parseSingleRuleSync(
+          html,
+          processedNonJsRule,
+          baseUrl,
+          variables,
+          allowRegexRule: allowRegexRule,
+          isUrl: isUrl,
+        );
       }
     }
 
     // 有明确的 JavaScript 标记或包含 {{...}} 且不是变量替换，进行分割处理
     // 匹配 <js>...</js> 或 @js:... 或 {{...}}（但排除变量替换）
     final jsPattern = RegexCache.instance.getOrCompile(
-      r'<js>([\w\W]*?)</js>|@js:([\w\W]*?)(?=\s|$)|(?<!\\)\{\{([\w\W]*?)\}\}',
+      r'<js>([\w\W]*?)</js>|@js:([\w\W]*)|(?<!\\)\{\{([\w\W]*?)\}\}',
       caseSensitive: false,
     );
 
@@ -484,6 +564,12 @@ class RuleParser {
         }
 
         if (jsCode != null && jsCode.isNotEmpty) {
+          if (match.group(2) != null) {
+            jsCode = _processRule(
+              _replaceTemplateVariables(jsCode, variables),
+              variables,
+            );
+          }
           ruleFragments.add(_RuleFragment(
             type: _RuleFragmentType.javascript,
             content: jsCode,
@@ -515,8 +601,14 @@ class RuleParser {
 
     // 如果没有找到任何片段，整个规则作为普通规则
     if (ruleFragments.isEmpty) {
-      return _parseSingleRuleSync(html, actualRule, baseUrl, variables,
-          isUrl: isUrl);
+        return _parseSingleRuleSync(
+          html,
+          _processRule(actualRule, variables),
+          baseUrl,
+          variables,
+          allowRegexRule: allowRegexRule,
+          isUrl: isUrl,
+        );
     }
 
     // 参考项目：顺序执行每个规则片段，每个片段的结果作为下一个片段的输入
@@ -525,12 +617,6 @@ class RuleParser {
     // 检查整个规则是否包含JavaScript代码（用于决定是否在CSS解析时自动拼接URL）
     final hasJsInRule =
         ruleFragments.any((f) => f.type == _RuleFragmentType.javascript);
-
-    if (ruleFragments.isNotEmpty) {
-      for (int i = 0; i < ruleFragments.length; i++) {
-        final frag = ruleFragments[i];
-      }
-    }
 
     for (final fragment in ruleFragments) {
       if (result == null) break;
@@ -557,14 +643,24 @@ class RuleParser {
             continue;
           }
 
+          final processedFragmentRule = _processRule(
+            ruleStr,
+            variables,
+          );
+          if (processedFragmentRule.isEmpty) {
+            continue;
+          }
+
           // 判断规则类型
           // 参考项目：SourceRule 构造函数中的模式识别逻辑
-          String actualRuleStr = ruleStr;
+          String actualRuleStr = processedFragmentRule;
           bool forceCss = false;
 
           // 处理 Regex 模式（以 : 开头）
-          if (ruleStr.startsWith(':') && ruleStr.length > 1) {
-            final afterColon = ruleStr.substring(1).trim();
+          if (allowRegexRule &&
+              actualRuleStr.startsWith(':') &&
+              actualRuleStr.length > 1) {
+            final afterColon = actualRuleStr.substring(1).trim();
             final isPseudoClass = RegExp(r'^[a-zA-Z-]').hasMatch(afterColon);
 
             if (!isPseudoClass) {
@@ -591,19 +687,20 @@ class RuleParser {
             }
           }
           // 处理 @CSS: 前缀（强制使用CSS选择器）
-          else if (ruleStr.startsWith('@CSS:') || ruleStr.startsWith('@css:')) {
-            actualRuleStr = ruleStr.substring(5).trim();
+          else if (actualRuleStr.startsWith('@CSS:') ||
+              actualRuleStr.startsWith('@css:')) {
+            actualRuleStr = actualRuleStr.substring(5).trim();
             forceCss = true;
           }
           // 处理 @@ 前缀（转义，使用Default模式）
-          else if (ruleStr.startsWith('@@')) {
-            actualRuleStr = ruleStr.substring(2);
+          else if (actualRuleStr.startsWith('@@')) {
+            actualRuleStr = actualRuleStr.substring(2);
             forceCss = true;
           }
           // 处理 @XPath: 前缀
-          else if (ruleStr.startsWith('@XPath:') ||
-              ruleStr.startsWith('@xpath:')) {
-            actualRuleStr = ruleStr.substring(7).trim();
+          else if (actualRuleStr.startsWith('@XPath:') ||
+              actualRuleStr.startsWith('@xpath:')) {
+            actualRuleStr = actualRuleStr.substring(7).trim();
             result = _parseXPath(result.toString(), actualRuleStr, baseUrl,
                 isUrl: isUrl);
             if (result == null || (result is String && result.isEmpty)) {
@@ -612,9 +709,9 @@ class RuleParser {
             continue;
           }
           // 处理 @Json: 前缀
-          else if (ruleStr.startsWith('@Json:') ||
-              ruleStr.startsWith('@json:')) {
-            actualRuleStr = ruleStr.substring(6).trim();
+          else if (actualRuleStr.startsWith('@Json:') ||
+              actualRuleStr.startsWith('@json:')) {
+            actualRuleStr = actualRuleStr.substring(6).trim();
             result = _parseJsonPath(result.toString(), actualRuleStr, baseUrl,
                 isUrl: isUrl);
             if (result == null || (result is String && result.isEmpty)) {
@@ -673,7 +770,6 @@ class RuleParser {
     }
 
     final resultStr = result?.toString();
-    AppLog.instance.put('_parseSingleRule: 解析结果长度=${resultStr?.length ?? 0}');
     return resultStr;
   }
 
@@ -685,11 +781,13 @@ class RuleParser {
     String? baseUrl,
     Map<String, String> variables, {
     bool isUrl = false,
+    bool allowRegexRule = false,
   }) {
     final results = <String>[];
 
     for (final rule in rules) {
       final result = _parseSingleRuleSync(html, rule.trim(), baseUrl, variables,
+          allowRegexRule: allowRegexRule,
           isUrl: isUrl);
       if (result != null && result.isNotEmpty) {
         results.add(result);
@@ -738,12 +836,14 @@ class RuleParser {
     String? baseUrl,
     Map<String, String> variables, {
     bool isUrl = false,
+    bool allowRegexRule = false,
   }) async {
     final results = <String>[];
 
     for (final rule in rules) {
       final result = await _parseSingleRule(
           html, rule.trim(), baseUrl, variables,
+          allowRegexRule: allowRegexRule,
           isUrl: isUrl);
       if (result != null && result.isNotEmpty) {
         results.add(result);
@@ -790,12 +890,7 @@ class RuleParser {
     final document = html_parser.parse(html);
 
     // 规范化CSS选择器（处理JSoup格式）
-    final originalSelector = selector;
     selector = _normalizeCssSelector(selector);
-    if (originalSelector != selector) {
-      AppLog.instance
-          .put('_parseCss: 选择器规范化: "$originalSelector" -> "$selector"');
-    }
 
     // 检查是否包含 @ 分隔符（例如：img@src, a@href, class.title@text, id.pic@img@src）
     // 支持嵌套选择器：id.pic@img@src -> 先选择id.pic，再选择img，最后获取src属性
@@ -812,9 +907,6 @@ class RuleParser {
       final lastAtIndex = allAtIndices.last;
       final elementSelectorChain = selector.substring(0, lastAtIndex).trim();
       final attributeName = selector.substring(lastAtIndex + 1).trim();
-
-      AppLog.instance.put(
-          '_parseCss: 分离选择器: elementSelectorChain="$elementSelectorChain", attributeName="$attributeName"');
 
       if (elementSelectorChain.isNotEmpty && attributeName.isNotEmpty) {
         // 检查是否包含多个@，即嵌套选择器（如 id.pic@img@src）
@@ -835,35 +927,24 @@ class RuleParser {
               normalizedRootSelector = rootSelector;
             }
 
-            AppLog.instance.put(
-                '_parseCss: 嵌套选择器第一步: "$rootSelector" -> "$normalizedRootSelector"');
             element =
                 HtmlParser.selectElement(document, normalizedRootSelector);
 
             if (element != null) {
-              AppLog.instance.put('_parseCss: 找到根元素: ${element.localName}');
-
               // 第二步：在根元素内选择子元素（如 img）
               for (int i = 1; i < selectorParts.length; i++) {
                 final childSelector = selectorParts[i].trim();
                 if (childSelector.isNotEmpty && element != null) {
-                  AppLog.instance.put(
-                      '_parseCss: 嵌套选择器第${i + 1}步: 在 ${element.localName} 内查找 "$childSelector"');
                   final childElement =
                       HtmlParser.selectElement(element, childSelector);
                   if (childElement != null) {
                     element = childElement;
-                    AppLog.instance
-                        .put('_parseCss: 找到子元素: ${element.localName}');
                   } else {
-                    AppLog.instance.put('_parseCss: 未找到子元素: $childSelector');
                     element = null;
                     break;
                   }
                 }
               }
-            } else {
-              AppLog.instance.put('_parseCss: 未找到根元素: $normalizedRootSelector');
             }
           }
         } else {
@@ -891,16 +972,7 @@ class RuleParser {
               } else {
                 normalizedSelector = elementSelectorChain;
               }
-              AppLog.instance.put(
-                  '_parseCss: 规范化选择器 "$elementSelectorChain" -> "$normalizedSelector"');
               element = HtmlParser.selectElement(document, normalizedSelector);
-              if (element != null) {
-                AppLog.instance
-                    .put('_parseCss: CSS选择器找到元素: ${element.localName}');
-              } else {
-                AppLog.instance
-                    .put('_parseCss: CSS选择器未找到元素: $normalizedSelector');
-              }
             } else {
               // 使用 ElementsSingle 处理 tag.xxx 和 children.xxx
               try {
@@ -927,8 +999,6 @@ class RuleParser {
                       searchRoot, elementSelectorChain);
                   if (elements.isNotEmpty) {
                     element = elements[0];
-                    AppLog.instance.put(
-                        '_parseCss: ElementsSingle 找到 ${elements.length} 个元素，使用第一个');
                   } else {
                     // 回退到普通CSS选择器：将 tag.a.0 转换为 a（移除tag.前缀和索引）
                     // tag.a.0 -> a.0 -> a（移除所有数字后缀）
@@ -940,13 +1010,9 @@ class RuleParser {
                     element =
                         HtmlParser.selectElement(document, fallbackSelector);
 
-                    AppLog.instance.put(
-                        '_parseCss: ElementsSingle 未找到元素: $elementSelectorChain');
                   }
                 }
               } catch (e) {
-                AppLog.instance.put(
-                    '_parseCss: ElementsSingle 处理失败: $elementSelectorChain, 错误: $e');
                 // 回退到普通CSS选择器
                 final fallbackSelector =
                     elementSelectorChain.replaceFirst('tag.', '');
@@ -954,50 +1020,39 @@ class RuleParser {
               }
             }
           } else {
-            // 普通CSS选择器
-            element = HtmlParser.selectElement(document, elementSelectorChain);
+            // 处理索引选择器（如 a.1, span.2 表示第N个元素）
+            element = _selectElementWithIndex(document, elementSelectorChain);
           }
         }
 
         if (element != null) {
-          AppLog.instance.put('_parseCss: 找到元素: ${element.localName}');
           // 特殊处理：@text, @html, @textNodes, @ownText, @all 等
           // 参考项目：AnalyzeByJSoup.getResultLast
           final attrLower = attributeName.toLowerCase();
           if (attrLower == 'text') {
             final text = HtmlParser.getText(element);
-            AppLog.instance.put('_parseCss: 获取文本内容，长度=${text?.length ?? 0}');
             return text;
           } else if (attrLower == 'html') {
             // 参考项目：移除script和style标签后再返回
             final html = HtmlParser.getHtmlWithoutScriptAndStyle(element);
-            AppLog.instance.put(
-                '_parseCss: 获取HTML内容（已移除script/style），长度=${html?.length ?? 0}');
             return html;
           } else if (attrLower == 'textnodes') {
             // 参考项目：获取文本节点（不包括子元素的文本）
             final textNodes = HtmlParser.getTextNodes(element);
-            AppLog.instance
-                .put('_parseCss: 获取文本节点，长度=${textNodes?.length ?? 0}');
             return textNodes;
           } else if (attrLower == 'owntext') {
             // 参考项目：获取元素自身的文本（不包括子元素）
             final ownText = HtmlParser.getOwnText(element);
-            AppLog.instance.put('_parseCss: 获取自身文本，长度=${ownText?.length ?? 0}');
             return ownText;
           } else if (attrLower == 'all') {
             // 参考项目：获取完整的outerHTML（不删除script和style）
             final allHtml = HtmlParser.getAllHtml(element);
-            AppLog.instance
-                .put('_parseCss: 获取完整HTML，长度=${allHtml?.length ?? 0}');
             return allHtml;
           }
 
           // 获取属性值
           final attrValue = HtmlParser.getAttribute(element, attributeName);
           if (attrValue != null && attrValue.isNotEmpty) {
-            AppLog.instance
-                .put('_parseCss: 获取属性值: $attributeName="$attrValue"');
             // 如果是URL相关的属性（href, src, data-src等），且isUrl=true，使用baseUrl处理
             // 注意：如果规则包含@js:，不应该在这里拼接URL，应该让JavaScript代码处理
             if (isUrl &&
@@ -1010,24 +1065,24 @@ class RuleParser {
               return joinedUrl;
             }
             return attrValue;
-          } else {
-            AppLog.instance.put('_parseCss: 属性 $attributeName 为空或不存在');
           }
-        } else {
-          AppLog.instance.put('_parseCss: 未找到元素: $elementSelectorChain');
         }
       }
       return null;
     }
 
+    // 检查是否是独立的属性名（如 textNodes, href, text 等）
+    // 这种情况下应该从当前文档/元素获取属性，而不是选择新元素
+    final standaloneAttr = _getStandaloneAttribute(document, selector, isUrl: isUrl, baseUrl: baseUrl);
+    if (standaloneAttr != null) {
+      return standaloneAttr;
+    }
+
     // 没有 @ 分隔符，按普通选择器处理
     final element = HtmlParser.selectElement(document, selector);
     if (element == null) {
-      AppLog.instance.put('_parseCss: 未找到元素: $selector');
       return null;
     }
-
-    AppLog.instance.put('_parseCss: 找到元素: ${element.localName}');
 
     // 如果是URL解析，优先尝试获取链接属性
     if (isUrl) {
@@ -1072,6 +1127,215 @@ class RuleParser {
 
     // 默认返回文本内容
     return HtmlParser.getText(element);
+  }
+
+  /// 处理独立的属性名（如 textNodes, href, text 等）
+  /// 当规则只是属性名而没有选择器前缀时调用
+  static String? _getStandaloneAttribute(
+    dynamic document,
+    String attributeName, {
+    bool isUrl = false,
+    String? baseUrl,
+  }) {
+    final attrLower = attributeName.toLowerCase();
+
+    // 检查是否是特殊的属性名
+    final specialAttrs = [
+      'text', 'html', 'textnodes', 'owntext', 'all',
+      'href', 'src', 'title', 'alt',
+    ];
+
+    if (!specialAttrs.contains(attrLower)) {
+      return null; // 不是特殊属性，返回null让调用者继续处理
+    }
+
+    // 获取当前上下文元素。对于 HTML 片段，优先取第一个实际元素，而不是 body/html 包装节点。
+    html_dom.Element? rootElement;
+    if (document is html_dom.Document) {
+      final body = document.body;
+      if (body != null && body.children.length == 1) {
+        rootElement = body.children.first;
+      } else if (body != null && body.children.isNotEmpty) {
+        rootElement = body;
+      } else if (document.documentElement != null &&
+          document.documentElement!.children.length == 1) {
+        rootElement = document.documentElement!.children.first;
+      } else {
+        rootElement = body ?? document.documentElement;
+      }
+    } else if (document is html_dom.Element) {
+      rootElement = document;
+    }
+
+    if (rootElement == null) {
+      return null;
+    }
+
+    // 根据属性名返回对应的值
+    switch (attrLower) {
+      case 'text':
+        return HtmlParser.getText(rootElement);
+      case 'html':
+        return HtmlParser.getHtmlWithoutScriptAndStyle(rootElement);
+      case 'textnodes':
+        return HtmlParser.getTextNodes(rootElement);
+      case 'owntext':
+        return HtmlParser.getOwnText(rootElement);
+      case 'all':
+        return HtmlParser.getAllHtml(rootElement);
+      case 'href':
+        final href = HtmlParser.getAttribute(rootElement, 'href');
+        if (href != null && href.isNotEmpty) {
+          if (isUrl && baseUrl != null) {
+            return NetworkService.joinUrl(baseUrl, href);
+          }
+          return href;
+        }
+        return null;
+      case 'src':
+        final src = HtmlParser.getAttribute(rootElement, 'src') ??
+            HtmlParser.getAttribute(rootElement, 'data-src');
+        if (src != null && src.isNotEmpty) {
+          if (isUrl && baseUrl != null) {
+            return NetworkService.joinUrl(baseUrl, src);
+          }
+          return src;
+        }
+        return null;
+      case 'title':
+        return HtmlParser.getAttribute(rootElement, 'title');
+      case 'alt':
+        return HtmlParser.getAttribute(rootElement, 'alt');
+      default:
+        return null;
+    }
+  }
+
+  /// 选择带有索引的元素
+  /// 支持 Legado 风格的索引选择器，如：
+  /// - a.1 表示第2个 a 元素（0-indexed）
+  /// - span.0 表示第1个 span 元素
+  /// - div.-1 表示倒数第1个 div 元素
+  /// - dd span.1 表示所有 dd 元素下的所有 span 元素中的第2个
+  static html_dom.Element? _selectElementWithIndex(
+    dynamic container,
+    String selector,
+  ) {
+    // 检查是否包含空格（后代选择器）
+    if (selector.contains(' ')) {
+      // 对于后代选择器，Legado 的处理方式是：
+      // "dd span.1" 表示从所有 dd 元素下的所有 span 元素中取第2个
+      // 而不是从第一个 dd 元素下的 span 中取第2个
+
+      // 解析选择器部分
+      final parts = selector.split(' ').where((p) => p.isNotEmpty).toList();
+      if (parts.isEmpty) return null;
+
+      // 检查最后一部分是否有索引
+      final lastPart = parts.last;
+      final indexPattern = RegExp(r'^([a-zA-Z*][a-zA-Z0-9*\-]*)\.(-?\d+)$');
+      final lastIndexMatch = indexPattern.firstMatch(lastPart);
+
+      if (lastIndexMatch != null) {
+        // 最后部分有索引，使用 Legado 风格的后代选择器
+        // 构建 CSS 选择器（移除索引部分）
+        final cssParts = <String>[];
+        for (int i = 0; i < parts.length; i++) {
+          final part = parts[i];
+          final match = indexPattern.firstMatch(part);
+          if (match != null) {
+            // 有索引的部分，只取标签名
+            cssParts.add(match.group(1)!);
+          } else {
+            cssParts.add(part);
+          }
+        }
+
+        final cssSelector = cssParts.join(' ');
+        final index = int.parse(lastIndexMatch.group(2)!);
+
+
+        try {
+          // 使用 CSS 选择器获取所有匹配的元素
+          final allElements = HtmlParser.selectElements(container, cssSelector);
+
+          if (allElements.isEmpty) {
+            return null;
+          }
+
+          // 计算有效索引
+          int effectiveIndex;
+          if (index < 0) {
+            effectiveIndex = allElements.length + index;
+          } else {
+            effectiveIndex = index;
+          }
+
+          if (effectiveIndex < 0 || effectiveIndex >= allElements.length) {
+            return null;
+          }
+
+          final element = allElements[effectiveIndex];
+          return element;
+        } catch (e) {
+          return null;
+        }
+      } else {
+        // 没有索引，使用普通 CSS 选择器
+        try {
+          return HtmlParser.selectElement(container, selector);
+        } catch (e) {
+        return null;
+        }
+      }
+    }
+
+    // 单一选择器（无空格）
+    // 匹配 "tagname.N" 模式，其中 N 是数字（可正可负）
+    final indexPattern = RegExp(r'^([a-zA-Z*][a-zA-Z0-9*\-]*)\.(-?\d+)$');
+    final match = indexPattern.firstMatch(selector);
+
+    if (match != null) {
+      final tagName = match.group(1)!;
+      final indexStr = match.group(2)!;
+      final index = int.parse(indexStr);
+
+
+      // 获取所有匹配的元素
+      List<html_dom.Element> elements;
+      if (tagName == '*') {
+        elements = HtmlParser.selectElements(container, '*');
+      } else {
+        elements = HtmlParser.selectElements(container, tagName);
+      }
+
+      if (elements.isEmpty) {
+        return null;
+      }
+
+      // 处理负索引（-1 表示最后一个，-2 表示倒数第二个，以此类推）
+      int effectiveIndex;
+      if (index < 0) {
+        effectiveIndex = elements.length + index;
+      } else {
+        effectiveIndex = index;
+      }
+
+      // 检查索引是否有效
+      if (effectiveIndex < 0 || effectiveIndex >= elements.length) {
+        return null;
+      }
+
+      final element = elements[effectiveIndex];
+      return element;
+    }
+
+    // 如果不是索引选择器，使用普通的 CSS 选择器
+    try {
+      return HtmlParser.selectElement(container, selector);
+    } catch (e) {
+      return null;
+    }
   }
 
   /// 解析 XPath 规则（参考 AnalyzeByXPath）
@@ -1226,6 +1490,9 @@ class RuleParser {
 
   /// 解析列表规则
   /// [returnHtml] 如果为true，返回元素的HTML内容（innerHTML），否则返回文本内容
+  /// 支持前缀：
+  /// - `-` 表示倒序列表
+  /// - `+` 表示使用 AllInOne 正则（由调用方处理）
   static List<String> parseListRule(
     String html,
     String? rule, {
@@ -1237,6 +1504,26 @@ class RuleParser {
 
     try {
       String processedRule = _replaceVariables(rule, variables);
+
+      // 处理列表倒置前缀（参考项目：AnalyzeRule.getElements）
+      // 获取列表的最前面加上负号`-`可以使列表倒置
+      bool reverse = false;
+      if (processedRule.startsWith('-')) {
+        reverse = true;
+        processedRule = processedRule.substring(1);
+      }
+
+      if (_isRegexListRule(processedRule)) {
+        final entries = _parseRegexListEntries(html, processedRule);
+        final regexResults = entries
+            .map((entry) => returnHtml ? entry.content : entry.content)
+            .where((item) => item.isNotEmpty)
+            .toList();
+        if (reverse && regexResults.isNotEmpty) {
+          return regexResults.reversed.toList();
+        }
+        return regexResults;
+      }
 
       final document = html_parser.parse(html);
       List<String> results = [];
@@ -1306,8 +1593,6 @@ class RuleParser {
             'id'
           ];
           isAttributeSelector = attributeNames.contains(afterAt.toLowerCase());
-          AppLog.instance.put(
-              'parseListRule: 检查属性选择器 - afterAt="$afterAt", isAttributeSelector=$isAttributeSelector');
         }
 
         if (isAttributeSelector) {
@@ -1317,7 +1602,14 @@ class RuleParser {
               processedRule.substring(0, lastAtIndex).trim();
           final attributeName = processedRule.substring(lastAtIndex + 1).trim();
 
-          final normalizedRule = _normalizeCssSelector(elementSelector);
+          String normalizedRule;
+          if (elementSelector.startsWith('class.')) {
+            normalizedRule = '.${elementSelector.substring(6)}';
+          } else if (elementSelector.startsWith('id.')) {
+            normalizedRule = '#${elementSelector.substring(3)}';
+          } else {
+            normalizedRule = _normalizeCssSelector(elementSelector);
+          }
           final elements = HtmlParser.selectElements(document, normalizedRule);
 
           for (final element in elements) {
@@ -1354,9 +1646,6 @@ class RuleParser {
           if (ruleParts.length > 1) {
             // 包含 @ 分隔符，需要依次应用每个规则片段
 
-            AppLog.instance
-                .put('parseListRule: 检测到元素选择器链，规则片段数=${ruleParts.length}');
-
             // 从 document 开始，依次应用每个规则片段
             // 参考项目：从 temp（当前上下文）开始，依次应用每个规则片段
             List<html_dom.Element> currentElements = [];
@@ -1368,10 +1657,6 @@ class RuleParser {
             for (int i = 0; i < ruleParts.length; i++) {
               final rulePart = ruleParts[i].trim();
               if (rulePart.isEmpty) continue;
-              AppLog.instance.put(
-                  'parseListRule: 应用规则片段 ${i + 1}/${ruleParts.length}: $rulePart');
-              AppLog.instance
-                  .put('parseListRule: 当前上下文元素数=${currentElements.length}');
 
               // 参考项目：AnalyzeByJSoup.getElements - 对于非CSS规则，总是使用 ElementsSingle
               // 检查规则是否包含特殊前缀（tag., class., id., children., text.）
@@ -1386,9 +1671,6 @@ class RuleParser {
               final hasIndex = rulePart.contains('.') &&
                   (RegExp(r'[:\-\[\]!]').hasMatch(rulePart) ||
                       RegExp(r'\.\d').hasMatch(rulePart));
-
-              AppLog.instance.put(
-                  'parseListRule: 规则片段 $rulePart - hasSpecialPrefix=$hasSpecialPrefix, hasIndex=$hasIndex');
 
               final nextElements = <html_dom.Element>[];
               for (final element in currentElements) {
@@ -1413,8 +1695,6 @@ class RuleParser {
                     final selected =
                         HtmlParser.selectElements(element, normalizedRule);
                     nextElements.addAll(selected);
-                    AppLog.instance
-                        .put('parseListRule: CSS选择器找到 ${selected.length} 个元素');
                   } else {
                     // 使用 ElementsSingle 处理 tag. 和 children.
                     // 对于 tag.dd 这种简单规则，也可以尝试直接使用 CSS 选择器
@@ -1434,15 +1714,8 @@ class RuleParser {
                         final cssSelected =
                             HtmlParser.selectElements(element, normalizedRule);
                         nextElements.addAll(cssSelected);
-                        AppLog.instance.put(
-                            'parseListRule: CSS选择器找到 ${cssSelected.length} 个元素');
                       }
-                      AppLog.instance.put(
-                          'parseListRule: ElementsSingle 找到 ${selected.length} 个元素');
                     } catch (e) {
-                      // 如果 ElementsSingle 失败，回退到普通CSS选择器
-                      AppLog.instance.put(
-                          'parseListRule: ElementsSingle 失败，回退到CSS选择器: $rulePart, 错误: $e');
                       // 回退到 CSS 选择器：tag.dd -> dd
                       String normalizedRule;
                       if (rulePart.startsWith('tag.')) {
@@ -1450,35 +1723,23 @@ class RuleParser {
                       } else {
                         normalizedRule = _normalizeCssSelector(rulePart);
                       }
-                      AppLog.instance
-                          .put('parseListRule: 规范化后的规则: "$normalizedRule"');
                       final selected =
                           HtmlParser.selectElements(element, normalizedRule);
                       nextElements.addAll(selected);
-                      AppLog.instance.put(
-                          'parseListRule: CSS选择器找到 ${selected.length} 个元素');
                     }
                   }
                 } else {
                   // 普通CSS选择器
                   final normalizedRule = _normalizeCssSelector(rulePart);
-
-                  AppLog.instance.put(
-                      'parseListRule: 规范化规则片段 "$rulePart" -> "$normalizedRule"');
                   final selected =
                       HtmlParser.selectElements(element, normalizedRule);
                   nextElements.addAll(selected);
-                  AppLog.instance.put(
-                      'parseListRule: 从元素中找到 ${selected.length} 个子元素（规则: $normalizedRule）');
                 }
               }
-              AppLog.instance.put(
-                  'parseListRule: 规则片段 $rulePart 找到 ${nextElements.length} 个元素');
               currentElements = nextElements;
 
               // 如果某个规则片段没有找到元素，停止处理
               if (currentElements.isEmpty) {
-                AppLog.instance.put('parseListRule: 规则片段 $rulePart 未找到元素，停止处理');
                 break;
               }
             }
@@ -1525,12 +1786,8 @@ class RuleParser {
                 } else {
                   normalizedRule = _normalizeCssSelector(processedRule);
                 }
-                AppLog.instance.put(
-                    'parseListRule: 规范化规则 "$processedRule" -> "$normalizedRule"');
                 final elements =
                     HtmlParser.selectElements(document, normalizedRule);
-                AppLog.instance
-                    .put('parseListRule: CSS选择器找到 ${elements.length} 个元素');
 
                 if (returnHtml) {
                   results = elements
@@ -1542,15 +1799,11 @@ class RuleParser {
                 }
               } else {
                 // 使用 ElementsSingle 处理 tag.xxx 和 children.xxx
-                AppLog.instance.put(
-                    'parseListRule: 检测到特殊前缀规则，使用 ElementsSingle 处理: $processedRule');
                 try {
                   final rootElement = document.documentElement ?? document.body;
                   if (rootElement != null) {
                     final selectedElements = ElementsSingle.getElementsSingle(
                         rootElement, processedRule);
-                    AppLog.instance.put(
-                        'parseListRule: ElementsSingle 找到 ${selectedElements.length} 个元素（规则: $processedRule）');
 
                     if (returnHtml) {
                       results = selectedElements
@@ -1561,20 +1814,11 @@ class RuleParser {
                           .map((e) => HtmlParser.getText(e) ?? '')
                           .toList();
                     }
-                  } else {
-                    AppLog.instance.put('parseListRule: 未找到根元素');
                   }
                 } catch (e) {
-                  // 如果 ElementsSingle 失败，回退到普通CSS选择器
-                  AppLog.instance.put(
-                      'parseListRule: ElementsSingle 失败，回退到CSS选择器: $processedRule, 错误: $e');
                   final normalizedRule = _normalizeCssSelector(processedRule);
-                  AppLog.instance.put(
-                      'parseListRule: 规范化规则 "$processedRule" -> "$normalizedRule"');
                   final elements =
                       HtmlParser.selectElements(document, normalizedRule);
-                  AppLog.instance
-                      .put('parseListRule: CSS选择器找到 ${elements.length} 个元素');
                   if (returnHtml) {
                     results = elements
                         .map((e) => HtmlParser.getOuterHtml(e) ?? '')
@@ -1589,12 +1833,8 @@ class RuleParser {
             } else {
               // 普通CSS选择器
               final normalizedRule = _normalizeCssSelector(processedRule);
-              AppLog.instance.put(
-                  'parseListRule: 规范化规则 "$processedRule" -> "$normalizedRule"');
               final elements =
                   HtmlParser.selectElements(document, normalizedRule);
-              AppLog.instance
-                  .put('parseListRule: CSS选择器找到 ${elements.length} 个元素');
               if (returnHtml) {
                 // 返回 outerHTML（包含元素本身的标签），以便后续可以解析属性（如 href）
                 results = elements
@@ -1612,40 +1852,9 @@ class RuleParser {
 
       final filtered = results.where((r) => r.isNotEmpty).toList();
 
-      // 添加调试日志
-      if (filtered.isEmpty) {
-        AppLog.instance.put('parseListRule: 规则未匹配到任何元素');
-        AppLog.instance
-            .put('parseListRule: 规则=$processedRule, returnHtml=$returnHtml');
-        // 尝试查找是否有类似的类名
-        if (!processedRule.startsWith('//') && !processedRule.startsWith('/')) {
-          // 查找HTML中的class属性（支持单引号和双引号）
-          final classPattern1 = RegExp(r'class\s*=\s*"([^"]+)"');
-          final classPattern2 = RegExp(r"class\s*=\s*'([^']+)'");
-          final matches1 = classPattern1.allMatches(html);
-          final matches2 = classPattern2.allMatches(html);
-          final allMatches = [...matches1, ...matches2];
-          if (allMatches.isNotEmpty) {
-            final classNames = <String>{};
-            for (final match in allMatches) {
-              final classValue = match.group(1);
-              if (classValue != null && classValue.isNotEmpty) {
-                // 分割多个类名
-                final names = classValue.split(RegExp(r'\s+'));
-                classNames.addAll(names.where((n) => n.isNotEmpty));
-              }
-            }
-            AppLog.instance.put(
-                'parseListRule: HTML中找到的class名称（前10个）: ${classNames.take(10).join(", ")}');
-          }
-        }
-      } else {
-        AppLog.instance.put('parseListRule: 规则匹配成功，找到 ${filtered.length} 个元素');
-        if (returnHtml && filtered.isNotEmpty) {
-          // 返回HTML内容
-          AppLog.instance.put(
-              'parseListRule: 第一个元素的HTML（前200字符）: ${filtered[0].substring(0, filtered[0].length > 200 ? 200 : filtered[0].length)}');
-        }
+      // 如果需要倒序，返回反转后的列表
+      if (reverse && filtered.isNotEmpty) {
+        return filtered.reversed.toList();
       }
       return filtered;
     } catch (e) {
@@ -1663,32 +1872,78 @@ class RuleParser {
     if (rule == null || rule.bookList == null) return [];
 
     // 对于bookList，需要返回HTML内容（returnHtml=true），以便后续解析子元素
-    final bookListHtml = parseListRule(html, rule.bookList,
-        variables: variables, baseUrl: baseUrl, returnHtml: true);
+    final listEntries = _parseListEntries(
+      html,
+      rule.bookList,
+      variables: variables,
+      baseUrl: baseUrl,
+    );
     final results = <Map<String, String?>>[];
 
-    for (int i = 0; i < bookListHtml.length; i++) {
-      final bookHtml = bookListHtml[i];
+    for (int i = 0; i < listEntries.length; i++) {
+      final bookHtml = listEntries[i].content;
+      final itemVariables = <String, String>{
+        ...?variables,
+        ...listEntries[i].groups,
+      };
+      final originalItemVariables = Map<String, String>.from(itemVariables);
 
       // 解析bookUrl时使用isUrl=true，参考项目逻辑
-      final bookUrl = await parseRuleAsync(bookHtml, rule.bookUrl,
-          variables: variables, baseUrl: baseUrl, isUrl: true);
-      final nameRaw = await parseRuleAsync(bookHtml, rule.name,
-          variables: variables, baseUrl: baseUrl);
-      final authorRaw = await parseRuleAsync(bookHtml, rule.author,
-          variables: variables, baseUrl: baseUrl);
-      final kindRaw = await parseRuleAsync(bookHtml, rule.kind,
-          variables: variables, baseUrl: baseUrl);
-      final wordCount = await parseRuleAsync(bookHtml, rule.wordCount,
-          variables: variables, baseUrl: baseUrl);
-      final lastChapter = await parseRuleAsync(bookHtml, rule.lastChapter,
-          variables: variables, baseUrl: baseUrl);
-      final intro = await parseRuleAsync(bookHtml, rule.intro,
-          variables: variables, baseUrl: baseUrl);
-      final coverUrl = await parseRuleAsync(bookHtml, rule.coverUrl,
-          variables: variables, baseUrl: baseUrl);
-      final checkKeyWord = await parseRuleAsync(bookHtml, rule.checkKeyWord,
-          variables: variables, baseUrl: baseUrl);
+      final bookUrl = await _parseFieldRuleWithContext(
+        bookHtml,
+        rule.bookUrl,
+        itemVariables,
+        baseUrl: baseUrl,
+        isUrl: true,
+      );
+      final nameRaw = await _parseFieldRuleWithContext(
+        bookHtml,
+        rule.name,
+        itemVariables,
+        baseUrl: baseUrl,
+      );
+      final authorRaw = await _parseFieldRuleWithContext(
+        bookHtml,
+        rule.author,
+        itemVariables,
+        baseUrl: baseUrl,
+      );
+      final kindRaw = await _parseFieldRuleWithContext(
+        bookHtml,
+        rule.kind,
+        itemVariables,
+        baseUrl: baseUrl,
+      );
+      final wordCount = await _parseFieldRuleWithContext(
+        bookHtml,
+        rule.wordCount,
+        itemVariables,
+        baseUrl: baseUrl,
+      );
+      final lastChapter = await _parseFieldRuleWithContext(
+        bookHtml,
+        rule.lastChapter,
+        itemVariables,
+        baseUrl: baseUrl,
+      );
+      final intro = await _parseFieldRuleWithContext(
+        bookHtml,
+        rule.intro,
+        itemVariables,
+        baseUrl: baseUrl,
+      );
+      final coverUrl = await _parseFieldRuleWithContext(
+        bookHtml,
+        rule.coverUrl,
+        itemVariables,
+        baseUrl: baseUrl,
+      );
+      final checkKeyWord = await _parseFieldRuleWithContext(
+        bookHtml,
+        rule.checkKeyWord,
+        itemVariables,
+        baseUrl: baseUrl,
+      );
 
       // 处理 name、author、kind：trim 并清理 HTML 标签（如果存在）
       final name = nameRaw?.trim();
@@ -1697,12 +1952,6 @@ class RuleParser {
       // 如果 kind 包含 HTML 标签，清理它们（参考项目：kind 字段应该只包含纯文本）
       if (kind != null && kind.isNotEmpty && kind.contains('<')) {
         kind = HtmlParser.cleanHtml(kind).trim();
-      }
-
-      // 添加调试日志（仅前3个结果）
-      if (i < 3) {
-        AppLog.instance.put(
-            'parseSearchRule: 书籍 ${i + 1} - name=$name, author=$author, kind=$kind, kind规则=${rule.kind}');
       }
 
       results.add({
@@ -1715,6 +1964,10 @@ class RuleParser {
         'coverUrl': coverUrl,
         'bookUrl': bookUrl, // 使用isUrl=true解析的结果
         'checkKeyWord': checkKeyWord, // 用于验证搜索结果是否包含关键词
+        'variable': _encodeTransientVariables(
+          originalItemVariables,
+          itemVariables,
+        ),
       });
     }
 
@@ -1732,7 +1985,24 @@ class RuleParser {
 
     // 执行初始化脚本（如果有）
     if (rule.init != null && rule.init!.isNotEmpty) {
-      html = await _executeJs(html, rule.init!, variables: variables) ?? html;
+      final initRule = rule.init!.trim();
+      if (initRule.startsWith(':')) {
+        html = await parseRuleAsync(
+              html,
+              initRule,
+              variables: variables,
+              baseUrl: baseUrl,
+              allowRegexRule: true,
+            ) ??
+            html;
+      } else {
+        html = await _executeJs(
+              html,
+              initRule,
+              variables: variables,
+            ) ??
+            html;
+      }
     }
 
     // 解析各个字段
@@ -1751,10 +2021,6 @@ class RuleParser {
     if (kind != null && kind.isNotEmpty && kind.contains('<')) {
       kind = HtmlParser.cleanHtml(kind).trim();
     }
-
-    // 添加调试日志
-    AppLog.instance.put(
-        'parseBookInfoRule: 解析结果 - name=$name, author=$author, kind=$kind, kind规则=${rule.kind}');
 
     return {
       'name': name,
@@ -1785,7 +2051,6 @@ class RuleParser {
     String? baseUrl,
   }) {
     if (rule == null || rule.chapterList == null) {
-      AppLog.instance.put('parseTocRule: 规则为空或chapterList为空');
       return [];
     }
 
@@ -1795,55 +2060,70 @@ class RuleParser {
     // 但为了确保兼容性，这里先不执行（因为同步方法无法执行异步JS）
 
     // 对于chapterList，需要返回HTML内容（returnHtml=true），以便后续解析子元素
-    final chapterListHtml = parseListRule(html, rule.chapterList,
-        variables: variables, baseUrl: baseUrl, returnHtml: true);
-
-    AppLog.instance.put(
-        'parseTocRule: 解析chapterList规则，找到 ${chapterListHtml.length} 个章节元素');
-
-    if (chapterListHtml.isEmpty) {
-      AppLog.instance.put('parseTocRule: 警告 - chapterList规则未匹配到任何元素');
-      AppLog.instance.put('parseTocRule: 规则=${rule.chapterList}');
-    } else {
-      // 输出前几个元素的HTML，用于调试
-      final sampleCount =
-          chapterListHtml.length > 3 ? 3 : chapterListHtml.length;
-      for (int i = 0; i < sampleCount; i++) {
-        final htmlPreview = chapterListHtml[i].length > 200
-            ? chapterListHtml[i].substring(0, 200)
-            : chapterListHtml[i];
-        AppLog.instance
-            .put('parseTocRule: 章节元素 ${i + 1} HTML（前200字符）: $htmlPreview');
-      }
-    }
+    final chapterEntries = _parseListEntries(
+      html,
+      rule.chapterList,
+      variables: variables,
+      baseUrl: baseUrl,
+    );
 
     final results = <Map<String, String?>>[];
 
-    for (int i = 0; i < chapterListHtml.length; i++) {
-      final chapterHtml = chapterListHtml[i];
+    for (int i = 0; i < chapterEntries.length; i++) {
+      final chapterHtml = chapterEntries[i].content;
+      final itemVariables = <String, String>{
+        ...?variables,
+        ...chapterEntries[i].groups,
+      };
 
       // 参考项目：先解析所有字段
       // 参考项目：getString 在规则为空时返回空字符串，而不是 null
       // 参考项目：getString0 会先获取列表再取第一个元素
       // 注意：参考项目的 getString 返回 String（非空），当前项目返回 String?（可空）
       // 为了保持一致，将 null 转换为空字符串
-      final chapterName = parseRule(chapterHtml, rule.chapterName,
-              variables: variables, baseUrl: baseUrl) ??
+      final chapterName = _parseFieldRuleSyncWithContext(
+            chapterHtml,
+            rule.chapterName,
+            itemVariables,
+            baseUrl: baseUrl,
+          ) ??
           '';
-      final chapterUrl = parseRule(chapterHtml, rule.chapterUrl,
-              variables: variables, baseUrl: baseUrl, isUrl: true) ??
+      final chapterUrl = _parseFieldRuleSyncWithContext(
+            chapterHtml,
+            rule.chapterUrl,
+            itemVariables,
+            baseUrl: baseUrl,
+            isUrl: true,
+          ) ??
           '';
-      final isVip = parseRule(chapterHtml, rule.isVip,
-              variables: variables, baseUrl: baseUrl) ??
+      final isVip = _parseFieldRuleSyncWithContext(
+            chapterHtml,
+            rule.isVip,
+            itemVariables,
+            baseUrl: baseUrl,
+          ) ??
           '';
-      final isVolumeStr = parseRule(chapterHtml, rule.isVolume,
-              variables: variables, baseUrl: baseUrl) ??
+      final isVolumeStr = _parseFieldRuleSyncWithContext(
+            chapterHtml,
+            rule.isVolume,
+            itemVariables,
+            baseUrl: baseUrl,
+          ) ??
           '';
-      final updateTime = parseRule(chapterHtml, rule.updateTime,
-              variables: variables, baseUrl: baseUrl) ??
+      final updateTime = _parseFieldRuleSyncWithContext(
+            chapterHtml,
+            rule.updateTime,
+            itemVariables,
+            baseUrl: baseUrl,
+          ) ??
           '';
-      final nextTocUrl = parseRule(chapterHtml, rule.nextTocUrl,
-              variables: variables, baseUrl: baseUrl, isUrl: true) ??
+      final nextTocUrl = _parseFieldRuleSyncWithContext(
+            chapterHtml,
+            rule.nextTocUrl,
+            itemVariables,
+            baseUrl: baseUrl,
+            isUrl: true,
+          ) ??
           '';
 
       // 判断是否是卷名（参考项目逻辑）
@@ -1861,12 +2141,9 @@ class RuleParser {
         // 2. 如果不是卷名且URL为空，使用baseUrl作为默认值
         if (!isVolume) {
           finalChapterUrl = baseUrl;
-          AppLog.instance
-              .put('parseTocRule: 章节 ${i + 1} 未获取到URL，使用baseUrl: $baseUrl');
         } else {
           // 卷名不需要URL，设置为空字符串或null
           finalChapterUrl = null;
-          AppLog.instance.put('parseTocRule: 章节 ${i + 1} 是卷名，URL为空');
         }
       }
 
@@ -1882,31 +2159,625 @@ class RuleParser {
           'updateTime': updateTime,
           'nextTocUrl': nextTocUrl,
         });
-      } else {
-        // 如果既没有URL也没有标题，记录警告
-        AppLog.instance.put(
-            'parseTocRule: 章节 ${i + 1} 无标题，跳过。HTML: ${chapterHtml.substring(0, chapterHtml.length > 100 ? 100 : chapterHtml.length)}');
       }
     }
 
-    AppLog.instance.put(
-        'parseTocRule: 最终返回 ${results.length} 个有效章节（从 ${chapterListHtml.length} 个元素中解析）');
+    return results;
+  }
+
+  static Future<List<Map<String, String?>>> _parseTocRuleAsync(
+    String html,
+    TocRule? rule, {
+    Map<String, String>? variables,
+    String? baseUrl,
+  }) async {
+    if (rule == null || rule.chapterList == null) {
+      return [];
+    }
+
+    final chapterEntries = _parseListEntries(
+      html,
+      rule.chapterList,
+      variables: variables,
+      baseUrl: baseUrl,
+    );
+
+    final results = <Map<String, String?>>[];
+
+    for (int i = 0; i < chapterEntries.length; i++) {
+      final chapterHtml = chapterEntries[i].content;
+      final itemVariables = <String, String>{
+        ...?variables,
+        ...chapterEntries[i].groups,
+      };
+
+      final chapterName = await _parseFieldRuleWithContext(
+            chapterHtml,
+            rule.chapterName,
+            itemVariables,
+            baseUrl: baseUrl,
+          ) ??
+          '';
+      final chapterUrl = await _parseFieldRuleWithContext(
+            chapterHtml,
+            rule.chapterUrl,
+            itemVariables,
+            baseUrl: baseUrl,
+            isUrl: true,
+          ) ??
+          '';
+      final isVip = await _parseFieldRuleWithContext(
+            chapterHtml,
+            rule.isVip,
+            itemVariables,
+            baseUrl: baseUrl,
+          ) ??
+          '';
+      final isVolumeStr = await _parseFieldRuleWithContext(
+            chapterHtml,
+            rule.isVolume,
+            itemVariables,
+            baseUrl: baseUrl,
+          ) ??
+          '';
+      final updateTime = await _parseFieldRuleWithContext(
+            chapterHtml,
+            rule.updateTime,
+            itemVariables,
+            baseUrl: baseUrl,
+          ) ??
+          '';
+      final nextTocUrl = await _parseFieldRuleWithContext(
+            chapterHtml,
+            rule.nextTocUrl,
+            itemVariables,
+            baseUrl: baseUrl,
+            isUrl: true,
+          ) ??
+          '';
+
+      final isVolume = isVolumeStr.isNotEmpty &&
+          (isVolumeStr.toLowerCase() == 'true' ||
+              isVolumeStr == '1' ||
+              isVolumeStr.trim().isNotEmpty);
+
+      String? finalChapterUrl = chapterUrl;
+      if (finalChapterUrl.isEmpty) {
+        if (!isVolume) {
+          finalChapterUrl = baseUrl;
+        } else {
+          finalChapterUrl = null;
+        }
+      }
+
+      if (chapterName.isNotEmpty) {
+        results.add({
+          'chapterName': chapterName,
+          'chapterUrl': finalChapterUrl,
+          'isVip': isVip,
+          'isVolume': isVolume ? '1' : '0',
+          'updateTime': updateTime,
+          'nextTocUrl': nextTocUrl,
+        });
+      }
+    }
 
     return results;
+  }
+
+  static List<_ListRuleEntry> _parseListEntries(
+    String html,
+    String? rule, {
+    Map<String, String>? variables,
+    String? baseUrl,
+  }) {
+    if (rule == null || rule.isEmpty) return const [];
+
+    final processedRule = _replaceVariables(rule, variables);
+    final analyzer = RuleAnalyzer(processedRule);
+    final splitRules = analyzer.splitRule(['&&', '||', '%%']);
+    if (splitRules.length > 1 && analyzer.elementsType == '||') {
+      for (final splitRule in splitRules) {
+        final entries = _parseListEntries(
+          html,
+          splitRule.trim(),
+          variables: variables,
+          baseUrl: baseUrl,
+        );
+        if (entries.isNotEmpty) {
+          return entries;
+        }
+      }
+      return const [];
+    }
+
+    if (processedRule.startsWith('@Json:') ||
+        processedRule.startsWith('@json:') ||
+        processedRule.startsWith(r'$.') ||
+        processedRule.startsWith(r'$[')) {
+      return _parseJsonListEntries(html, processedRule);
+    }
+
+    if (_isRegexListRule(processedRule)) {
+      return _parseRegexListEntries(html, processedRule);
+    }
+
+    final items = parseListRule(
+      html,
+      processedRule,
+      variables: variables,
+      baseUrl: baseUrl,
+      returnHtml: true,
+    );
+    return items.map((item) => _ListRuleEntry(content: item)).toList();
+  }
+
+  static List<_ListRuleEntry> _parseJsonListEntries(
+    String html,
+    String rule,
+  ) {
+    try {
+      var actualRule = rule.trim();
+      if (actualRule.startsWith('@Json:') || actualRule.startsWith('@json:')) {
+        actualRule = actualRule.substring(6).trim();
+      }
+
+      dynamic jsonData;
+      try {
+        jsonData = jsonDecode(html);
+      } catch (_) {
+        return const [];
+      }
+
+      final jsonPath = JsonPath(actualRule);
+      final values = jsonPath.read(jsonData).map((match) => match.value).toList();
+      if (values.isEmpty) return const [];
+
+      return values.map((value) {
+        if (value is Map || value is List) {
+          return _ListRuleEntry(content: jsonEncode(value));
+        }
+        return _ListRuleEntry(content: value?.toString() ?? '');
+      }).where((entry) => entry.content.isNotEmpty).toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  static List<_ListRuleEntry> _parseRegexListEntries(
+    String html,
+    String rule,
+  ) {
+    var actualRule = rule.trim();
+    var reverse = false;
+    if (actualRule.startsWith('-')) {
+      reverse = true;
+      actualRule = actualRule.substring(1).trimLeft();
+    }
+    if (!_isRegexListRule(actualRule)) return const [];
+
+    final regexChain = actualRule
+        .substring(1)
+        .split('&&')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    if (regexChain.isEmpty) return const [];
+
+    final matches = AnalyzeByRegex.getElements(html, regexChain);
+    final entries = matches.map((groups) {
+      final variables = <String, String>{};
+      for (int i = 0; i < groups.length; i++) {
+        variables['\$$i'] = groups[i];
+      }
+      return _ListRuleEntry(
+        content: groups.isNotEmpty ? groups.first : '',
+        groups: variables,
+      );
+    }).where((entry) => entry.content.isNotEmpty).toList();
+
+    if (reverse && entries.isNotEmpty) {
+      return entries.reversed.toList();
+    }
+    return entries;
+  }
+
+  static bool _isRegexListRule(String rule) {
+    var trimmed = rule.trimLeft();
+    if (trimmed.startsWith('-')) {
+      trimmed = trimmed.substring(1).trimLeft();
+    }
+    return trimmed.startsWith('+') || trimmed.startsWith(':');
+  }
+
+  static String _applyCaptureGroupVariables(
+    String rule,
+    Map<String, String>? variables,
+  ) {
+    if (rule.isEmpty || variables == null || variables.isEmpty) {
+      return rule;
+    }
+
+    final splitIndex = rule.indexOf('##');
+    final mainRule = splitIndex >= 0 ? rule.substring(0, splitIndex) : rule;
+    final suffix = splitIndex >= 0 ? rule.substring(splitIndex) : '';
+
+    final replacedMain = mainRule.replaceAllMapped(
+      RegexCache.instance.getOrCompile(r'\$(\d+)'),
+      (match) => variables['\$${match.group(1)!}'] ?? match.group(0)!,
+    );
+    return '$replacedMain$suffix';
+  }
+
+  static Future<String?> _parseFieldRuleWithContext(
+    String html,
+    String? rule,
+    Map<String, String>? variables, {
+    String? baseUrl,
+    bool isUrl = false,
+  }) async {
+    if (rule == null || rule.isEmpty) return null;
+    final preparedRule = await _prepareContextualFieldRule(
+      html,
+      rule,
+      variables,
+      baseUrl: baseUrl,
+    );
+    final contextualRule = preparedRule.rule;
+    if (contextualRule.contains('{') && contextualRule.contains('}')) {
+      final resolvedRule = await _resolveEmbeddedRuleTemplates(
+        html,
+        contextualRule,
+        variables,
+        baseUrl: baseUrl,
+      );
+      if (resolvedRule != rule && !_looksLikeParserRule(resolvedRule)) {
+        if (isUrl && baseUrl != null && baseUrl.isNotEmpty) {
+          final literal = resolvedRule.startsWith('http') || resolvedRule.startsWith('data:')
+              ? resolvedRule
+              : NetworkService.joinUrl(baseUrl, resolvedRule);
+          return preparedRule.replaceRule == null
+              ? literal
+              : _applyReplaceRegexInternal(literal, preparedRule.replaceRule!);
+        }
+        final literal = resolvedRule;
+        return preparedRule.replaceRule == null
+            ? literal
+            : _applyReplaceRegexInternal(literal, preparedRule.replaceRule!);
+      }
+    }
+    final literalResult = _resolveCaptureGroupLiteral(
+      rule,
+      contextualRule,
+      baseUrl: baseUrl,
+      isUrl: isUrl,
+    );
+    if (literalResult != null) {
+      await _applyContextualPutAssignments(
+        html,
+        preparedRule.putAssignments,
+        variables,
+        baseUrl: baseUrl,
+        fallbackResult: literalResult,
+      );
+      return preparedRule.replaceRule == null
+          ? literalResult
+          : _applyReplaceRegexInternal(literalResult, preparedRule.replaceRule!);
+    }
+    final parsed = await parseRuleAsync(
+      html,
+      contextualRule,
+      variables: variables,
+      baseUrl: baseUrl,
+      isUrl: isUrl,
+    );
+    await _applyContextualPutAssignments(
+      html,
+      preparedRule.putAssignments,
+      variables,
+      baseUrl: baseUrl,
+      fallbackResult: parsed,
+    );
+    if (parsed == null || preparedRule.replaceRule == null) {
+      return parsed;
+    }
+    return _applyReplaceRegexInternal(parsed, preparedRule.replaceRule!);
+  }
+
+  static Future<String> _resolveEmbeddedRuleTemplates(
+    String html,
+    String rule,
+    Map<String, String>? variables, {
+    String? baseUrl,
+  }) async {
+    final pattern = RegexCache.instance.getOrCompile(r'\{(@?Json:[^{}]+|@?json:[^{}]+|\$[^{}]+)\}');
+    var result = rule;
+    for (final match in pattern.allMatches(rule).toList().reversed) {
+      final innerRule = match.group(1);
+      if (innerRule == null || innerRule.isEmpty) continue;
+      final resolved = await parseRuleAsync(
+            html,
+            innerRule,
+            variables: variables,
+            baseUrl: baseUrl,
+          ) ??
+          '';
+      result = result.replaceRange(match.start, match.end, resolved);
+    }
+    return result;
+  }
+
+  static String? _parseFieldRuleSyncWithContext(
+    String html,
+    String? rule,
+    Map<String, String>? variables, {
+    String? baseUrl,
+    bool isUrl = false,
+  }) {
+    if (rule == null || rule.isEmpty) return null;
+    final contextualRule = _applyCaptureGroupVariables(rule, variables);
+    final splitIndex = contextualRule.indexOf('##');
+    final actualRule =
+        splitIndex >= 0 ? contextualRule.substring(0, splitIndex) : contextualRule;
+    final replaceRule = splitIndex >= 0 ? contextualRule.substring(splitIndex) : null;
+    final literalResult = _resolveCaptureGroupLiteral(
+      rule,
+      actualRule,
+      baseUrl: baseUrl,
+      isUrl: isUrl,
+    );
+    if (literalResult != null) {
+      return replaceRule == null
+          ? literalResult
+          : _applyReplaceRegexInternal(literalResult, replaceRule);
+    }
+    final parsed = parseRule(
+      html,
+      actualRule,
+      variables: variables,
+      baseUrl: baseUrl,
+      isUrl: isUrl,
+    );
+    if (parsed == null || replaceRule == null) {
+      return parsed;
+    }
+    return _applyReplaceRegexInternal(parsed, replaceRule);
+  }
+
+  static Future<_PreparedFieldRule> _prepareContextualFieldRule(
+    String html,
+    String rule,
+    Map<String, String>? variables, {
+    String? baseUrl,
+  }) async {
+    var contextualRule = _applyCaptureGroupVariables(rule, variables);
+    final splitIndex = contextualRule.indexOf('##');
+    final actualRule =
+        splitIndex >= 0 ? contextualRule.substring(0, splitIndex) : contextualRule;
+    final replaceRule = splitIndex >= 0 ? contextualRule.substring(splitIndex) : null;
+    final resolvedRule = await _resolveDoubleBraceRuleTemplates(
+      html,
+      actualRule,
+      variables,
+      baseUrl: baseUrl,
+    );
+    final putExtraction = _extractContextualPutAssignments(resolvedRule);
+    return _PreparedFieldRule(
+      rule: putExtraction.cleanedRule,
+      replaceRule: replaceRule,
+      putAssignments: putExtraction.assignments,
+    );
+  }
+
+  static ({
+    String cleanedRule,
+    List<MapEntry<String, String>> assignments,
+  }) _extractContextualPutAssignments(String rule) {
+    final assignments = <MapEntry<String, String>>[];
+    final putPattern = RegexCache.instance.getOrCompile(
+      r'@put:\s*\{([^}]+)\}',
+      caseSensitive: false,
+    );
+    final cleanedRule = rule.replaceAllMapped(putPattern, (match) {
+      final body = match.group(1)?.trim() ?? '';
+      if (body.isEmpty) {
+        return '';
+      }
+
+      final normalizedBody = body
+          .replaceAllMapped(
+            RegexCache.instance.getOrCompile(r'"([^"]+)"\s*:'),
+            (m) => '${m.group(1)}:',
+          )
+          .replaceAllMapped(
+            RegexCache.instance.getOrCompile(r"'([^']+)'\s*:"),
+            (m) => '${m.group(1)}:',
+          );
+
+      for (final segment in normalizedBody.split(',')) {
+        final pair = segment.trim();
+        if (pair.isEmpty) continue;
+        final separatorIndex = pair.indexOf(':');
+        if (separatorIndex <= 0) continue;
+        final key = pair.substring(0, separatorIndex).trim();
+        var valueRule = pair.substring(separatorIndex + 1).trim();
+        if (key.isEmpty || valueRule.isEmpty) continue;
+        if ((valueRule.startsWith('"') && valueRule.endsWith('"')) ||
+            (valueRule.startsWith("'") && valueRule.endsWith("'"))) {
+          valueRule = valueRule.substring(1, valueRule.length - 1);
+        }
+        assignments.add(MapEntry(key, valueRule));
+      }
+      return '';
+    }).trim();
+
+    return (cleanedRule: cleanedRule, assignments: assignments);
+  }
+
+  static Future<void> _applyContextualPutAssignments(
+    String html,
+    List<MapEntry<String, String>> assignments,
+    Map<String, String>? variables, {
+    String? baseUrl,
+    String? fallbackResult,
+  }) async {
+    if (assignments.isEmpty || variables == null) return;
+
+    for (final assignment in assignments) {
+      final valueRule = assignment.value.trim();
+      if (valueRule.isEmpty) continue;
+
+      String resolvedValue;
+      if (valueRule == 'result') {
+        resolvedValue = fallbackResult ?? '';
+      } else if (_looksLikeParserRule(valueRule) ||
+          valueRule.startsWith(r'$.') ||
+          valueRule.startsWith(r'$[')) {
+        resolvedValue = await parseRuleAsync(
+              html,
+              valueRule,
+              variables: variables,
+              baseUrl: baseUrl,
+            ) ??
+            '';
+      } else {
+        resolvedValue = valueRule;
+      }
+
+      variables[assignment.key] = resolvedValue;
+      _variables[assignment.key] = resolvedValue;
+    }
+  }
+
+  static Future<String> _resolveDoubleBraceRuleTemplates(
+    String html,
+    String rule,
+    Map<String, String>? variables, {
+    String? baseUrl,
+  }) async {
+    final pattern = RegexCache.instance.getOrCompile(r'\{\{(@@[^}]+|[^}]+)\}\}');
+    var result = rule;
+    for (final match in pattern.allMatches(rule).toList().reversed) {
+      final innerRule = match.group(1)?.trim();
+      if (innerRule == null || innerRule.isEmpty) continue;
+      if (variables != null && variables.containsKey(innerRule)) {
+        result = result.replaceRange(match.start, match.end, variables[innerRule]!);
+        continue;
+      }
+      final normalizedInnerRule =
+          innerRule.startsWith('@@') ? innerRule.substring(1) : innerRule;
+      if (!_looksLikeParserRule(normalizedInnerRule)) {
+        continue;
+      }
+      final resolved = await parseRuleAsync(
+            html,
+            normalizedInnerRule,
+            variables: variables,
+            baseUrl: baseUrl,
+          ) ??
+          '';
+      result = result.replaceRange(match.start, match.end, resolved);
+    }
+    return result;
+  }
+
+  static String? _resolveCaptureGroupLiteral(
+    String originalRule,
+    String contextualRule, {
+    String? baseUrl,
+    bool isUrl = false,
+  }) {
+    if (!RegexCache.instance
+        .getOrCompile(r'\$\d+')
+        .hasMatch(originalRule)) {
+      return null;
+    }
+    if (RegexCache.instance.getOrCompile(r'\$\d+').hasMatch(contextualRule)) {
+      return null;
+    }
+    if (_looksLikeParserRule(contextualRule)) {
+      return null;
+    }
+
+    if (isUrl && baseUrl != null && baseUrl.isNotEmpty) {
+      return contextualRule.startsWith('http') || contextualRule.startsWith('data:')
+          ? contextualRule
+          : NetworkService.joinUrl(baseUrl, contextualRule);
+    }
+    return contextualRule;
+  }
+
+  static String? _resolvePutGetLiteral(
+    String originalRule,
+    String processedRule, {
+    String? baseUrl,
+    bool isUrl = false,
+  }) {
+    if (!originalRule.contains('@get:') && !originalRule.contains('@put:')) {
+      return null;
+    }
+    if (processedRule.contains('@get:') || processedRule.contains('@put:')) {
+      return null;
+    }
+    if (_looksLikeParserRule(processedRule)) {
+      return null;
+    }
+
+    if (isUrl && baseUrl != null && baseUrl.isNotEmpty) {
+      return processedRule.startsWith('http') || processedRule.startsWith('data:')
+          ? processedRule
+          : NetworkService.joinUrl(baseUrl, processedRule);
+    }
+    return processedRule;
+  }
+
+  static bool _looksLikeParserRule(String rule) {
+    final trimmed = rule.trim();
+    if (trimmed.isEmpty) return false;
+
+    if (trimmed.startsWith('@CSS:') ||
+        trimmed.startsWith('@css:') ||
+        trimmed.startsWith('@@') ||
+        trimmed.startsWith('@XPath:') ||
+        trimmed.startsWith('@xpath:') ||
+        trimmed.startsWith('@Json:') ||
+        trimmed.startsWith('@json:') ||
+        trimmed.startsWith('@js:') ||
+        trimmed.startsWith('<js>') ||
+        trimmed.startsWith('//') ||
+        trimmed.startsWith(r'$.') ||
+        trimmed.startsWith(r'$[') ||
+        trimmed.startsWith('class.') ||
+        trimmed.startsWith('id.') ||
+        trimmed.startsWith('tag.') ||
+        trimmed.startsWith('children.') ||
+        trimmed.startsWith('text.') ||
+        trimmed.startsWith('+') ||
+        trimmed.startsWith('-')) {
+      return true;
+    }
+
+    if (trimmed.startsWith(':') &&
+        trimmed.length > 1 &&
+        !RegExp(r'^[a-zA-Z-]').hasMatch(trimmed.substring(1).trim())) {
+      return true;
+    }
+
+    return trimmed.contains('@') || trimmed.contains('##');
   }
 
   /// 解析章节列表规则，并返回章节列表和下一页URL列表
   /// 参考项目：BookChapterList.analyzeChapterList (私有方法)
   /// 返回：Pair<List<Map<String, String?>>, List<String>> (章节列表, 下一页URL列表)
-  static Map<String, dynamic> parseTocRuleWithNextUrl(
+  static Future<Map<String, dynamic>> parseTocRuleWithNextUrl(
     String html,
     TocRule? rule, {
     Map<String, String>? variables,
     String? baseUrl,
     bool getNextUrl = true,
-  }) {
+  }) async {
     // 先解析章节列表
-    final chapterList = parseTocRule(
+    final chapterList = await _parseTocRuleAsync(
       html,
       rule,
       variables: variables,
@@ -1918,45 +2789,15 @@ class RuleParser {
     if (getNextUrl &&
         rule?.nextTocUrl != null &&
         rule!.nextTocUrl!.isNotEmpty) {
-      AppLog.instance.put('parseTocRuleWithNextUrl: 获取目录下一页列表');
-
       // 参考项目：使用 getStringList(nextTocRule, isUrl = true) 获取URL列表
       // 检查规则是否包含属性选择器（@href, @src等）
-      if (rule.nextTocUrl!.contains('@')) {
-        // 规则包含属性选择器，直接使用parseListRule获取属性值
-        final urls = parseListRule(
-          html,
-          rule.nextTocUrl!,
-          variables: variables,
-          baseUrl: baseUrl,
-          returnHtml: false, // 获取属性值（URL）
-        );
-        nextUrlList.addAll(urls);
-      } else {
-        // 规则不包含属性选择器，需要先获取HTML，然后提取href
-        final linkHtmlList = parseListRule(
-          html,
-          rule.nextTocUrl!,
-          variables: variables,
-          baseUrl: baseUrl,
-          returnHtml: true, // 获取HTML内容
-        );
-
-        // 从HTML中提取href属性
-        for (final linkHtml in linkHtmlList) {
-          final hrefPattern = RegExp(
-            'href\\s*=\\s*["\']([^"\']+)["\']',
-            caseSensitive: false,
-          );
-          final match = hrefPattern.firstMatch(linkHtml);
-          if (match != null) {
-            final href = match.group(1);
-            if (href != null && href.isNotEmpty) {
-              nextUrlList.add(href);
-            }
-          }
-        }
-      }
+      final urls = await parseUrlListRuleAsync(
+        html,
+        rule.nextTocUrl!,
+        variables: variables,
+        baseUrl: baseUrl,
+      );
+      nextUrlList.addAll(urls);
 
       // 过滤掉与当前URL相同的URL，并拼接完整URL
       final filteredUrls = nextUrlList
@@ -1976,17 +2817,164 @@ class RuleParser {
       nextUrlList.clear();
       nextUrlList.addAll(filteredUrls);
 
-      AppLog.instance
-          .put('parseTocRuleWithNextUrl: 找到 ${nextUrlList.length} 个下一页URL');
-      for (int i = 0; i < nextUrlList.length; i++) {
-        AppLog.instance.put('  下一页URL ${i + 1}: ${nextUrlList[i]}');
-      }
     }
 
     return {
       'chapterList': chapterList,
       'nextUrlList': nextUrlList,
     };
+  }
+
+  /// 解析返回 URL 列表的规则。
+  ///
+  /// 兼容说明页中 nextTocUrl/nextContentUrl 这类“可返回多个链接”的规则：
+  /// 1. 普通 CSS/XPath/JSONPath 列表规则
+  /// 2. JavaScript 规则返回 JSON 数组 / 文本列表 / 单个链接
+  /// 3. 混合规则返回的单值结果
+  static Future<List<String>> parseUrlListRuleAsync(
+    String html,
+    String? rule, {
+    Map<String, String>? variables,
+    String? baseUrl,
+  }) async {
+    if (rule == null || rule.isEmpty) return const [];
+
+    final results = <String>[];
+    final seen = <String>{};
+
+    void addValue(String? value) {
+      if (value == null) return;
+      final trimmed = value.trim();
+      if (trimmed.isEmpty || !seen.add(trimmed)) return;
+      results.add(trimmed);
+    }
+
+    void addAllValues(Iterable<String> values) {
+      for (final value in values) {
+        addValue(value);
+      }
+    }
+
+    final hasExecutableJs = _ruleContainsExecutableJs(rule, variables);
+    final jsOnlyRule = _isJsOnlyRule(rule);
+
+    if (hasExecutableJs) {
+      final jsResult = await parseRuleAsync(
+        html,
+        rule,
+        variables: variables,
+        baseUrl: baseUrl,
+        isUrl: true,
+      );
+      addAllValues(_normalizeRuleListResult(jsResult));
+    }
+
+    if (!jsOnlyRule) {
+      final listResult = parseListRule(
+        html,
+        rule,
+        variables: variables,
+        baseUrl: baseUrl,
+        returnHtml: false,
+      );
+      addAllValues(listResult);
+    }
+
+    if (results.isEmpty) {
+      final singleResult = await parseRuleAsync(
+        html,
+        rule,
+        variables: variables,
+        baseUrl: baseUrl,
+        isUrl: true,
+      );
+      addAllValues(_normalizeRuleListResult(singleResult));
+    }
+
+    if (baseUrl == null || baseUrl.isEmpty) {
+      return results;
+    }
+
+    return results
+        .map((item) => item.startsWith('http') || item.startsWith('data:')
+            ? item
+            : NetworkService.joinUrl(baseUrl, item))
+        .toList();
+  }
+
+  static bool _ruleContainsExecutableJs(
+    String rule,
+    Map<String, String>? variables,
+  ) {
+    if (rule.contains('<js>') ||
+        rule.contains('</js>') ||
+        rule.toLowerCase().contains('@js:')) {
+      return true;
+    }
+
+    final varPattern = RegexCache.instance.getOrCompile(r'\{\{([^}]+)\}\}');
+    for (final match in varPattern.allMatches(rule)) {
+      final key = match.group(1)?.trim();
+      if (key == null) continue;
+      if (variables == null || !variables.containsKey(key)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  static bool _isJsOnlyRule(String rule) {
+    final trimmed = rule.trim();
+    if (trimmed.isEmpty) return false;
+    if (trimmed.startsWith('@js:')) return true;
+    if (trimmed.startsWith('<js>') && trimmed.endsWith('</js>')) return true;
+    if (trimmed.startsWith('{{') && trimmed.endsWith('}}')) return true;
+    return false;
+  }
+
+  static List<String> _normalizeRuleListResult(String? rawResult) {
+    if (rawResult == null) return const [];
+
+    final trimmed = rawResult.trim();
+    if (trimmed.isEmpty ||
+        trimmed == 'null' ||
+        trimmed == 'undefined' ||
+        trimmed == '[]') {
+      return const [];
+    }
+
+    if ((trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+        (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+      try {
+        final decoded = jsonDecode(trimmed);
+        return _flattenRuleListValue(decoded);
+      } catch (_) {}
+    }
+
+    if (trimmed.contains('&&') || trimmed.contains('\n')) {
+      return trimmed
+          .split(RegExp(r'(?:&&|\r?\n)+'))
+          .map((item) => item.trim())
+          .where((item) => item.isNotEmpty)
+          .toList();
+    }
+
+    return [trimmed];
+  }
+
+  static List<String> _flattenRuleListValue(dynamic value) {
+    if (value == null) return const [];
+    if (value is String) {
+      final trimmed = value.trim();
+      return trimmed.isEmpty ? const [] : [trimmed];
+    }
+    if (value is List) {
+      return value.expand(_flattenRuleListValue).toList();
+    }
+    if (value is Map) {
+      return value.values.expand(_flattenRuleListValue).toList();
+    }
+    return [value.toString()];
   }
 
   /// 解析正文内容规则
@@ -2001,18 +2989,11 @@ class RuleParser {
     String? bookOrigin,
     bool applyReplaceRegex = true,
   }) async {
-    if (rule == null || rule.content == null) {
-      AppLog.instance.put('parseContentRule: 规则为空或content为空');
-      return null;
-    }
+    if (rule == null || rule.content == null) return null;
 
     try {
-      AppLog.instance.put('parseContentRule: 开始解析，content规则=${rule.content}');
-      AppLog.instance.put('parseContentRule: HTML长度=${html.length}');
-
       // 执行网页 JavaScript（如果有）
       if (rule.webJs != null && rule.webJs!.isNotEmpty) {
-        AppLog.instance.put('parseContentRule: 执行webJs');
         html =
             await _executeJs(html, rule.webJs!, variables: variables) ?? html;
       }
@@ -2021,14 +3002,9 @@ class RuleParser {
       // 参考项目：使用 unescape = false，先获取HTML内容，然后再处理转义
       String? content = await parseRuleAsync(html, rule.content,
           variables: variables, baseUrl: baseUrl);
-      AppLog.instance
-          .put('parseContentRule: parseRule返回结果长度=${content?.length ?? 0}');
 
       // 如果原始规则失败，尝试智能降级（类似目录获取的降级机制）
       if (content == null || content.isEmpty) {
-        AppLog.instance.put('parseContentRule: 警告 - content规则未匹配到任何内容，尝试智能降级');
-        AppLog.instance.put('parseContentRule: 规则=${rule.content}');
-
         // 检查HTML中是否有常见的content容器
         // 参考目录获取的降级机制：动态查找内容容器
         final contentPattern = RegExp(
@@ -2040,10 +3016,6 @@ class RuleParser {
             .whereType<String>()
             .take(10)
             .toList();
-        if (contentIds.isNotEmpty) {
-          AppLog.instance.put(
-              'parseContentRule: HTML中找到包含"content"的id: ${contentIds.join(", ")}');
-        }
 
         final contentClassPattern = RegExp(
             'class\\s*=\\s*["\']([^"\']*content[^"\']*)["\']',
@@ -2063,10 +3035,6 @@ class RuleParser {
           }
         }
         final contentClasses = contentClassesList.take(10).toList();
-        if (contentClasses.isNotEmpty) {
-          AppLog.instance.put(
-              'parseContentRule: HTML中找到包含"content"的class: ${contentClasses.join(", ")}');
-        }
 
         // 尝试查找其他可能的内容容器（如nr1, text, article等）
         final otherIdPattern = RegExp(
@@ -2078,10 +3046,6 @@ class RuleParser {
             .whereType<String>()
             .take(10)
             .toList();
-        if (otherIds.isNotEmpty) {
-          AppLog.instance.put(
-              'parseContentRule: HTML中找到其他可能的内容容器id: ${otherIds.join(", ")}');
-        }
 
         final otherClassPattern = RegExp(
             'class\\s*=\\s*["\']([^"\']*(?:nr|text|article|main|body|read|book)[^"\']*)["\']',
@@ -2108,10 +3072,6 @@ class RuleParser {
           }
         }
         final otherClasses = otherClassesList.take(10).toList();
-        if (otherClasses.isNotEmpty) {
-          AppLog.instance.put(
-              'parseContentRule: HTML中找到其他可能的内容容器class: ${otherClasses.join(", ")}');
-        }
 
         // 尝试常见的content容器选择器
         final fallbackRules = <String>[];
@@ -2158,22 +3118,15 @@ class RuleParser {
 
         // 尝试每个降级规则
         for (final fallbackRule in fallbackRules) {
-          AppLog.instance.put('parseContentRule: 尝试降级规则: $fallbackRule');
           final fallbackContent = parseRule(html, fallbackRule,
               variables: variables, baseUrl: baseUrl);
           if (fallbackContent != null && fallbackContent.isNotEmpty) {
-            AppLog.instance.put(
-                'parseContentRule: 降级规则 $fallbackRule 匹配成功，内容长度=${fallbackContent.length}');
             content = fallbackContent;
             break;
           }
         }
 
         if (content == null || content.isEmpty) {
-          AppLog.instance.put('parseContentRule: 所有降级规则都失败');
-          // 输出HTML的前1000字符用于调试
-          AppLog.instance.put(
-              'parseContentRule: HTML前1000字符: ${html.substring(0, html.length > 1000 ? 1000 : html.length)}');
           return null;
         }
       }
@@ -2182,26 +3135,34 @@ class RuleParser {
       // 编译器已识别 content 不为 null，直接使用
       String processedContent = content;
 
-      AppLog.instance
-          .put('parseContentRule: 提取到内容，长度=${processedContent.length}');
-
       // 应用 sourceRegex 规则（如果存在，在清理HTML之前应用）
       // 参考项目：sourceRegex 用于从HTML中提取特定内容，通常在清理HTML之前应用
       final sourceRegexValue = rule.sourceRegex;
       if (sourceRegexValue != null && sourceRegexValue.isNotEmpty) {
         try {
-          AppLog.instance
-              .put('parseContentRule: 应用sourceRegex规则: $sourceRegexValue');
-          final regex = RegexCache.instance.getOrCompile(sourceRegexValue, multiLine: true);
+          final regex = RegexCache.instance.getOrCompile(
+            sourceRegexValue,
+            multiLine: true,
+          );
           final matches = regex.allMatches(processedContent);
           if (matches.isNotEmpty) {
-            // 提取所有匹配的内容
-            final extractedContent =
-                matches.map((m) => m.group(0) ?? '').join('\n');
+            // 与说明页保持更一致：
+            // 如果正则存在捕获组，优先使用第一个非空捕获组；否则退回 group(0)。
+            final extractedParts = matches
+                .map((match) {
+                  for (int i = 1; i <= match.groupCount; i++) {
+                    final group = match.group(i);
+                    if (group != null && group.isNotEmpty) {
+                      return group;
+                    }
+                  }
+                  return match.group(0) ?? '';
+                })
+                .where((item) => item.isNotEmpty)
+                .toList();
+            final extractedContent = extractedParts.join('\n');
             if (extractedContent.isNotEmpty) {
               processedContent = extractedContent;
-              AppLog.instance.put(
-                  'parseContentRule: sourceRegex提取后，内容长度=${processedContent.length}');
             }
           }
         } catch (e) {
@@ -2257,8 +3218,6 @@ class RuleParser {
           return "<img$beforeSrc src='$absoluteSrc'$afterSrc>";
         });
 
-        AppLog.instance
-            .put('parseContentRule: 格式化图片URL后，内容长度=${processedContent.length}');
       }
 
       // 参考项目：如果内容包含 &，进行HTML解码
@@ -2291,8 +3250,6 @@ class RuleParser {
           return match.group(0) ?? '';
         });
 
-        AppLog.instance
-            .put('parseContentRule: HTML解码后，内容长度=${processedContent.length}');
       }
 
       // 应用 imageStyle 规则（如果存在，在清理HTML之前应用）
@@ -2300,8 +3257,6 @@ class RuleParser {
       final imageStyleValue = rule.imageStyle;
       if (imageStyleValue != null && imageStyleValue.isNotEmpty) {
         try {
-          AppLog.instance
-              .put('parseContentRule: 应用imageStyle规则: $imageStyleValue');
           // imageStyle 规则应该是一个CSS样式字符串，应用到所有img标签
           final imgPattern = RegexCache.instance.getOrCompile(r'<img([^>]*)>', caseSensitive: false);
           processedContent =
@@ -2316,8 +3271,6 @@ class RuleParser {
               return '<img$imgAttrs style="$imageStyleValue">';
             }
           });
-          AppLog.instance.put(
-              'parseContentRule: 应用imageStyle后，内容长度=${processedContent.length}');
         } catch (e) {
           AppLog.instance.put(
               'parseContentRule: imageStyle规则错误: $imageStyleValue',
@@ -2346,8 +3299,6 @@ class RuleParser {
         final processedLines = processedContent.split('\n');
         processedContent = processedLines.map((line) => '　　$line').join('\n');
 
-        AppLog.instance.put(
-            'parseContentRule: 应用replaceRegex后，内容长度=${processedContent.length}');
       }
 
       // 清理多余空白
@@ -2365,11 +3316,8 @@ class RuleParser {
           );
         }
         if (rules != null && rules.isNotEmpty) {
-          AppLog.instance.put('parseContentRule: 应用 ${rules.length} 个全局替换规则');
           processedContent = await ReplaceRuleService.instance
               .applyRules(processedContent, rules: rules);
-          AppLog.instance.put(
-              'parseContentRule: 应用全局替换规则后，内容长度=${processedContent.length}');
         }
       } catch (e) {
         // 如果应用替换规则失败，继续使用原始内容
@@ -2511,6 +3459,12 @@ class RuleParser {
       if (rule.startsWith('@Json:') || rule.startsWith('@json:')) {
         rule = rule.substring(6).trim();
       }
+
+      // 兼容部分 Legado 规则里常见的 `foo.[*]` 写法，json_path 包要求写成 `foo[*]`
+      rule = rule.replaceAllMapped(
+        RegExp(r'\.\[([^\]]+)\]'),
+        (match) => '[${match.group(1)}]',
+      );
 
       // 尝试解析HTML为JSON
       // 注意：这里需要判断HTML是否实际上是JSON
@@ -2658,90 +3612,87 @@ class RuleParser {
     String? baseUrl,
   }) async {
     if (rule == null || rule.bookList == null) {
-      AppLog.instance.put('parseExploreRule: 规则为空或bookList为空');
       return [];
     }
 
-    // 对于bookList，需要返回HTML内容（returnHtml=true），以便后续解析子元素
-    AppLog.instance.put(
-        'parseExploreRule: 开始解析bookList, 规则=${rule.bookList}, HTML长度=${html.length}');
+    final bookEntries = _parseListEntries(
+      html,
+      rule.bookList,
+      variables: variables,
+      baseUrl: baseUrl,
+    );
 
-    final bookListHtml = parseListRule(html, rule.bookList,
-        variables: variables, baseUrl: baseUrl, returnHtml: true);
-
-    // 添加日志：如果bookList解析结果为空，记录详细信息
-    if (bookListHtml.isEmpty) {
-      AppLog.instance.put(
-          'parseExploreRule: bookList规则未匹配到任何元素, 规则=${rule.bookList}, HTML长度=${html.length}');
-      // 尝试输出HTML的前500个字符，帮助调试
-      if (html.isNotEmpty) {
-        final preview = html.length > 500 ? html.substring(0, 500) : html;
-        AppLog.instance.put('parseExploreRule: HTML预览（前500字符）: $preview');
-      }
+    if (bookEntries.isEmpty) {
       return [];
     }
 
     final results = <Map<String, String?>>[];
 
-    for (int i = 0; i < bookListHtml.length; i++) {
-      final bookHtml = bookListHtml[i];
+    for (int i = 0; i < bookEntries.length; i++) {
+      final bookHtml = bookEntries[i].content;
+      final itemVariables = <String, String>{
+        ...?variables,
+        ...bookEntries[i].groups,
+      };
+      final originalItemVariables = Map<String, String>.from(itemVariables);
 
-      // 解析bookUrl时使用isUrl=true，参考项目逻辑
-      final bookUrl = await parseRuleAsync(bookHtml, rule.bookUrl,
-          variables: variables, baseUrl: baseUrl, isUrl: true);
-      final nameRaw = await parseRuleAsync(bookHtml, rule.name,
-          variables: variables, baseUrl: baseUrl);
-      final authorRaw = await parseRuleAsync(bookHtml, rule.author,
-          variables: variables, baseUrl: baseUrl);
-      // 确保 name、author、kind 进行了 trim 处理
-      final name = nameRaw?.trim();
-      final author = authorRaw?.trim();
-      final kindRaw = await parseRuleAsync(bookHtml, rule.kind,
-          variables: variables, baseUrl: baseUrl);
+      final bookUrl = await _parseFieldRuleWithContext(
+        bookHtml,
+        rule.bookUrl,
+        itemVariables,
+        baseUrl: baseUrl,
+        isUrl: true,
+      );
+      final nameRaw = await _parseFieldRuleWithContext(
+        bookHtml,
+        rule.name,
+        itemVariables,
+        baseUrl: baseUrl,
+      );
+      final authorRaw = await _parseFieldRuleWithContext(
+        bookHtml,
+        rule.author,
+        itemVariables,
+        baseUrl: baseUrl,
+      );
+      final kindRaw = await _parseFieldRuleWithContext(
+        bookHtml,
+        rule.kind,
+        itemVariables,
+        baseUrl: baseUrl,
+      );
       String? kind = kindRaw?.trim();
-      // 如果 kind 包含 HTML 标签，清理它们（参考项目：kind 字段应该只包含纯文本）
       if (kind != null && kind.isNotEmpty && kind.contains('<')) {
         kind = HtmlParser.cleanHtml(kind).trim();
       }
-      final wordCount = await parseRuleAsync(bookHtml, rule.wordCount,
-          variables: variables, baseUrl: baseUrl);
-      final lastChapter = await parseRuleAsync(bookHtml, rule.lastChapter,
-          variables: variables, baseUrl: baseUrl);
-      final intro = await parseRuleAsync(bookHtml, rule.intro,
-          variables: variables, baseUrl: baseUrl);
-      final coverUrl = await parseRuleAsync(bookHtml, rule.coverUrl,
-          variables: variables, baseUrl: baseUrl);
+      final wordCount = await _parseFieldRuleWithContext(
+        bookHtml,
+        rule.wordCount,
+        itemVariables,
+        baseUrl: baseUrl,
+      );
+      final lastChapter = await _parseFieldRuleWithContext(
+        bookHtml,
+        rule.lastChapter,
+        itemVariables,
+        baseUrl: baseUrl,
+      );
+      final intro = await _parseFieldRuleWithContext(
+        bookHtml,
+        rule.intro,
+        itemVariables,
+        baseUrl: baseUrl,
+      );
+      final coverUrl = await _parseFieldRuleWithContext(
+        bookHtml,
+        rule.coverUrl,
+        itemVariables,
+        baseUrl: baseUrl,
+      );
 
-      // 添加调试日志（仅前3个）
-      if (i < 3) {
-        AppLog.instance.put(
-            'parseExploreRule: 书籍 ${i + 1} - name=$name, author=$author, bookUrl=$bookUrl, bookUrl规则=${rule.bookUrl}, name规则=${rule.name}, author规则=${rule.author}');
+      final name = nameRaw?.trim();
+      final author = authorRaw?.trim();
 
-        if (bookHtml.isNotEmpty) {
-          final preview =
-              bookHtml.length > 300 ? bookHtml.substring(0, 300) : bookHtml;
-          AppLog.instance.put('parseExploreRule: bookHtml预览（前300字符）: $preview');
-        }
-
-        // 如果关键字段为空，记录警告
-        if (name == null || name.isEmpty) {
-          AppLog.instance.put(
-              'parseExploreRule: 警告 - 书籍 ${i + 1} 的name为空, bookHtml长度=${bookHtml.length}, name规则=${rule.name}');
-          if (bookHtml.isNotEmpty) {
-            final preview =
-                bookHtml.length > 300 ? bookHtml.substring(0, 300) : bookHtml;
-            AppLog.instance
-                .put('parseExploreRule: bookHtml预览（前300字符）: $preview');
-          }
-        }
-        if (bookUrl == null || bookUrl.isEmpty) {
-          AppLog.instance.put(
-              'parseExploreRule: 警告 - 书籍 ${i + 1} 的bookUrl为空, bookUrl规则=${rule.bookUrl}');
-        }
-      }
-
-      // 只有当至少有一个关键字段（name 或 bookUrl）不为空时才添加结果
-      // 这样可以过滤掉完全无效的书籍项
       if ((name != null && name.isNotEmpty) ||
           (bookUrl != null && bookUrl.isNotEmpty)) {
         results.add({
@@ -2753,15 +3704,13 @@ class RuleParser {
           'intro': intro,
           'coverUrl': coverUrl,
           'bookUrl': bookUrl, // 使用isUrl=true解析的结果
+          'variable': _encodeTransientVariables(
+            originalItemVariables,
+            itemVariables,
+          ),
         });
-      } else {
-        AppLog.instance
-            .put('parseExploreRule: 跳过书籍 ${i + 1} - name和bookUrl都为空，书籍项无效');
       }
     }
-
-    AppLog.instance.put(
-        'parseExploreRule: 解析完成, 共找到 ${bookListHtml.length} 个书籍元素, 有效书籍 ${results.length} 个');
 
     return results;
   }

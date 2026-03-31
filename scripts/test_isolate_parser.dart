@@ -1,10 +1,10 @@
 #!/usr/bin/env dart
 
-/// 测试Isolate书源解析器性能
-///
-/// 运行方式: dart scripts/test_isolate_parser.dart
+// ignore_for_file: avoid_print
+// 测试Isolate书源解析器性能
+//
+// 运行方式: dart scripts/test_isolate_parser.dart
 
-import 'dart:io';
 import 'dart:convert';
 import 'dart:async';
 

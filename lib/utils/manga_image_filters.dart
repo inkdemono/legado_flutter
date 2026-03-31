@@ -116,11 +116,11 @@ class MangaImageFilters {
 
     // 使用标准灰度转换矩阵
     // 公式：Gray = 0.299*R + 0.587*G + 0.114*B
-    final matrix = [
-      0.299, 0.587, 0.114, 0, 0, // R通道
-      0.299, 0.587, 0.114, 0, 0, // G通道
-      0.299, 0.587, 0.114, 0, 0, // B通道
-      0, 0, 0, 1, 0, // Alpha通道
+    final matrix = <double>[
+      0.299, 0.587, 0.114, 0.0, 0.0, // R通道
+      0.299, 0.587, 0.114, 0.0, 0.0, // G通道
+      0.299, 0.587, 0.114, 0.0, 0.0, // B通道
+      0.0, 0.0, 0.0, 1.0, 0.0, // Alpha通道
     ];
 
     final colorFilter = ColorFilter.matrix(matrix);
@@ -132,4 +132,3 @@ class MangaImageFilters {
     return await picture.toImage(image.width, image.height);
   }
 }
-

@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'dart:ui' show PlatformDispatcher;
-import 'dart:io' show HttpException;
+import 'dart:io' show HttpException, Platform;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
 import 'config/app_config.dart';
 import 'config/theme_config.dart';
-import 'services/network/network_service.dart';
 import 'services/url_scheme_service.dart';
 import 'services/receiver/network_changed_listener.dart';
 import 'services/receiver/time_battery_listener.dart';
@@ -25,9 +24,7 @@ import 'services/source/source_config_service.dart';
 import 'services/local_config_service.dart';
 import 'services/read_config_service.dart';
 import 'utils/default_data.dart';
-import 'utils/chinese_utils.dart';
 import 'utils/startup_performance_monitor.dart';
-import 'dart:io' show Platform;
 
 void main() async {
   // 初始化性能监控
@@ -39,9 +36,9 @@ void main() async {
 
   try {
     startupPerformanceMonitor.start('app_config_init');
-    // 第一阶段：关键初始化（必须完成才能启动应用）
-    // 初始化配置（必须同步执行，其他服务依赖配置）
-    await AppConfig.init();
+    // 第一阶段：关键初始化（优化为非阻塞预加载）
+    // 预加载配置（不阻塞主线程）
+    AppConfig.preload();
     await AppTheme.init();
     startupPerformanceMonitor.end('app_config_init');
 
@@ -50,30 +47,20 @@ void main() async {
 
     // 第二阶段：关键服务初始化（只初始化最核心的服务）
     startupPerformanceMonitor.start('critical_services_init');
-    
-    // 添加细分埋点，诊断具体慢点
-    final criticalStopwatch = Stopwatch()..start();
 
     // 优化：所有服务改为懒加载，首次使用时自动初始化
     // NetworkService 已经继承自 BaseService，支持自动懒加载
     // 当首次调用 NetworkService.instance.get() 时会自动调用 init()
-    print('Check: Critical services skipped (lazy loading)');
-    
-    print('Check: Critical services init took ${criticalStopwatch.elapsedMilliseconds}ms');
-    criticalStopwatch.reset();
-
-    // 其他服务移到后台初始化
-    _scheduleEarlyBackgroundInitialization();
+    if (AppLog.enableStartupLogs) {
+      debugPrint('Check: Critical services skipped (lazy loading)');
+    }
 
     startupPerformanceMonitor.end('critical_services_init');
 
+    // 第三阶段：其他服务延迟到首帧后初始化
     startupPerformanceMonitor.start('other_services_init');
-    // 第三阶段：其他服务延迟到后台初始化
-    _scheduleOtherServices();
+    _schedulePostFrameInitialization();
     startupPerformanceMonitor.end('other_services_init');
-
-    // 非关键服务延迟到后台初始化，不阻塞启动
-    _scheduleNonCriticalServices();
 
     // 第四阶段：平台特定初始化延迟到后台
     if (!kIsWeb) {
@@ -86,12 +73,11 @@ void main() async {
     startupPerformanceMonitor.end('total_app_startup');
 
     // 输出性能报告
-    AppLog.instance.put(
-        '应用初始化完成，总耗时: ${startupPerformanceMonitor.getDuration('total_app_startup')?.inMilliseconds ?? 0}ms');
-    startupPerformanceMonitor.printAllDurations();
-
-    // 第五阶段：延迟初始化（在后台执行，不阻塞启动）
-    _scheduleBackgroundInitialization();
+    if (AppLog.enableStartupLogs) {
+      AppLog.instance.putStartup(
+          '应用初始化完成，总耗时: ${startupPerformanceMonitor.getDuration('total_app_startup')?.inMilliseconds ?? 0}ms');
+      startupPerformanceMonitor.printAllDurations();
+    }
   } catch (e) {
     // 即使初始化失败也继续运行
     AppLog.instance.put('应用初始化过程中发生未预期的错误', error: e);
@@ -119,7 +105,7 @@ Future<void> _initReadConfigService() async {
   try {
     await ReadConfigService.instance.initConfigs();
   } catch (e) {
-    AppLog.instance.put('初始化阅读配置服务失败', error: e);
+    AppLog.instance.putServiceInit('初始化阅读配置服务失败', error: e);
   }
 }
 
@@ -129,19 +115,10 @@ Future<void> _initLocalConfigService() async {
     await LocalConfigService.instance.init();
     // 初始化应用版本号（快速操作，不需要等待）
     LocalConfigService.instance.initVersionCode().catchError((e) {
-      AppLog.instance.put('初始化应用版本号失败', error: e);
+      AppLog.instance.putServiceInit('初始化应用版本号失败', error: e);
     });
   } catch (e) {
-    AppLog.instance.put('初始化本地配置服务失败', error: e);
-  }
-}
-
-/// 初始化网络服务
-Future<void> _initNetworkService() async {
-  try {
-    await NetworkService.instance.init();
-  } catch (e) {
-    AppLog.instance.put('初始化网络服务失败', error: e);
+    AppLog.instance.putServiceInit('初始化本地配置服务失败', error: e);
   }
 }
 
@@ -155,7 +132,7 @@ Future<void> _initCrashLogService() async {
   try {
     await CrashLogService.instance.init();
   } catch (e) {
-    AppLog.instance.put('初始化崩溃日志服务失败', error: e);
+    AppLog.instance.putServiceInit('初始化崩溃日志服务失败', error: e);
   }
 }
 
@@ -168,11 +145,11 @@ Future<void> _initBookGroupServiceOptimized() async {
       try {
         await BookGroupService.instance.initDefaultGroups();
       } catch (e) {
-        AppLog.instance.put('初始化默认分组失败', error: e);
+        AppLog.instance.putServiceInit('初始化默认分组失败', error: e);
       }
     });
   } catch (e) {
-    AppLog.instance.put('初始化书籍分组服务失败', error: e);
+    AppLog.instance.putServiceInit('初始化书籍分组服务失败', error: e);
   }
 }
 
@@ -181,7 +158,7 @@ Future<void> _initSourceConfigService() async {
   try {
     await SourceConfigService.instance.init();
   } catch (e) {
-    AppLog.instance.put('初始化书源配置服务失败', error: e);
+    AppLog.instance.putServiceInit('初始化书源配置服务失败', error: e);
   }
 }
 
@@ -190,7 +167,7 @@ Future<void> _initAudioPlayService() async {
   try {
     await AudioPlayService.instance.init();
   } catch (e) {
-    AppLog.instance.put('初始化音频播放服务失败', error: e);
+    AppLog.instance.putServiceInit('初始化音频播放服务失败', error: e);
   }
 }
 
@@ -199,7 +176,7 @@ Future<void> _initNetworkChangedListener() async {
   try {
     await NetworkChangedListener.instance.init();
   } catch (e) {
-    AppLog.instance.put('初始化网络变化监听器失败', error: e);
+    AppLog.instance.putServiceInit('初始化网络变化监听器失败', error: e);
   }
 }
 
@@ -208,7 +185,7 @@ Future<void> _initTimeBatteryListener() async {
   try {
     await TimeBatteryListener.instance.init();
   } catch (e) {
-    AppLog.instance.put('初始化时间和电池监听器失败', error: e);
+    AppLog.instance.putServiceInit('初始化时间和电池监听器失败', error: e);
   }
 }
 
@@ -217,7 +194,7 @@ Future<void> _initMediaButtonHandler() async {
   try {
     await MediaButtonHandler.instance.init();
   } catch (e) {
-    AppLog.instance.put('初始化媒体按钮处理器失败', error: e);
+    AppLog.instance.putServiceInit('初始化媒体按钮处理器失败', error: e);
   }
 }
 
@@ -226,7 +203,7 @@ Future<void> _initUrlSchemeService() async {
   try {
     UrlSchemeService.instance.init();
   } catch (e) {
-    AppLog.instance.put('初始化URL Scheme服务失败', error: e);
+    AppLog.instance.putServiceInit('初始化URL Scheme服务失败', error: e);
   }
 }
 
@@ -235,7 +212,7 @@ Future<void> _initShareReceiverChannel() async {
   try {
     await ShareReceiverChannel.init();
   } catch (e) {
-    AppLog.instance.put('初始化分享接收平台通道失败', error: e);
+    AppLog.instance.putServiceInit('初始化分享接收平台通道失败', error: e);
   }
 }
 
@@ -244,7 +221,7 @@ Future<void> _initFileReceiverChannel() async {
   try {
     await FileReceiverChannel.instance.init();
   } catch (e) {
-    AppLog.instance.put('初始化文件接收平台通道失败', error: e);
+    AppLog.instance.putServiceInit('初始化文件接收平台通道失败', error: e);
   }
 }
 
@@ -253,7 +230,7 @@ Future<void> _initNotificationService() async {
   try {
     await NotificationService.instance.init();
   } catch (e) {
-    AppLog.instance.put('初始化通知服务失败', error: e);
+    AppLog.instance.putServiceInit('初始化通知服务失败', error: e);
   }
 }
 
@@ -262,27 +239,36 @@ Future<void> _initShortcutService() async {
   try {
     await ShortcutService.instance.buildShortcuts();
   } catch (e) {
-    AppLog.instance.put('初始化快捷方式服务失败', error: e);
+    AppLog.instance.putServiceInit('初始化快捷方式服务失败', error: e);
   }
+}
+
+void _trackDetachedStartupTask(
+  String stage,
+  Future<void> Function() task,
+) {
+  Future.microtask(() async {
+    await startupPerformanceMonitor.trackAsync(stage, task);
+  });
 }
 
 /// 调度非关键服务初始化（后台执行，不阻塞启动）
 void _scheduleNonCriticalServices() {
-  // 崩溃日志服务（延迟到后台）
-  Future.microtask(() async {
+  _trackDetachedStartupTask('post_frame.non_critical.crash_log_service',
+      () async {
     try {
       await _initCrashLogService();
     } catch (e) {
-      AppLog.instance.put('后台初始化崩溃日志服务失败', error: e);
+      AppLog.instance.putServiceInit('后台初始化崩溃日志服务失败', error: e);
     }
   });
 
-  // 音频播放服务（延迟到后台）
-  Future.microtask(() async {
+  _trackDetachedStartupTask('post_frame.non_critical.audio_play_service',
+      () async {
     try {
       await _initAudioPlayService();
     } catch (e) {
-      AppLog.instance.put('后台初始化音频播放服务失败', error: e);
+      AppLog.instance.putServiceInit('后台初始化音频播放服务失败', error: e);
     }
   });
 }
@@ -291,150 +277,144 @@ void _scheduleNonCriticalServices() {
 void _schedulePlatformSpecificInit() {
   if (kIsWeb) return;
 
-  // 网络变化监听器（延迟到后台）
-  Future.microtask(() async {
+  _trackDetachedStartupTask('platform.network_changed_listener', () async {
     try {
       await _initNetworkChangedListener();
     } catch (e) {
-      AppLog.instance.put('后台初始化网络变化监听器失败', error: e);
+      AppLog.instance.putServiceInit('后台初始化网络变化监听器失败', error: e);
     }
   });
 
-  // 时间和电池监听器（延迟到后台）
-  Future.microtask(() async {
+  _trackDetachedStartupTask('platform.time_battery_listener', () async {
     try {
       await _initTimeBatteryListener();
     } catch (e) {
-      AppLog.instance.put('后台初始化时间和电池监听器失败', error: e);
+      AppLog.instance.putServiceInit('后台初始化时间和电池监听器失败', error: e);
     }
   });
 
-  // 媒体按钮处理器（延迟到后台）
-  Future.microtask(() async {
+  _trackDetachedStartupTask('platform.media_button_handler', () async {
     try {
       await _initMediaButtonHandler();
     } catch (e) {
-      AppLog.instance.put('后台初始化媒体按钮处理器失败', error: e);
+      AppLog.instance.putServiceInit('后台初始化媒体按钮处理器失败', error: e);
     }
   });
 
-  // URL Scheme服务（延迟到后台）
-  Future.microtask(() async {
+  _trackDetachedStartupTask('platform.url_scheme_service', () async {
     try {
       _initUrlSchemeService();
     } catch (e) {
-      AppLog.instance.put('后台初始化URL Scheme服务失败', error: e);
+      AppLog.instance.putServiceInit('后台初始化URL Scheme服务失败', error: e);
     }
   });
 
   // Android 特定初始化（延迟到后台）
   if (Platform.isAndroid) {
-    // 分享接收平台通道（延迟到后台）
-    Future.microtask(() async {
+    _trackDetachedStartupTask('platform.share_receiver_channel', () async {
       try {
         await _initShareReceiverChannel();
       } catch (e) {
-        AppLog.instance.put('后台初始化分享接收平台通道失败', error: e);
+        AppLog.instance.putServiceInit('后台初始化分享接收平台通道失败', error: e);
       }
     });
 
-    // 文件接收平台通道（延迟到后台）
-    Future.microtask(() async {
+    _trackDetachedStartupTask('platform.file_receiver_channel', () async {
       try {
         await _initFileReceiverChannel();
       } catch (e) {
-        AppLog.instance.put('后台初始化文件接收平台通道失败', error: e);
+        AppLog.instance.putServiceInit('后台初始化文件接收平台通道失败', error: e);
       }
     });
 
-    // 通知服务（延迟到后台）
-    Future.microtask(() async {
+    _trackDetachedStartupTask('platform.notification_service', () async {
       try {
         await _initNotificationService();
       } catch (e) {
-        AppLog.instance.put('后台初始化通知服务失败', error: e);
+        AppLog.instance.putServiceInit('后台初始化通知服务失败', error: e);
       }
     });
 
-    // 快捷方式服务（延迟到后台）
-    Future.microtask(() async {
+    _trackDetachedStartupTask('platform.shortcut_service', () async {
       try {
         await _initShortcutService();
       } catch (e) {
-        AppLog.instance.put('后台初始化快捷方式服务失败', error: e);
+        AppLog.instance.putServiceInit('后台初始化快捷方式服务失败', error: e);
       }
     });
   }
 }
 
-/// 调度早期后台初始化任务
-void _scheduleEarlyBackgroundInitialization() {
-  // 本地配置服务（延迟到后台初始化，非阻塞）
-  Future.microtask(() async {
-    try {
-      await _initLocalConfigService();
-    } catch (e) {
-      AppLog.instance.put('后台初始化本地配置服务失败', error: e);
-    }
-  });
+/// 调度首帧后初始化任务（优化：首帧渲染完成后执行）
+void _schedulePostFrameInitialization() {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    _trackDetachedStartupTask('post_frame.local_config_service', () async {
+      try {
+        await _initLocalConfigService();
+      } catch (e) {
+        AppLog.instance.putServiceInit('后台初始化本地配置服务失败', error: e);
+      }
+    });
 
-  // 阅读配置服务（延迟到后台初始化，非阻塞）
-  Future.microtask(() async {
-    try {
-      await _initReadConfigService();
-    } catch (e) {
-      AppLog.instance.put('后台初始化阅读配置服务失败', error: e);
-    }
-  });
+    _trackDetachedStartupTask('post_frame.read_config_service', () async {
+      try {
+        await _initReadConfigService();
+      } catch (e) {
+        AppLog.instance.putServiceInit('后台初始化阅读配置服务失败', error: e);
+      }
+    });
 
-  // 基础服务（延迟到后台初始化，非阻塞）
-  Future.microtask(() async {
-    try {
-      await _initBaseServices();
-    } catch (e) {
-      AppLog.instance.put('后台初始化基础服务失败', error: e);
-    }
-  });
-}
+    _trackDetachedStartupTask('post_frame.base_services', () async {
+      try {
+        await _initBaseServices();
+      } catch (e) {
+        AppLog.instance.putServiceInit('后台初始化基础服务失败', error: e);
+      }
+    });
 
-/// 调度其他服务初始化
-void _scheduleOtherServices() {
-  // 书籍分组服务（延迟到后台初始化，非阻塞）
-  Future.microtask(() async {
-    try {
-      await _initBookGroupServiceOptimized();
-    } catch (e) {
-      AppLog.instance.put('后台初始化书籍分组服务失败', error: e);
-    }
-  });
+    Future.delayed(const Duration(milliseconds: 100), () async {
+      await startupPerformanceMonitor.trackAsync(
+        'post_frame.book_group_service',
+        () async {
+          try {
+            await _initBookGroupServiceOptimized();
+          } catch (e) {
+            AppLog.instance.putServiceInit('后台初始化书籍分组服务失败', error: e);
+          }
+        },
+      );
+    });
 
-  // 书源配置服务（延迟到后台初始化，非阻塞）
-  Future.microtask(() async {
-    try {
-      await _initSourceConfigService();
-    } catch (e) {
-      AppLog.instance.put('后台初始化书源配置服务失败', error: e);
-    }
+    Future.delayed(const Duration(milliseconds: 100), () async {
+      await startupPerformanceMonitor.trackAsync(
+        'post_frame.source_config_service',
+        () async {
+          try {
+            await _initSourceConfigService();
+          } catch (e) {
+            AppLog.instance.putServiceInit('后台初始化书源配置服务失败', error: e);
+          }
+        },
+      );
+    });
+
+    Future.delayed(const Duration(milliseconds: 200), () {
+      _scheduleNonCriticalServices();
+    });
+
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _scheduleBackgroundInitialization();
+    });
   });
 }
 
 /// 调度后台初始化任务
 void _scheduleBackgroundInitialization() {
-  // 版本升级检查（可能涉及大量数据库操作，延迟执行）
-  Future.microtask(() async {
+  _trackDetachedStartupTask('background.default_data_up_version', () async {
     try {
       await DefaultData.instance.upVersion();
     } catch (e) {
-      AppLog.instance.put('版本升级检查失败', error: e);
-    }
-  });
-
-  // 简繁转换工具预加载（延迟执行，按需加载）
-  Future.microtask(() async {
-    try {
-      await ChineseUtils.preLoad();
-    } catch (e) {
-      AppLog.instance.put('初始化简繁转换工具失败', error: e);
+      AppLog.instance.putServiceInit('版本升级检查失败', error: e);
     }
   });
 }
@@ -443,6 +423,14 @@ void _scheduleBackgroundInitialization() {
 void _setupErrorHandlers() {
   // 捕获Flutter框架错误
   FlutterError.onError = (FlutterErrorDetails details) {
+    if (_shouldIgnoreMouseTrackerAssertion(
+      error: details.exception,
+      stack: details.stack,
+      details: details.exceptionAsString(),
+    )) {
+      return;
+    }
+
     // 过滤掉图片加载的 404 错误，不显示在控制台
     final exception = details.exception;
     if (exception is HttpException &&
@@ -477,6 +465,14 @@ void _setupErrorHandlers() {
 
   // 捕获异步错误（非Flutter框架错误）
   PlatformDispatcher.instance.onError = (error, stack) {
+    if (_shouldIgnoreMouseTrackerAssertion(
+      error: error,
+      stack: stack,
+      details: error.toString(),
+    )) {
+      return true;
+    }
+
     // 过滤掉图片加载的 404 错误
     if (error is HttpException &&
         error.message.contains('Invalid statusCode: 404') &&
@@ -505,4 +501,28 @@ void _setupErrorHandlers() {
 
     return true; // 表示错误已处理
   };
+}
+
+bool _shouldIgnoreMouseTrackerAssertion({
+  required Object error,
+  StackTrace? stack,
+  required String details,
+}) {
+  if (kIsWeb) {
+    return false;
+  }
+
+  if (!(Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
+    return false;
+  }
+
+  final text = '$details\n${error.toString()}\n${stack?.toString() ?? ''}';
+  final isMouseTrackerAssertion = text.contains('mouse_tracker.dart') &&
+      (text.contains('!_debugDuringDeviceUpdate') ||
+          text.contains(
+            '(event is PointerAddedEvent) == (lastEvent is PointerRemovedEvent)',
+          ) ||
+          error is AssertionError);
+
+  return isMouseTrackerAssertion;
 }

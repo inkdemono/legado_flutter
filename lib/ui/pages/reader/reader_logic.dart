@@ -1,3 +1,5 @@
+// ignore_for_file: invalid_use_of_protected_member
+
 part of 'reader_page.dart';
 
 /// 阅读器核心业务逻辑（最终修复版 - 确保编译与加载）

@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>帮助 - Legado Flutter UI设计稿</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #1677ff;
+            --bg-color: #f7f8fa;
+            --card-bg: #ffffff;
+            --text-primary: #1f2329;
+            --text-secondary: #4e5969;
+            --text-hint: #86909c;
+            --divider: #e5e6eb;
+        }
+
+        body {
+            background: #1a1a2e;
+        }
+
+        .phone-frame {
+            width: 375px;
+            height: 812px;
+            background: var(--bg-color);
+            border-radius: 40px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .status-bar {
+            height: 44px;
+            background: var(--card-bg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            padding-top: 10px;
+        }
+
+        /* App Bar */
+        .app-bar {
+            background: var(--card-bg);
+            padding: 0 8px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--divider);
+        }
+
+        .back-btn {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--text-primary);
+        }
+
+        .app-bar-title {
+            flex: 1;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Tab Bar */
+        .tab-bar {
+            background: var(--card-bg);
+            display: flex;
+            border-bottom: 1px solid var(--divider);
+        }
+
+        .tab-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 0;
+            font-size: 12px;
+            color: var(--text-hint);
+            position: relative;
+        }
+
+        .tab-item.active {
+            color: var(--primary-color);
+        }
+
+        .tab-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 20%;
+            right: 20%;
+            height: 2px;
+            background: var(--primary-color);
+        }
+
+        .tab-icon {
+            font-size: 20px;
+            margin-bottom: 2px;
+        }
+
+        /* Content */
+        .content-area {
+            height: calc(100% - 44px - 56px - 60px - 80px);
+            overflow-y: auto;
+            background: var(--bg-color);
+            padding: 16px;
+        }
+
+        /* Section Card */
+        .section-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--divider);
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .section-content {
+            padding: 12px 16px;
+        }
+
+        /* Tutorial Item */
+        .tutorial-item {
+            margin-bottom: 16px;
+        }
+
+        .tutorial-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .tutorial-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .tutorial-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* FAQ Item */
+        .faq-item {
+            border-bottom: 1px solid var(--divider);
+        }
+
+        .faq-item:last-child {
+            border-bottom: none;
+        }
+
+        .faq-question {
+            padding: 14px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .faq-arrow {
+            color: var(--text-hint);
+        }
+
+        /* Feature Item */
+        .feature-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--divider);
+        }
+
+        .feature-item:last-child {
+            border-bottom: none;
+        }
+
+        .feature-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #4f7cff 0%, #7c5cff 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: white;
+            margin-right: 12px;
+        }
+
+        .feature-info {
+            flex: 1;
+        }
+
+        .feature-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .feature-desc {
+            font-size: 12px;
+            color: var(--text-hint);
+        }
+
+        /* Shortcut Item */
+        .shortcut-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .shortcut-key {
+            padding: 4px 10px;
+            background: #E6F7FF;
+            color: var(--primary-color);
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 12px;
+        }
+
+        .shortcut-action {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-around;
+            padding-top: 8px;
+            border-top: 1px solid var(--divider);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .nav-icon {
+            font-size: 24px;
+            color: var(--text-hint);
+        }
+
+        .nav-item.active .nav-icon {
+            color: var(--primary-color);
+        }
+
+        .nav-label {
+            font-size: 11px;
+            color: var(--text-hint);
+        }
+
+        .nav-item.active .nav-label {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        /* Dark Mode */
+        .phone-frame.dark {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-primary: #E0E0E0;
+            --text-secondary: #A0A0A0;
+            --text-hint: #4e5969;
+            --divider: #1f2329;
+        }
+
+        .phone-frame.dark .app-bar,
+        .phone-frame.dark .status-bar,
+        .phone-frame.dark .tab-bar {
+            background: var(--card-bg);
+        }
+
+        .phone-frame.dark .shortcut-key {
+            background: #1A3A5C;
+        }
+
+        .phone-frame.dark .bottom-nav {
+            background: rgba(30,30,30,0.95);
+        }
+
+        .label {
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>❓ 帮助 - Help</h1>
+            <p>Legado Flutter UI设计稿 | 使用教程、常见问题、功能介绍</p>
+        </div>
+
+        <div class="phones-container">
+            <!-- 使用教程 Tab - 日间模式 -->
+            <div>
+                <div class="phone-frame">
+                    <div class="status-bar">
+                        <span>9:41</span>
+                        <span>📶 🔋</span>
+                    </div>
+
+                    <div class="app-bar">
+                        <div class="back-btn">‹</div>
+                        <div class="app-bar-title">帮助</div>
+                    </div>
+
+                    <div class="tab-bar">
+                        <div class="tab-item active">
+                            <span class="tab-icon">🎓</span>
+                            <span>使用教程</span>
+                        </div>
+                        <div class="tab-item">
+                            <span class="tab-icon">❓</span>
+                            <span>常见问题</span>
+                        </div>
+                        <div class="tab-item">
+                            <span class="tab-icon">ℹ️</span>
+                            <span>功能介绍</span>
+                        </div>
+                        <div class="tab-item">
+                            <span class="tab-icon">⌨️</span>
+                            <span>快捷键</span>
+                        </div>
+                    </div>
+
+                    <div class="content-area">
+                        <div class="section-card">
+                            <div class="section-header">快速开始</div>
+                            <div class="section-content">
+                                <div class="tutorial-item">
+                                    <div class="tutorial-title">1. 添加书源</div>
+                                    <div class="tutorial-desc">在"我的"页面点击"书源管理"，可以导入或添加书源。支持从网络导入、本地文件导入等方式。</div>
+                                </div>
+                                <div class="tutorial-item">
+                                    <div class="tutorial-title">2. 搜索书籍</div>
+                                    <div class="tutorial-desc">在书架页面点击搜索按钮，输入书名或作者名进行搜索。</div>
+                                </div>
+                                <div class="tutorial-item">
+                                    <div class="tutorial-title">3. 开始阅读</div>
+                                    <div class="tutorial-desc">在搜索结果中选择书籍，点击"加入书架"后即可开始阅读。</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="section-card">
+                            <div class="section-header">书源管理</div>
+                            <div class="section-content">
+                                <div class="tutorial-item">
+                                    <div class="tutorial-title">导入书源</div>
+                                    <div class="tutorial-desc">支持从网络URL、本地文件、二维码等方式导入书源。</div>
+                                </div>
+                                <div class="tutorial-item">
+                                    <div class="tutorial-title">编辑书源</div>
+                                    <div class="tutorial-desc">点击书源列表中的书源，可以查看和编辑书源规则。</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bottom-nav">
+                        <div class="nav-item">
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">书架</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🔍</span>
+                            <span class="nav-label">发现</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🎬</span>
+                            <span class="nav-label">媒体</span>
+                        </div>
+                        <div class="nav-item active">
+                            <span class="nav-icon">👤</span>
+                            <span class="nav-label">我的</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="label">帮助 - 使用教程（日间模式）</p>
+            </div>
+
+            <!-- 功能介绍 Tab - 夜间模式 -->
+            <div>
+                <div class="phone-frame dark">
+                    <div class="status-bar">
+                        <span>9:41</span>
+                        <span>📶 🔋</span>
+                    </div>
+
+                    <div class="app-bar">
+                        <div class="back-btn">‹</div>
+                        <div class="app-bar-title">帮助</div>
+                    </div>
+
+                    <div class="tab-bar">
+                        <div class="tab-item">
+                            <span class="tab-icon">🎓</span>
+                            <span>使用教程</span>
+                        </div>
+                        <div class="tab-item">
+                            <span class="tab-icon">❓</span>
+                            <span>常见问题</span>
+                        </div>
+                        <div class="tab-item active">
+                            <span class="tab-icon">ℹ️</span>
+                            <span>功能介绍</span>
+                        </div>
+                        <div class="tab-item">
+                            <span class="tab-icon">⌨️</span>
+                            <span>快捷键</span>
+                        </div>
+                    </div>
+
+                    <div class="content-area">
+                        <div class="section-card">
+                            <div class="section-content">
+                                <div class="feature-item">
+                                    <div class="feature-icon">📚</div>
+                                    <div class="feature-info">
+                                        <div class="feature-title">多源阅读</div>
+                                        <div class="feature-desc">支持多个书源，可以自由切换</div>
+                                    </div>
+                                </div>
+                                <div class="feature-item">
+                                    <div class="feature-icon">🎨</div>
+                                    <div class="feature-info">
+                                        <div class="feature-title">自定义主题</div>
+                                        <div class="feature-desc">支持自定义主题颜色</div>
+                                    </div>
+                                </div>
+                                <div class="feature-item">
+                                    <div class="feature-icon">🔖</div>
+                                    <div class="feature-info">
+                                        <div class="feature-title">书签功能</div>
+                                        <div class="feature-desc">支持添加书签，快速定位</div>
+                                    </div>
+                                </div>
+                                <div class="feature-item">
+                                    <div class="feature-icon">⏱️</div>
+                                    <div class="feature-info">
+                                        <div class="feature-title">阅读记录</div>
+                                        <div class="feature-desc">自动记录阅读进度</div>
+                                    </div>
+                                </div>
+                                <div class="feature-item">
+                                    <div class="feature-icon">☁️</div>
+                                    <div class="feature-info">
+                                        <div class="feature-title">数据备份</div>
+                                        <div class="feature-desc">支持本地和WebDAV备份</div>
+                                    </div>
+                                </div>
+                                <div class="feature-item">
+                                    <div class="feature-icon">🔊</div>
+                                    <div class="feature-info">
+                                        <div class="feature-title">朗读功能</div>
+                                        <div class="feature-desc">支持TTS朗读</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bottom-nav">
+                        <div class="nav-item">
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">书架</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🔍</span>
+                            <span class="nav-label">发现</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🎬</span>
+                            <span class="nav-label">媒体</span>
+                        </div>
+                        <div class="nav-item active">
+                            <span class="nav-icon">👤</span>
+                            <span class="nav-label">我的</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="label">帮助 - 功能介绍（夜间模式）</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

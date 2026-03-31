@@ -12,6 +12,7 @@ import '../services/book/book_service.dart';
 import '../providers/book_update_count_provider.dart';
 import '../ui/pages/about/markdown_viewer_page.dart';
 import '../ui/pages/about/crash_logs_page.dart';
+import '../utils/startup_performance_monitor.dart';
 
 /// 启动流程服务：负责顺序与节奏控制，对应参考项目 MainActivity.onPostCreate() 中的各项检查。
 /// 各子流程（隐私协议、本地密码、版本更新、崩溃日志、备份同步、自动刷新目录）按顺序执行。
@@ -24,38 +25,58 @@ class StartupFlowService {
     WidgetRef ref,
     bool Function() isMounted,
   ) async {
-    try {
-      final privacyOk = await _checkPrivacyPolicy(context, isMounted);
-      if (!privacyOk && isMounted()) {
-        AppLog.instance.put('用户拒绝隐私协议');
+    await startupPerformanceMonitor.trackAsync('startup_flow.total', () async {
+      try {
+        final privacyOk = await startupPerformanceMonitor.trackAsync(
+          'startup_flow.privacy_policy',
+          () => _checkPrivacyPolicy(context, isMounted),
+        );
+        if (!privacyOk && isMounted()) {
+          AppLog.instance.put('用户拒绝隐私协议');
+        }
+        if (!isMounted()) return;
+
+        await startupPerformanceMonitor.trackAsync(
+          'startup_flow.local_password',
+          () => _checkLocalPassword(context, isMounted),
+        );
+        if (!isMounted()) return;
+
+        await startupPerformanceMonitor.trackAsync(
+          'startup_flow.version_update',
+          () => _checkVersionUpdate(context, isMounted),
+        );
+        if (!isMounted()) return;
+
+        await startupPerformanceMonitor.trackAsync(
+          'startup_flow.crash_log',
+          () => _checkCrashLog(context, isMounted),
+        );
+        if (!isMounted()) return;
+
+        await startupPerformanceMonitor.trackAsync(
+          'startup_flow.backup_sync',
+          () => _checkBackupSync(context, isMounted),
+        );
+        if (!isMounted()) return;
+
+        unawaited(
+          Future.delayed(const Duration(milliseconds: 500), () async {
+            try {
+              if (!isMounted()) return;
+              await startupPerformanceMonitor.trackAsync(
+                'startup_flow.auto_refresh_books',
+                () => _autoRefreshBooks(ref, isMounted),
+              );
+            } catch (e) {
+              AppLog.instance.put('自动更新书籍目录失败', error: e);
+            }
+          }),
+        );
+      } catch (e) {
+        AppLog.instance.put('启动初始化失败', error: e);
       }
-      if (!isMounted()) return;
-
-      await _checkLocalPassword(context, isMounted);
-      if (!isMounted()) return;
-
-      await _checkVersionUpdate(context, isMounted);
-      if (!isMounted()) return;
-
-      await _checkCrashLog(context, isMounted);
-      if (!isMounted()) return;
-
-      await _checkBackupSync(context, isMounted);
-      if (!isMounted()) return;
-
-      unawaited(
-        Future.delayed(const Duration(milliseconds: 500), () async {
-          try {
-            if (!isMounted()) return;
-            await _autoRefreshBooks(ref, isMounted);
-          } catch (e) {
-            AppLog.instance.put('自动更新书籍目录失败', error: e);
-          }
-        }),
-      );
-    } catch (e) {
-      AppLog.instance.put('启动初始化失败', error: e);
-    }
+    });
   }
 
   /// 参考项目：MainActivity.privacyPolicy()

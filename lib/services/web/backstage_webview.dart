@@ -228,22 +228,29 @@ class BackstageWebView {
       final matches = pattern.allMatches(content);
 
       for (final match in matches) {
+        for (int i = 1; i <= match.groupCount; i++) {
+          final groupValue = match.group(i);
+          if (groupValue != null && groupValue.isNotEmpty) {
+            return groupValue;
+          }
+        }
+
         final matchedStr = match.group(0);
         if (matchedStr != null && matchedStr.isNotEmpty) {
-          // 检查是否是 URL
           if (matchedStr.startsWith('http://') ||
               matchedStr.startsWith('https://')) {
             return matchedStr;
           }
-          // 尝试从 src 或 href 属性中提取
-          final srcMatch =
-              RegExp(r'''(?:src|href)=["']([^"']+)["']''').firstMatch(content);
-          if (srcMatch != null) {
-            final src = srcMatch.group(1);
-            if (src != null && pattern.hasMatch(src)) {
-              return src;
-            }
-          }
+        }
+      }
+
+      final attrPattern = RegExp(r'''(?:src|href)=["']([^"']+)["']''');
+      for (final attrMatch in attrPattern.allMatches(content)) {
+        final attrValue = attrMatch.group(1);
+        if (attrValue != null &&
+            attrValue.isNotEmpty &&
+            pattern.hasMatch(attrValue)) {
+          return attrValue;
         }
       }
     } catch (e) {

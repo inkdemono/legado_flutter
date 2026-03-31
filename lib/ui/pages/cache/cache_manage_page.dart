@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../data/models/book.dart';
 import '../../../services/book/book_service.dart';
 import '../../../services/reader/cache_service.dart';
+import '../../widgets/home/home_shell.dart';
 import 'cache_book_item.dart';
-import 'cache_statistics_widget.dart';
 
 /// 缓存管理页面
 class CacheManagePage extends ConsumerStatefulWidget {
@@ -26,27 +27,33 @@ class _CacheManagePageState extends ConsumerState<CacheManagePage> {
     _loadBooks();
   }
 
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   Future<void> _loadBooks() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // 获取书籍列表
       final books = _selectedGroupId != null
           ? await BookService.instance.getBooksByGroup(_selectedGroupId!)
           : await BookService.instance.getBookshelfBooks();
-      
-      // 过滤掉本地书籍和音频书籍
+
       final filteredBooks = books.where((book) => !book.isLocal).toList();
 
-      // 加载缓存信息
       final cacheInfoMap = <String, CacheInfo>{};
       for (final book in filteredBooks) {
         final chapters = await BookService.instance.getChapterList(book);
-        final cachedFiles = await CacheService.instance.getCachedChapterFiles(book);
-        final cachedCount = await CacheService.instance.getCachedChapterCount(book, chapters);
-        
+        final cachedFiles =
+            await CacheService.instance.getCachedChapterFiles(book);
+        final cachedCount =
+            await CacheService.instance.getCachedChapterCount(book, chapters);
+
         cacheInfoMap[book.bookUrl] = CacheInfo(
           totalChapters: chapters.length,
           cachedChapters: cachedCount,
@@ -54,25 +61,19 @@ class _CacheManagePageState extends ConsumerState<CacheManagePage> {
         );
       }
 
+      if (!mounted) return;
       setState(() {
         _books = filteredBooks;
         _cacheInfoMap = cacheInfoMap;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('加载失败: $e')),
-        );
-      }
+      _showMessage('加载失败: $e');
     }
-  }
-
-  Future<void> _refresh() async {
-    await _loadBooks();
   }
 
   Future<void> _clearAllCache() async {
@@ -103,56 +104,127 @@ class _CacheManagePageState extends ConsumerState<CacheManagePage> {
     try {
       await CacheService.instance.clearAllCache();
       await _loadBooks();
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('已清除所有缓存')),
-        );
-      }
+      _showMessage('已清除所有缓存');
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('清除缓存失败: $e')),
-        );
-      }
-    } finally {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
+      _showMessage('清除缓存失败: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // 计算总缓存大小
     int totalChapters = 0;
     int cachedChapters = 0;
+    int totalFiles = 0;
+
     for (final info in _cacheInfoMap.values) {
       totalChapters += info.totalChapters;
       cachedChapters += info.cachedChapters;
+      totalFiles += info.cachedFiles.length;
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('缓存管理'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _refresh,
-            tooltip: '刷新',
+      backgroundColor: Colors.transparent,
+      body: HomePageBackground(
+        glowColors: const [Color(0xFF34D399), Color(0xFF14B8A6)],
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              _buildHeader(context),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _loadBooks,
+                  child: _buildBody(
+                    context,
+                    totalChapters: totalChapters,
+                    cachedChapters: cachedChapters,
+                    totalFiles: totalFiles,
+                  ),
+                ),
+              ),
+            ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      child: Row(
+        children: [
+          _buildHeaderButton(
+            context,
+            icon: Icons.arrow_back_ios_new_rounded,
+            onTap: () => Navigator.of(context).pop(),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '缓存管理',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: HomePalette.primaryText(context),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '查看缓存覆盖率并快速清理已下载章节',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: HomePalette.tertiaryText(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          _buildHeaderButton(
+            context,
+            icon: Icons.refresh_rounded,
+            onTap: _loadBooks,
+          ),
+          const SizedBox(width: 8),
           PopupMenuButton<String>(
+            tooltip: '更多操作',
+            offset: const Offset(0, 48),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            color: HomePalette.card(context),
+            icon: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: HomePalette.card(context).withValues(alpha: 0.88),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: HomePalette.lineColor(context)),
+              ),
+              alignment: Alignment.center,
+              child: Icon(
+                Icons.more_horiz_rounded,
+                color: HomePalette.primaryText(context),
+              ),
+            ),
             onSelected: (value) {
               if (value == 'clear_all') {
                 _clearAllCache();
               }
             },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
+            itemBuilder: (context) => const [
+              PopupMenuItem<String>(
                 value: 'clear_all',
                 child: Row(
                   children: [
-                    Icon(Icons.delete_outline, size: 20),
+                    Icon(Icons.delete_outline_rounded, color: Colors.red),
                     SizedBox(width: 8),
                     Text('清除所有缓存'),
                   ],
@@ -162,58 +234,254 @@ class _CacheManagePageState extends ConsumerState<CacheManagePage> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _books.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.folder_off,
-                        size: 64,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        '暂无书籍',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _refresh,
-                  child: Column(
-                    children: [
-                      // 缓存统计
-                      CacheStatisticsWidget(
-                        totalBooks: _books.length,
-                        totalChapters: totalChapters,
-                        cachedChapters: cachedChapters,
-                      ),
-                      const Divider(height: 1),
-                      // 书籍列表
-                      Expanded(
-                        child: ListView.builder(
-                          itemCount: _books.length,
-                          itemBuilder: (context, index) {
-                            final book = _books[index];
-                            final cacheInfo = _cacheInfoMap[book.bookUrl];
-                            return CacheBookItem(
-                              book: book,
-                              cacheInfo: cacheInfo,
-                              onCacheCleared: () => _refresh(),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
+    );
+  }
+
+  Widget _buildBody(
+    BuildContext context, {
+    required int totalChapters,
+    required int cachedChapters,
+    required int totalFiles,
+  }) {
+    if (_isLoading) {
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: const [
+          SizedBox(height: 220),
+          Center(child: CircularProgressIndicator()),
+        ],
+      );
+    }
+
+    final progress = totalChapters > 0 ? cachedChapters / totalChapters : 0.0;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      children: [
+        _buildHeroCard(
+          context,
+          totalBooks: _books.length,
+          totalChapters: totalChapters,
+          cachedChapters: cachedChapters,
+          totalFiles: totalFiles,
+          progress: progress,
+        ),
+        const SizedBox(height: 18),
+        _buildSectionHeader(
+          context,
+          title: '书籍缓存',
+          subtitle: _books.isEmpty ? '当前没有可管理的在线书籍' : '长按或点右上角菜单可导出、缓存或清理单本书籍',
+        ),
+        const SizedBox(height: 10),
+        if (_books.isEmpty)
+          HomeSectionCard(
+            margin: EdgeInsets.zero,
+            child: Column(
+              children: [
+                const SizedBox(height: 20),
+                Icon(
+                  Icons.folder_off_rounded,
+                  size: 52,
+                  color: HomePalette.tertiaryText(context),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '暂无可缓存书籍',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: HomePalette.primaryText(context),
                   ),
                 ),
+                const SizedBox(height: 6),
+                Text(
+                  '本地书籍不会出现在这里，在线书籍开始阅读后即可缓存章节',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: HomePalette.secondaryText(context)),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          )
+        else
+          ..._books.map((book) => CacheBookItem(
+                book: book,
+                cacheInfo: _cacheInfoMap[book.bookUrl],
+                onCacheCleared: _loadBooks,
+              )),
+        const SizedBox(height: 90),
+      ],
+    );
+  }
+
+  Widget _buildHeroCard(
+    BuildContext context, {
+    required int totalBooks,
+    required int totalChapters,
+    required int cachedChapters,
+    required int totalFiles,
+    required double progress,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF34D399), Color(0xFF14B8A6)],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF14B8A6).withValues(alpha: 0.24),
+            blurRadius: 24,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '缓存覆盖率',
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.white.withValues(alpha: 0.78),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${(progress * 100).toStringAsFixed(1)}%',
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              backgroundColor: Colors.white.withValues(alpha: 0.18),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              _buildMetricCard(value: '$totalBooks', label: '书籍'),
+              const SizedBox(width: 10),
+              _buildMetricCard(
+                value: '$cachedChapters/$totalChapters',
+                label: '章节',
+              ),
+              const SizedBox(width: 10),
+              _buildMetricCard(value: '$totalFiles', label: '文件'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricCard({
+    required String value,
+    required String label,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withValues(alpha: 0.78),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: HomePalette.primaryText(context),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 12,
+              color: HomePalette.tertiaryText(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderButton(
+    BuildContext context, {
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: HomePalette.card(context).withValues(alpha: 0.88),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: HomePalette.lineColor(context)),
+          ),
+          alignment: Alignment.center,
+          child: Icon(
+            icon,
+            size: 20,
+            color: HomePalette.primaryText(context),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -235,4 +503,3 @@ class CacheInfo {
     return cachedChapters / totalChapters;
   }
 }
-

@@ -25,18 +25,18 @@ class ThemedConstants {
 
   /// 文字颜色
   static const Color textPrimary = Colors.white;
-  static final Color textSecondary = Colors.white.withOpacity(0.9);
-  static final Color textTertiary = Colors.white.withOpacity(0.7);
-  static final Color textDisabled = Colors.white.withOpacity(0.5);
+  static final Color textSecondary = Colors.white.withValues(alpha: 0.9);
+  static final Color textTertiary = Colors.white.withValues(alpha: 0.7);
+  static final Color textDisabled = Colors.white.withValues(alpha: 0.5);
 
   /// 分隔线颜色
-  static final Color dividerColor = Colors.white.withOpacity(0.1);
+  static final Color dividerColor = Colors.white.withValues(alpha: 0.1);
   static const Color dividerColorAlt = Colors.white24;
 
   /// 按钮颜色
-  static final Color buttonBackground = Colors.white.withOpacity(0.05);
-  static final Color buttonBorder = Colors.white.withOpacity(0.1);
-  static final Color iconColor = Colors.white.withOpacity(0.9);
+  static final Color buttonBackground = Colors.white.withValues(alpha: 0.05);
+  static final Color buttonBorder = Colors.white.withValues(alpha: 0.1);
+  static final Color iconColor = Colors.white.withValues(alpha: 0.9);
   static final Color iconColorSecondary = Colors.white70;
 
   // ==================== 尺寸常量 ====================
@@ -154,7 +154,7 @@ class ThemedConstants {
   /// 卡片阴影
   static List<BoxShadow> get cardShadow => [
         BoxShadow(
-          color: Colors.black.withOpacity(0.3),
+          color: Colors.black.withValues(alpha: 0.3),
           blurRadius: 10.0,
           offset: const Offset(0, -2),
         ),
@@ -163,7 +163,7 @@ class ThemedConstants {
   /// 标签阴影（选中状态）
   static List<BoxShadow> get tabShadow => [
         BoxShadow(
-          color: primaryGradientStart.withOpacity(0.3),
+          color: primaryGradientStart.withValues(alpha: 0.3),
           blurRadius: 8.0,
           offset: const Offset(0, 2),
         ),
@@ -172,7 +172,7 @@ class ThemedConstants {
   /// 按钮阴影
   static List<BoxShadow> get buttonShadow => [
         BoxShadow(
-          color: Colors.black.withOpacity(0.2),
+          color: Colors.black.withValues(alpha: 0.2),
           blurRadius: 2.0,
           offset: const Offset(0, 1),
         ),
@@ -199,7 +199,7 @@ class ThemedConstants {
     return SliderTheme.of(context).copyWith(
       trackHeight: sliderTrackHeight,
       activeTrackColor: primaryGradientStart,
-      inactiveTrackColor: Colors.white.withOpacity(0.1),
+      inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
       thumbShape: const RoundSliderThumbShape(
         enabledThumbRadius: sliderThumbRadius,
       ),
@@ -207,7 +207,7 @@ class ThemedConstants {
       overlayShape: const RoundSliderOverlayShape(
         overlayRadius: sliderOverlayRadius,
       ),
-      overlayColor: primaryGradientStart.withOpacity(0.2),
+      overlayColor: primaryGradientStart.withValues(alpha: 0.2),
     );
   }
 

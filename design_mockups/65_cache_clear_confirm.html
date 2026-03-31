@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>缓存清理确认 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --text: #1f2329;
+            --sub: #4e5969;
+            --danger: #f53f3f;
+        }
+        body { background: linear-gradient(135deg, #111924, #24324c 58%, #0f172a); }
+        .phone-frame {
+            background:
+                linear-gradient(180deg, rgba(0,0,0,0.22), rgba(0,0,0,0.52)),
+                linear-gradient(135deg, #eef4ff, #f4f6fb);
+        }
+        .dialog {
+            position: absolute; left: 26px; right: 26px; top: 210px;
+            border-radius: 28px; overflow: hidden; background: rgba(255,255,255,0.97);
+            box-shadow: 0 24px 60px rgba(17,24,39,0.20); backdrop-filter: blur(18px);
+        }
+        .content { padding: 24px 22px 18px; text-align: center; }
+        .icon {
+            width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 22px;
+            background: linear-gradient(135deg, #fff4f2, #ffe4e0); color: var(--danger);
+            display: flex; align-items: center; justify-content: center; font-size: 30px;
+        }
+        .title { font-size: 20px; font-weight: 800; color: var(--text); }
+        .sub { margin-top: 10px; font-size: 14px; color: var(--sub); line-height: 1.7; }
+        .footer { display: flex; gap: 10px; padding: 0 22px 22px; }
+        .btn {
+            flex: 1; height: 48px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700;
+        }
+        .btn.ghost { background: #f2f3f5; color: var(--sub); }
+        .btn.danger { background: linear-gradient(135deg, #f53f3f, #fb7185); color: #fff; }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>缓存清理确认</h1>
+            <p>补充“我的”模块缓存管理里的全量清理确认弹窗，突出不可恢复这一高风险提示。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="dialog">
+                    <div class="content">
+                        <div class="icon">🗑</div>
+                        <div class="title">确认清除</div>
+                        <div class="sub">确定要清除所有缓存吗？此操作不可恢复。已缓存章节和临时文件会被一并移除。</div>
+                    </div>
+                    <div class="footer">
+                        <div class="btn ghost">取消</div>
+                        <div class="btn danger">确定</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -14,6 +14,7 @@ import '../services/keyboard_assist_service.dart';
 import '../services/read_config_service.dart';
 import '../services/source/book_source_service.dart';
 import '../services/source/book_source_parser.dart';
+import '../utils/startup_performance_monitor.dart';
 
 /// 默认数据工具类
 /// 参考项目：io.legado.app.help.DefaultData
@@ -194,80 +195,103 @@ class DefaultData {
 
   /// 导入默认书源（首次启动时）
   Future<void> importDefaultBookSources() async {
-    try {
-      // 检查是否已经导入过
-      final imported = AppConfig.getBool('default_book_sources_imported', defaultValue: false);
-      if (imported) {
-        return;
-      }
+    await startupPerformanceMonitor.trackAsync(
+      'default_data.import_book_sources.total',
+      () async {
+        try {
+          final imported = AppConfig.getBool(
+            'default_book_sources_imported',
+            defaultValue: false,
+          );
+          if (imported) {
+            return;
+          }
 
-      // 检查是否已有书源
-      final existingSources = await BookSourceService.instance.getAllBookSources();
-      if (existingSources.isNotEmpty) {
-        // 如果已有书源，标记为已导入，不再自动导入
-        await AppConfig.setBool('default_book_sources_imported', true);
-        return;
-      }
+          final existingSources = await startupPerformanceMonitor.trackAsync(
+            'default_data.import_book_sources.load_existing_sources',
+            () => BookSourceService.instance.getAllBookSources(),
+          );
+          if (existingSources.isNotEmpty) {
+            await startupPerformanceMonitor.trackAsync(
+              'default_data.import_book_sources.mark_imported_existing',
+              () => AppConfig.setBool('default_book_sources_imported', true),
+            );
+            return;
+          }
 
-      // 导入默认书源
-      final defaultSources = await bookSources;
-      if (defaultSources.isNotEmpty) {
-        final result = await BookSourceService.instance.importBookSources(defaultSources);
-        AppLog.instance.put('导入默认书源: ${result['imported']} 个成功, ${result['blocked']} 个被过滤');
-        await AppConfig.setBool('default_book_sources_imported', true);
-      }
-    } catch (e) {
-      AppLog.instance.put('导入默认书源失败', error: e);
-    }
+          final defaultSources = await startupPerformanceMonitor.trackAsync(
+            'default_data.import_book_sources.load_default_sources',
+            () => bookSources,
+          );
+          if (defaultSources.isNotEmpty) {
+            final result = await startupPerformanceMonitor.trackAsync(
+              'default_data.import_book_sources.write_sources',
+              () => BookSourceService.instance.importBookSources(defaultSources),
+            );
+            AppLog.instance.put(
+              '导入默认书源: ${result['imported']} 个成功, ${result['blocked']} 个被过滤',
+            );
+            await startupPerformanceMonitor.trackAsync(
+              'default_data.import_book_sources.mark_imported',
+              () => AppConfig.setBool('default_book_sources_imported', true),
+            );
+          }
+        } catch (e) {
+          AppLog.instance.put('导入默认书源失败', error: e);
+        }
+      },
+    );
   }
 
   /// 版本升级时导入默认数据
   /// 参考项目：DefaultData.upVersion()
   Future<void> upVersion() async {
-    try {
-      // 获取当前版本号
-      final currentVersion = AppConfig.getInt('version_code', defaultValue: 0);
-      // 从 package_info_plus 获取实际版本号
-      final packageInfo = await PackageInfo.fromPlatform();
-      final appVersion = int.tryParse(packageInfo.buildNumber) ?? 1;
+    await startupPerformanceMonitor.trackAsync('default_data.up_version.total', () async {
+      try {
+        final currentVersion = AppConfig.getInt('version_code', defaultValue: 0);
+        final packageInfo = await startupPerformanceMonitor.trackAsync(
+          'default_data.up_version.package_info',
+          PackageInfo.fromPlatform,
+        );
+        final appVersion = int.tryParse(packageInfo.buildNumber) ?? 1;
 
-      if (currentVersion < appVersion) {
-        // 版本升级，导入默认数据
-        // 注意：这里可以根据需要选择性导入
-        // 参考项目中有 LocalConfig.needUpHttpTTS 等标志位控制
-        
-        AppLog.instance.put('检测到版本升级，准备导入默认数据');
-        
-        // 导入默认键盘辅助（如果表为空）
-        try {
-          await KeyboardAssistService.instance.importDefaultKeyboardAssists();
-        } catch (e) {
-          AppLog.instance.put('导入默认键盘辅助失败', error: e);
+        if (currentVersion < appVersion) {
+          AppLog.instance.put('检测到版本升级，准备导入默认数据');
+
+          try {
+            await startupPerformanceMonitor.trackAsync(
+              'default_data.up_version.keyboard_assists',
+              () => KeyboardAssistService.instance.importDefaultKeyboardAssists(),
+            );
+          } catch (e) {
+            AppLog.instance.put('导入默认键盘辅助失败', error: e);
+          }
+
+          try {
+            await startupPerformanceMonitor.trackAsync(
+              'default_data.up_version.read_presets',
+              () => ReadConfigService.instance.importDefaultPresets(),
+            );
+          } catch (e) {
+            AppLog.instance.put('导入默认阅读配置预设失败', error: e);
+          }
+
+          await startupPerformanceMonitor.trackAsync(
+            'default_data.up_version.set_version_code',
+            () => AppConfig.setInt('version_code', appVersion),
+          );
         }
 
-        // 导入默认阅读配置预设
-        try {
-          await ReadConfigService.instance.importDefaultPresets();
-        } catch (e) {
-          AppLog.instance.put('导入默认阅读配置预设失败', error: e);
-        }
-        
-        // 更新版本号
-        await AppConfig.setInt('version_code', appVersion);
+        Future.microtask(() async {
+          try {
+            await importDefaultBookSources();
+          } catch (e) {
+            AppLog.instance.put('导入默认书源失败', error: e);
+          }
+        });
+      } catch (e) {
+        AppLog.instance.put('版本升级检查失败', error: e);
       }
-
-      // 首次启动时导入默认书源（延迟到后台执行，避免阻塞启动）
-      // 注意：这个操作可能涉及大量数据库操作，不应该阻塞应用启动
-      Future.microtask(() async {
-        try {
-          await importDefaultBookSources();
-        } catch (e) {
-          AppLog.instance.put('导入默认书源失败', error: e);
-        }
-      });
-    } catch (e) {
-      AppLog.instance.put('版本升级检查失败', error: e);
-    }
+    });
   }
 }
-

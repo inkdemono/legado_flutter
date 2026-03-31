@@ -1100,6 +1100,7 @@ class _MangaReaderPageState extends ConsumerState<MangaReaderPage>
           sourceUrl: widget.book.origin,
           coverUrl: widget.book.coverUrl,
           intro: widget.book.intro,
+          initialVariable: widget.book.variable,
         ),
       ),
     );

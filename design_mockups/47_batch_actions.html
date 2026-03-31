@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>批量操作菜单 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --text: #1f2329;
+            --sub: #4e5969;
+            --hint: #86909c;
+            --line: #e5e6eb;
+            --primary: #165dff;
+            --danger: #f53f3f;
+        }
+        body { background: linear-gradient(135deg, #121822, #22324d 60%, #111827); }
+        .phone-frame {
+            background:
+                linear-gradient(180deg, rgba(0,0,0,0.28), rgba(0,0,0,0.48)),
+                linear-gradient(135deg, #eef4ff, #d6e5ff);
+        }
+        .sheet {
+            position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 16px 24px;
+            border-radius: 32px 32px 0 0; background: rgba(255,255,255,0.96); backdrop-filter: blur(16px);
+        }
+        .handle { width: 42px; height: 5px; border-radius: 999px; background: #d0d7e2; margin: 0 auto 16px; }
+        .sheet-head { display: flex; align-items: center; margin-bottom: 14px; }
+        .sheet-title { font-size: 20px; font-weight: 800; color: var(--text); }
+        .sheet-meta { margin-top: 4px; font-size: 12px; color: var(--hint); }
+        .count {
+            margin-left: auto; padding: 6px 10px; border-radius: 999px; background: #eef4ff; color: var(--primary); font-size: 12px; font-weight: 700;
+        }
+        .list { display: grid; gap: 10px; }
+        .item {
+            display: flex; align-items: center; gap: 12px; padding: 14px 14px; border-radius: 20px;
+            background: #f7f9fc; border: 1px solid #edf0f4;
+        }
+        .item.danger { background: #fff5f5; border-color: #ffe2e0; }
+        .icon {
+            width: 42px; height: 42px; border-radius: 15px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px;
+        }
+        .i1 { background: linear-gradient(135deg, #165dff, #69b1ff); }
+        .i2 { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
+        .i3 { background: linear-gradient(135deg, #22c55e, #16a34a); }
+        .i4 { background: linear-gradient(135deg, #64748b, #334155); }
+        .i5 { background: linear-gradient(135deg, #f59e0b, #ea580c); }
+        .i6 { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .info { flex: 1; }
+        .title { font-size: 15px; font-weight: 800; color: var(--text); }
+        .sub { margin-top: 4px; font-size: 12px; color: var(--sub); }
+        .arrow { color: #b8bec8; font-size: 18px; }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>批量操作菜单</h1>
+            <p>补充“书架”模块里的批量操作弹层，把分组、更新、缓存与删除动作按风险和频率分层展示。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="sheet">
+                    <div class="handle"></div>
+                    <div class="sheet-head">
+                        <div>
+                            <div class="sheet-title">批量操作</div>
+                            <div class="sheet-meta">适用于当前已选中的书籍</div>
+                        </div>
+                        <div class="count">3 / 18</div>
+                    </div>
+                    <div class="list">
+                        <div class="item">
+                            <div class="icon i1">⇄</div>
+                            <div class="info">
+                                <div class="title">移动到分组</div>
+                                <div class="sub">将所选书籍整体迁移到新的书架分组</div>
+                            </div>
+                            <div class="arrow">›</div>
+                        </div>
+                        <div class="item">
+                            <div class="icon i2">⊞</div>
+                            <div class="info">
+                                <div class="title">添加到分组</div>
+                                <div class="sub">保留当前位置，同时附加到另一个分组</div>
+                            </div>
+                            <div class="arrow">›</div>
+                        </div>
+                        <div class="item">
+                            <div class="icon i3">⟳</div>
+                            <div class="info">
+                                <div class="title">启用更新</div>
+                                <div class="sub">恢复书籍更新检查与自动刷新能力</div>
+                            </div>
+                            <div class="arrow">›</div>
+                        </div>
+                        <div class="item">
+                            <div class="icon i4">⏸</div>
+                            <div class="info">
+                                <div class="title">禁用更新</div>
+                                <div class="sub">暂时停用更新检查，适合本地书或归档内容</div>
+                            </div>
+                            <div class="arrow">›</div>
+                        </div>
+                        <div class="item">
+                            <div class="icon i5">⊘</div>
+                            <div class="info">
+                                <div class="title">清除缓存</div>
+                                <div class="sub">移除已下载章节内容，释放本地存储空间</div>
+                            </div>
+                            <div class="arrow">›</div>
+                        </div>
+                        <div class="item danger">
+                            <div class="icon i6">🗑</div>
+                            <div class="info">
+                                <div class="title">删除</div>
+                                <div class="sub">删除书架中的选中书籍，属于高风险动作</div>
+                            </div>
+                            <div class="arrow">›</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

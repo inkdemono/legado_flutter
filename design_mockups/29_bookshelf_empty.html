@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>书架空态 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #151c26, #0d1117 62%);
+        }
+        .phone-frame {
+            width: 375px; height: 812px; border-radius: 40px; overflow: hidden; position: relative; background: #f5f6f8;
+            box-shadow: 0 26px 60px rgba(0,0,0,0.34);
+        }
+        .status-bar, .app-bar, .filter-bar { background: #fff; display: flex; align-items: center; }
+        .status-bar { height: 44px; justify-content: space-between; padding: 10px 24px 0; font-size: 14px; font-weight: 600; color: #1f2329; }
+        .app-bar { height: 56px; padding: 0 16px; border-bottom: 1px solid #e5e6eb; }
+        .app-bar-title { flex: 1; font-size: 20px; font-weight: 700; color: #1f2329; }
+        .icon-btn {
+            width: 40px; height: 40px; border-radius: 20px; background: #f4f5f7;
+            display: flex; align-items: center; justify-content: center; font-size: 18px; color: #4e5969;
+        }
+        .filter-bar { height: 48px; padding: 0 16px; gap: 8px; border-bottom: 1px solid #e5e6eb; }
+        .chip { padding: 7px 14px; border-radius: 999px; background: #f2f3f5; font-size: 12px; color: #86909c; }
+        .chip.active { background: #165dff; color: #fff; font-weight: 700; }
+        .content-area {
+            height: calc(100% - 44px - 56px - 48px - 80px);
+            display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px;
+            background:
+                radial-gradient(circle at top, rgba(22,93,255,0.08), transparent 26%),
+                linear-gradient(180deg, #f8fbff, #f5f6f8 220px);
+        }
+        .empty-wrap { max-width: 260px; }
+        .empty-hero {
+            width: 132px; height: 132px; margin: 0 auto 24px; border-radius: 50%;
+            background: linear-gradient(135deg, rgba(22,93,255,0.14), rgba(64,150,255,0.08));
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: inset 0 0 0 1px rgba(22,93,255,0.08);
+        }
+        .empty-hero span { font-size: 64px; }
+        .empty-title { font-size: 24px; font-weight: 800; color: #1f2329; }
+        .empty-desc { margin-top: 10px; font-size: 14px; line-height: 1.6; color: #86909c; }
+        .action-stack { margin-top: 24px; display: grid; gap: 10px; }
+        .btn {
+            height: 50px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700;
+        }
+        .btn.primary { background: linear-gradient(135deg, #165dff, #4096ff); color: #fff; }
+        .btn.ghost { background: #fff; color: #165dff; border: 1px solid #d6e4ff; }
+        .bottom-nav {
+            position: absolute; left: 0; right: 0; bottom: 0; height: 80px; background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(14px); border-top: 1px solid #e5e6eb; display: flex; justify-content: space-around; padding-top: 8px;
+        }
+        .nav-item { text-align: center; font-size: 11px; color: #86909c; }
+        .nav-item.active { color: #165dff; font-weight: 700; }
+        .nav-icon { font-size: 22px; margin-bottom: 4px; }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>书架空态</h1>
+            <p>补充“书架”模块在无书数据下的落地状态，重点是明确下一步操作，而不是只给一个空提示。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="status-bar"><span>9:41</span><span>5G 100%</span></div>
+                <div class="app-bar">
+                    <div class="app-bar-title">书架</div>
+                    <div class="icon-btn">⌕</div>
+                    <div class="icon-btn">＋</div>
+                </div>
+                <div class="filter-bar">
+                    <div class="chip active">全部</div>
+                    <div class="chip">最近阅读</div>
+                    <div class="chip">本地导入</div>
+                </div>
+                <div class="content-area">
+                    <div class="empty-wrap">
+                        <div class="empty-hero"><span>📚</span></div>
+                        <div class="empty-title">书架还没有书</div>
+                        <div class="empty-desc">空态设计直接给出两条主路径：去搜索在线书籍，或者导入本地文件，减少用户决策成本。</div>
+                        <div class="action-stack">
+                            <div class="btn primary">搜索在线书籍</div>
+                            <div class="btn ghost">导入本地书籍</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bottom-nav">
+                    <div class="nav-item active"><div class="nav-icon">📚</div>书架</div>
+                    <div class="nav-item"><div class="nav-icon">🔍</div>发现</div>
+                    <div class="nav-item"><div class="nav-icon">🎵</div>媒体</div>
+                    <div class="nav-item"><div class="nav-icon">👤</div>我的</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>主题设置 - Legado Flutter UI设计稿</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #1677ff;
+            --bg-color: #f7f8fa;
+            --card-bg: #ffffff;
+            --text-primary: #1f2329;
+            --text-secondary: #4e5969;
+            --text-hint: #86909c;
+            --divider: #e5e6eb;
+        }
+
+        body {
+            background: #1a1a2e;
+        }
+
+        .phone-frame {
+            width: 375px;
+            height: 812px;
+            background: var(--bg-color);
+            border-radius: 40px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .status-bar {
+            height: 44px;
+            background: var(--card-bg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            padding-top: 10px;
+        }
+
+        /* App Bar */
+        .app-bar {
+            background: var(--card-bg);
+            padding: 0 8px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--divider);
+        }
+
+        .back-btn {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--text-primary);
+        }
+
+        .app-bar-title {
+            flex: 1;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .app-bar-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .action-btn {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: var(--text-primary);
+        }
+
+        /* Content */
+        .content-area {
+            height: calc(100% - 44px - 56px - 80px);
+            overflow-y: auto;
+            background: var(--bg-color);
+            padding: 16px;
+        }
+
+        /* Theme Card */
+        .theme-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .theme-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+        }
+
+        .theme-preview {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            margin-right: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .theme-preview.gradient-1 {
+            background: linear-gradient(135deg, #4f7cff 0%, #7c5cff 100%);
+        }
+
+        .theme-preview.gradient-2 {
+            background: linear-gradient(135deg, #fb7185 0%, #ff7aa5 100%);
+        }
+
+        .theme-preview.gradient-3 {
+            background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+        }
+
+        .theme-preview.gradient-4 {
+            background: linear-gradient(135deg, #34d399 0%, #14b8a6 100%);
+        }
+
+        .theme-preview.gradient-5 {
+            background: linear-gradient(135deg, #FA8BFF 0%, #2BD2FF 52%, #2BD2FF 100%);
+        }
+
+        .theme-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .theme-name {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .theme-type {
+            font-size: 12px;
+            color: var(--text-hint);
+        }
+
+        .theme-menu {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-hint);
+            font-size: 20px;
+        }
+
+        /* Color Preview Row */
+        .color-row {
+            display: flex;
+            gap: 4px;
+            padding: 0 16px 14px;
+        }
+
+        .color-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-text {
+            font-size: 16px;
+            color: var(--text-hint);
+            margin-bottom: 16px;
+        }
+
+        .empty-btn {
+            padding: 10px 24px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        /* FAB */
+        .fab {
+            position: absolute;
+            bottom: 96px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #4f7cff 0%, #7c5cff 100%);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-around;
+            padding-top: 8px;
+            border-top: 1px solid var(--divider);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .nav-icon {
+            font-size: 24px;
+            color: var(--text-hint);
+        }
+
+        .nav-item.active .nav-icon {
+            color: var(--primary-color);
+        }
+
+        .nav-label {
+            font-size: 11px;
+            color: var(--text-hint);
+        }
+
+        .nav-item.active .nav-label {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        /* Dark Mode */
+        .phone-frame.dark {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-primary: #E0E0E0;
+            --text-secondary: #A0A0A0;
+            --text-hint: #4e5969;
+            --divider: #1f2329;
+        }
+
+        .phone-frame.dark .app-bar,
+        .phone-frame.dark .status-bar {
+            background: var(--card-bg);
+        }
+
+        .phone-frame.dark .bottom-nav {
+            background: rgba(30,30,30,0.95);
+        }
+
+        .phone-frame.dark .fab {
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.6);
+        }
+
+        .label {
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+
+        /* Popup Menu */
+        .popup-overlay {
+            position: absolute;
+            top: 200px;
+            right: 16px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            padding: 8px 0;
+            min-width: 140px;
+            z-index: 200;
+        }
+
+        .popup-item {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .popup-item.danger {
+            color: #F5222D;
+        }
+
+        .popup-divider {
+            height: 1px;
+            background: var(--divider);
+            margin: 4px 0;
+        }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>🎨 主题设置 - Theme Settings</h1>
+            <p>Legado Flutter UI设计稿 | 自定义主题配色</p>
+        </div>
+
+        <div class="phones-container">
+            <!-- 主题列表 - 日间模式 -->
+            <div>
+                <div class="phone-frame">
+                    <div class="status-bar">
+                        <span>9:41</span>
+                        <span>📶 🔋</span>
+                    </div>
+
+                    <div class="app-bar">
+                        <div class="back-btn">‹</div>
+                        <div class="app-bar-title">主题设置</div>
+                        <div class="app-bar-actions">
+                            <div class="action-btn">+</div>
+                            <div class="action-btn">☰</div>
+                        </div>
+                    </div>
+
+                    <div class="content-area">
+                        <div class="theme-card">
+                            <div class="theme-item">
+                                <div class="theme-preview gradient-1">🎨</div>
+                                <div class="theme-info">
+                                    <div class="theme-name">默认紫蓝</div>
+                                    <div class="theme-type">浅色主题</div>
+                                </div>
+                                <div class="theme-menu">⋮</div>
+                            </div>
+                            <div class="color-row">
+                                <div class="color-dot" style="background: #4f7cff;"></div>
+                                <div class="color-dot" style="background: #7c5cff;"></div>
+                                <div class="color-dot" style="background: #ffffff;"></div>
+                                <div class="color-dot" style="background: #f7f8fa;"></div>
+                            </div>
+                        </div>
+
+                        <div class="theme-card">
+                            <div class="theme-item">
+                                <div class="theme-preview gradient-2">🎨</div>
+                                <div class="theme-info">
+                                    <div class="theme-name">粉红少女</div>
+                                    <div class="theme-type">浅色主题</div>
+                                </div>
+                                <div class="theme-menu">⋮</div>
+                            </div>
+                            <div class="color-row">
+                                <div class="color-dot" style="background: #fb7185;"></div>
+                                <div class="color-dot" style="background: #ff7aa5;"></div>
+                                <div class="color-dot" style="background: #ffffff;"></div>
+                                <div class="color-dot" style="background: #fff5f5;"></div>
+                            </div>
+                        </div>
+
+                        <div class="theme-card">
+                            <div class="theme-item">
+                                <div class="theme-preview gradient-3">🎨</div>
+                                <div class="theme-info">
+                                    <div class="theme-name">清新蓝绿</div>
+                                    <div class="theme-type">浅色主题</div>
+                                </div>
+                                <div class="theme-menu">⋮</div>
+                            </div>
+                            <div class="color-row">
+                                <div class="color-dot" style="background: #38bdf8;"></div>
+                                <div class="color-dot" style="background: #0ea5e9;"></div>
+                                <div class="color-dot" style="background: #ffffff;"></div>
+                                <div class="color-dot" style="background: #f0fdff;"></div>
+                            </div>
+                        </div>
+
+                        <div class="theme-card">
+                            <div class="theme-item">
+                                <div class="theme-preview gradient-4">🌙</div>
+                                <div class="theme-info">
+                                    <div class="theme-name">暗夜模式</div>
+                                    <div class="theme-type">深色主题</div>
+                                </div>
+                                <div class="theme-menu">⋮</div>
+                            </div>
+                            <div class="color-row">
+                                <div class="color-dot" style="background: #34d399;"></div>
+                                <div class="color-dot" style="background: #14b8a6;"></div>
+                                <div class="color-dot" style="background: #1e1e1e;"></div>
+                                <div class="color-dot" style="background: #121212;"></div>
+                            </div>
+                        </div>
+
+                        <div class="theme-card">
+                            <div class="theme-item">
+                                <div class="theme-preview gradient-5">🎨</div>
+                                <div class="theme-info">
+                                    <div class="theme-name">渐变梦幻</div>
+                                    <div class="theme-type">浅色主题</div>
+                                </div>
+                                <div class="theme-menu">⋮</div>
+                            </div>
+                            <div class="color-row">
+                                <div class="color-dot" style="background: #FA8BFF;"></div>
+                                <div class="color-dot" style="background: #2BD2FF;"></div>
+                                <div class="color-dot" style="background: #ffffff;"></div>
+                                <div class="color-dot" style="background: #f7f8fa;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="fab">+</div>
+
+                    <div class="bottom-nav">
+                        <div class="nav-item">
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">书架</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🔍</span>
+                            <span class="nav-label">发现</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🎬</span>
+                            <span class="nav-label">媒体</span>
+                        </div>
+                        <div class="nav-item active">
+                            <span class="nav-icon">👤</span>
+                            <span class="nav-label">我的</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="label">主题列表（日间模式）</p>
+            </div>
+
+            <!-- 夜间模式 + 菜单 -->
+            <div>
+                <div class="phone-frame dark">
+                    <div class="status-bar">
+                        <span>9:41</span>
+                        <span>📶 🔋</span>
+                    </div>
+
+                    <div class="app-bar">
+                        <div class="back-btn">‹</div>
+                        <div class="app-bar-title">主题设置</div>
+                        <div class="app-bar-actions">
+                            <div class="action-btn">+</div>
+                            <div class="action-btn">☰</div>
+                        </div>
+                    </div>
+
+                    <div class="content-area">
+                        <div class="theme-card">
+                            <div class="theme-item">
+                                <div class="theme-preview gradient-1">🎨</div>
+                                <div class="theme-info">
+                                    <div class="theme-name">默认紫蓝</div>
+                                    <div class="theme-type">浅色主题</div>
+                                </div>
+                                <div class="theme-menu">⋮</div>
+                            </div>
+                            <div class="color-row">
+                                <div class="color-dot" style="background: #4f7cff;"></div>
+                                <div class="color-dot" style="background: #7c5cff;"></div>
+                                <div class="color-dot" style="background: #ffffff;"></div>
+                                <div class="color-dot" style="background: #f7f8fa;"></div>
+                            </div>
+                        </div>
+
+                        <div class="theme-card">
+                            <div class="theme-item">
+                                <div class="theme-preview gradient-4">🌙</div>
+                                <div class="theme-info">
+                                    <div class="theme-name">暗夜模式</div>
+                                    <div class="theme-type">深色主题</div>
+                                </div>
+                                <div class="theme-menu">⋮</div>
+                            </div>
+                            <div class="color-row">
+                                <div class="color-dot" style="background: #34d399;"></div>
+                                <div class="color-dot" style="background: #14b8a6;"></div>
+                                <div class="color-dot" style="background: #1e1e1e;"></div>
+                                <div class="color-dot" style="background: #121212;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Popup Menu -->
+                    <div class="popup-overlay">
+                        <div class="popup-item">✅ 应用</div>
+                        <div class="popup-item">✏️ 编辑</div>
+                        <div class="popup-item">📤 分享</div>
+                        <div class="popup-divider"></div>
+                        <div class="popup-item danger">🗑️ 删除</div>
+                    </div>
+
+                    <div class="fab">+</div>
+
+                    <div class="bottom-nav">
+                        <div class="nav-item">
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-label">书架</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🔍</span>
+                            <span class="nav-label">发现</span>
+                        </div>
+                        <div class="nav-item">
+                            <span class="nav-icon">🎬</span>
+                            <span class="nav-label">媒体</span>
+                        </div>
+                        <div class="nav-item active">
+                            <span class="nav-icon">👤</span>
+                            <span class="nav-label">我的</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="label">主题列表 + 菜单（夜间模式）</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

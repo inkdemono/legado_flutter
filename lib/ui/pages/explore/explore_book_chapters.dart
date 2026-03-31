@@ -3,6 +3,7 @@ import '../../../data/models/book.dart';
 import '../../../data/models/book_chapter.dart';
 import '../../../data/models/book_source.dart';
 import '../../../services/book/book_service.dart';
+import '../../../utils/app_log.dart';
 import '../reader/chapter_list_page.dart';
 import 'explore_book_reader_page.dart';
 
@@ -45,6 +46,11 @@ class _ExploreBookChaptersPageState extends State<ExploreBookChaptersPage> {
       final chapters = await BookService.instance.getChapterListWithoutSave(
         widget.book,
       );
+
+      AppLog.instance.put('ExploreBookChaptersPage: 获取到 ${chapters.length} 个章节');
+      if (chapters.isNotEmpty) {
+        AppLog.instance.put('ExploreBookChaptersPage: 第一章=${chapters.first.title}, 最后一章=${chapters.last.title}');
+      }
 
       if (mounted) {
         setState(() {
@@ -158,6 +164,7 @@ class _ExploreBookChaptersPageState extends State<ExploreBookChaptersPage> {
     }
 
     // 使用统一的 ChapterListPage 显示目录
+    AppLog.instance.put('ExploreBookChaptersPage: 准备跳转到ChapterListPage, _chapters.length=${_chapters.length}');
     return ChapterListPage(
       chapters: _chapters,
       currentChapterIndex: widget.book.durChapterIndex >= 0 &&

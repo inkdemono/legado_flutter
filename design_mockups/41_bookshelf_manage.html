@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>书架管理 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #f6f8fb;
+            --card: #ffffff;
+            --text: #1f2329;
+            --sub: #4e5969;
+            --hint: #86909c;
+            --line: #e5e6eb;
+            --primary: #165dff;
+            --danger: #f53f3f;
+            --soft: #edf4ff;
+        }
+        body { background: linear-gradient(135deg, #0f1720, #1c2a3f 62%); }
+        .phone-frame {
+            background:
+                radial-gradient(circle at top, rgba(22,93,255,0.10), transparent 26%),
+                linear-gradient(180deg, #fafdff, var(--bg));
+        }
+        .status-bar, .app-bar { background: rgba(255,255,255,0.95); display: flex; align-items: center; }
+        .status-bar {
+            height: 44px; justify-content: space-between; padding: 10px 24px 0;
+            font-size: 14px; font-weight: 600; color: var(--text);
+        }
+        .app-bar {
+            height: 56px; padding: 0 12px; border-bottom: 1px solid var(--line);
+        }
+        .icon-btn {
+            width: 40px; height: 40px; border-radius: 20px;
+            display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--text);
+        }
+        .app-bar-title { flex: 1; font-size: 18px; font-weight: 700; color: var(--text); }
+        .toolbar {
+            padding: 12px 16px 10px; background: rgba(255,255,255,0.9); border-bottom: 1px solid var(--line);
+        }
+        .search-row { display: flex; gap: 10px; }
+        .search-box {
+            flex: 1; height: 44px; border-radius: 16px; border: 1px solid #edf0f4;
+            background: #f7f9fc; display: flex; align-items: center; padding: 0 14px; gap: 8px; color: var(--hint); font-size: 14px;
+        }
+        .select-toggle {
+            width: 44px; height: 44px; border-radius: 16px; background: var(--soft); color: var(--primary);
+            display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700;
+        }
+        .content-area {
+            height: calc(100% - 44px - 56px - 67px - 92px);
+            overflow-y: auto; padding: 14px 12px 0;
+        }
+        .batch-bar {
+            margin-bottom: 12px; padding: 14px; border-radius: 22px;
+            background: linear-gradient(135deg, #eef4ff, #f7faff);
+            border: 1px solid #d6e4ff;
+        }
+        .batch-top {
+            display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+        }
+        .batch-title { font-size: 15px; font-weight: 800; color: var(--text); }
+        .batch-meta { font-size: 12px; color: var(--primary); }
+        .batch-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .batch-action {
+            padding: 10px 0; text-align: center; border-radius: 14px; background: #fff; color: var(--sub); font-size: 12px;
+        }
+        .batch-action.danger { color: var(--danger); background: #fff6f5; }
+        .book-card {
+            display: flex; align-items: center; gap: 12px; padding: 12px; margin-bottom: 10px; border-radius: 22px;
+            background: var(--card); box-shadow: 0 8px 24px rgba(15,23,32,0.05);
+        }
+        .check {
+            width: 22px; height: 22px; border-radius: 50%; border: 2px solid #c9cdd4; flex-shrink: 0;
+        }
+        .check.active { background: var(--primary); border-color: var(--primary); box-shadow: inset 0 0 0 4px #fff; }
+        .cover {
+            width: 52px; height: 74px; border-radius: 14px; flex-shrink: 0;
+            background: linear-gradient(160deg, #5677f0, #2944b4);
+        }
+        .cover.c2 { background: linear-gradient(160deg, #ff9a62, #d85f29); }
+        .cover.c3 { background: linear-gradient(160deg, #42b893, #1e7a67); }
+        .book-info { flex: 1; min-width: 0; }
+        .book-title { font-size: 15px; font-weight: 800; color: var(--text); }
+        .book-sub { margin-top: 4px; font-size: 12px; color: var(--sub); }
+        .book-meta { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .meta {
+            padding: 4px 8px; border-radius: 999px; background: #f2f3f5; color: var(--hint); font-size: 11px;
+        }
+        .more { color: #b8bec8; font-size: 18px; }
+        .bottom-bar {
+            position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 14px 22px;
+            background: rgba(255,255,255,0.96); border-top: 1px solid var(--line); backdrop-filter: blur(16px);
+        }
+        .bottom-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .bottom-item { text-align: center; font-size: 11px; color: var(--sub); }
+        .bottom-icon {
+            width: 46px; height: 46px; margin: 0 auto 6px; border-radius: 16px; background: #f4f7ff;
+            display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 18px;
+        }
+        .bottom-icon.danger { background: #fff2f0; color: var(--danger); }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>书架管理</h1>
+            <p>补充真实功能中的书架管理弹层，把筛选、批量选择、移动分组和清除缓存串成更完整的管理流。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="status-bar"><span>9:41</span><span>5G 100%</span></div>
+                <div class="app-bar">
+                    <div class="icon-btn">‹</div>
+                    <div class="app-bar-title">书架管理</div>
+                    <div class="icon-btn">✕</div>
+                </div>
+                <div class="toolbar">
+                    <div class="search-row">
+                        <div class="search-box">⌕ 筛选 • 科幻分组</div>
+                        <div class="select-toggle">☑</div>
+                    </div>
+                </div>
+                <div class="content-area">
+                    <div class="batch-bar">
+                        <div class="batch-top">
+                            <div class="batch-title">已选择 3 项</div>
+                            <div class="batch-meta">取消选择</div>
+                        </div>
+                        <div class="batch-actions">
+                            <div class="batch-action">移动分组</div>
+                            <div class="batch-action">清除缓存</div>
+                            <div class="batch-action danger">删除</div>
+                        </div>
+                    </div>
+
+                    <div class="book-card">
+                        <div class="check active"></div>
+                        <div class="cover"></div>
+                        <div class="book-info">
+                            <div class="book-title">三体</div>
+                            <div class="book-sub">刘慈欣 · 已读至 第 89 章</div>
+                            <div class="book-meta">
+                                <span class="meta">科幻</span>
+                                <span class="meta">缓存 42 章</span>
+                                <span class="meta">可更新</span>
+                            </div>
+                        </div>
+                        <div class="more">⋯</div>
+                    </div>
+
+                    <div class="book-card">
+                        <div class="check active"></div>
+                        <div class="cover c2"></div>
+                        <div class="book-info">
+                            <div class="book-title">银河帝国</div>
+                            <div class="book-sub">阿西莫夫 · 上次更新 今天 07:14</div>
+                            <div class="book-meta">
+                                <span class="meta">系列</span>
+                                <span class="meta">待整理</span>
+                            </div>
+                        </div>
+                        <div class="more">⋯</div>
+                    </div>
+
+                    <div class="book-card">
+                        <div class="check active"></div>
+                        <div class="cover c3"></div>
+                        <div class="book-info">
+                            <div class="book-title">沙丘</div>
+                            <div class="book-sub">Frank Herbert · 最近阅读 2 天前</div>
+                            <div class="book-meta">
+                                <span class="meta">史诗</span>
+                                <span class="meta">本地书</span>
+                            </div>
+                        </div>
+                        <div class="more">⋯</div>
+                    </div>
+
+                    <div class="book-card">
+                        <div class="check"></div>
+                        <div class="cover"></div>
+                        <div class="book-info">
+                            <div class="book-title">海伯利安</div>
+                            <div class="book-sub">丹·西蒙斯 · 未读</div>
+                            <div class="book-meta">
+                                <span class="meta">长篇</span>
+                                <span class="meta">未缓存</span>
+                            </div>
+                        </div>
+                        <div class="more">⋯</div>
+                    </div>
+                </div>
+
+                <div class="bottom-bar">
+                    <div class="bottom-grid">
+                        <div class="bottom-item">
+                            <div class="bottom-icon">⇄</div>
+                            移动
+                        </div>
+                        <div class="bottom-item">
+                            <div class="bottom-icon">⟳</div>
+                            刷新
+                        </div>
+                        <div class="bottom-item">
+                            <div class="bottom-icon">⊘</div>
+                            缓存
+                        </div>
+                        <div class="bottom-item">
+                            <div class="bottom-icon danger">🗑</div>
+                            删除
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

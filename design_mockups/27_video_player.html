@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频播放器 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #06070a, #141b24 55%, #0f2436);
+        }
+        .phone-frame {
+            width: 375px; height: 812px; border-radius: 40px; overflow: hidden; position: relative; background: #000;
+            box-shadow: 0 26px 60px rgba(0,0,0,0.4);
+        }
+        .status-bar {
+            position: absolute; top: 0; left: 0; right: 0; height: 44px;
+            display: flex; align-items: center; justify-content: space-between; padding: 10px 24px 0; z-index: 30;
+            color: #fff; font-size: 14px; font-weight: 600;
+        }
+        .video-scene {
+            position: absolute; inset: 0;
+            background:
+                radial-gradient(circle at 60% 40%, rgba(63,131,248,0.38), transparent 24%),
+                linear-gradient(140deg, #121318, #1f2b3b 40%, #0d1016 100%);
+        }
+        .video-scene::after {
+            content: ""; position: absolute; inset: 0;
+            background: linear-gradient(180deg, rgba(0,0,0,0.48), transparent 22%, transparent 72%, rgba(0,0,0,0.7));
+        }
+        .top-overlay, .bottom-overlay {
+            position: absolute; left: 0; right: 0; z-index: 20; color: #fff;
+        }
+        .top-overlay { top: 44px; padding: 14px 16px 0; }
+        .top-row {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .circle-btn {
+            width: 40px; height: 40px; border-radius: 20px;
+            display: flex; align-items: center; justify-content: center; font-size: 18px;
+            background: rgba(255,255,255,0.12); backdrop-filter: blur(12px);
+        }
+        .video-meta { flex: 1; min-width: 0; }
+        .video-title { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .video-sub { margin-top: 4px; font-size: 12px; color: rgba(255,255,255,0.72); }
+        .center-play {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 92px; height: 92px; border-radius: 50%; z-index: 15;
+            display: flex; align-items: center; justify-content: center; font-size: 34px;
+            background: rgba(255,255,255,0.14); color: #fff; backdrop-filter: blur(16px);
+            box-shadow: 0 18px 40px rgba(0,0,0,0.28);
+        }
+        .lock-btn {
+            position: absolute; left: 18px; top: 50%; transform: translateY(-50%);
+            width: 44px; height: 44px; border-radius: 22px; z-index: 18;
+            display: flex; align-items: center; justify-content: center; color: #fff;
+            background: rgba(255,255,255,0.12); backdrop-filter: blur(12px);
+        }
+        .bottom-overlay { bottom: 0; padding: 0 16px 24px; }
+        .timeline-card {
+            padding: 14px 14px 16px; border-radius: 24px;
+            background: rgba(10,12,18,0.52); backdrop-filter: blur(16px);
+        }
+        .progress-line {
+            height: 6px; border-radius: 999px; background: rgba(255,255,255,0.18); overflow: hidden;
+        }
+        .progress-fill {
+            width: 36%; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #38bdf8, #818cf8);
+        }
+        .time-row {
+            margin-top: 10px; display: flex; align-items: center; justify-content: space-between;
+            color: rgba(255,255,255,0.76); font-size: 12px;
+        }
+        .control-row {
+            margin-top: 16px; display: flex; align-items: center; justify-content: space-between;
+        }
+        .left-controls, .right-controls { display: flex; align-items: center; gap: 10px; }
+        .text-chip {
+            padding: 8px 12px; border-radius: 999px; background: rgba(255,255,255,0.10); color: #fff; font-size: 12px;
+        }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>视频播放器</h1>
+            <p>补充“媒体”模块的视频播放页，保留锁定、倍速、比例等入口，并通过半透明控制层突出视频本身。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="status-bar"><span>9:41</span><span>5G 100%</span></div>
+                <div class="video-scene"></div>
+
+                <div class="top-overlay">
+                    <div class="top-row">
+                        <div class="circle-btn">‹</div>
+                        <div class="video-meta">
+                            <div class="video-title">Planet Earth II - Mountains</div>
+                            <div class="video-sub">本地视频 · 1080P · 杜比音轨</div>
+                        </div>
+                        <div class="circle-btn">↗</div>
+                        <div class="circle-btn">⋯</div>
+                    </div>
+                </div>
+
+                <div class="lock-btn">🔒</div>
+                <div class="center-play">⏸</div>
+
+                <div class="bottom-overlay">
+                    <div class="timeline-card">
+                        <div class="progress-line"><div class="progress-fill"></div></div>
+                        <div class="time-row">
+                            <span>12:48</span>
+                            <span>35:21</span>
+                        </div>
+                        <div class="control-row">
+                            <div class="left-controls">
+                                <div class="circle-btn">⏮</div>
+                                <div class="circle-btn">⏯</div>
+                                <div class="circle-btn">⏭</div>
+                            </div>
+                            <div class="right-controls">
+                                <div class="text-chip">1.25×</div>
+                                <div class="text-chip">16:9</div>
+                                <div class="circle-btn">⛶</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

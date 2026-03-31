@@ -201,6 +201,9 @@ class AsyncSearchService {
 
         // 3. 获取响应文本
         final html = await NetworkService.getResponseText(response);
+        AppLog.instance.put(
+          'AsyncSearchService: 响应状态码=${response.statusCode}, 书源=${source.bookSourceName}, 内容长度=${html.length}',
+        );
 
         if (html.isEmpty) {
           AppLog.instance
@@ -232,7 +235,7 @@ class AsyncSearchService {
         final results = <SearchResult>[];
         for (final parsed in parsedResults) {
           try {
-            final book = _parseResultToBook(parsed, source, fullUrl);
+            final book = _parseResultToBook(parsed, source, fullUrl, html);
             if (book != null) {
               results.add(SearchResult(
                 book: book,
@@ -245,6 +248,10 @@ class AsyncSearchService {
             AppLog.instance.put('AsyncSearchService: 转换Book对象失败', error: e);
           }
         }
+
+        AppLog.instance.put(
+          'AsyncSearchService: 书籍列表解析完成, 书源=${source.bookSourceName}, 结果数=${results.length}',
+        );
 
         return results;
       });
@@ -310,6 +317,7 @@ class AsyncSearchService {
     Map<String, dynamic> parsed,
     BookSource source,
     String baseUrl,
+    String infoHtml,
   ) {
     final bookUrl = parsed['bookUrl'];
     if (bookUrl == null || bookUrl.isEmpty) {
@@ -321,6 +329,11 @@ class AsyncSearchService {
         bookUrl.startsWith('http://') || bookUrl.startsWith('https://')
             ? bookUrl
             : NetworkService.joinUrl(source.bookSourceUrl, bookUrl);
+    final rawCoverUrl = parsed['coverUrl'];
+    final finalCoverUrl =
+        rawCoverUrl != null && rawCoverUrl.toString().isNotEmpty
+            ? NetworkService.joinUrl(source.bookSourceUrl, rawCoverUrl)
+            : null;
 
     return Book(
       bookUrl: finalBookUrl,
@@ -330,10 +343,12 @@ class AsyncSearchService {
       name: parsed['name'] ?? '',
       author: parsed['author'] ?? '',
       kind: parsed['kind'],
-      coverUrl: parsed['coverUrl'],
+      coverUrl: finalCoverUrl,
       intro: parsed['intro'],
+      infoHtml: infoHtml,
       latestChapterTitle: parsed['lastChapter'],
       wordCount: parsed['wordCount'],
+      variable: parsed['variable'],
       type: source.bookSourceType,
       originOrder: source.customOrder,
     );

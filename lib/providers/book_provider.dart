@@ -1,7 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../domain/entities/book_entity.dart';
-import '../domain/entities/book_source_entity.dart';
-import '../domain/entities/chapter_entity.dart';
 import '../data/models/book.dart';
 import '../data/models/book_chapter.dart';
 import '../data/models/book_group.dart';

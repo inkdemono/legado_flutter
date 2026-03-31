@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>定时关闭 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --text: #1f2329;
+            --sub: #4e5969;
+            --hint: #86909c;
+            --primary: #ff7aa5;
+            --line: rgba(255,255,255,0.14);
+        }
+        body { background: linear-gradient(135deg, #151425, #3b2554 58%, #101827); }
+        .phone-frame {
+            background:
+                linear-gradient(180deg, rgba(0,0,0,0.28), rgba(0,0,0,0.52)),
+                linear-gradient(135deg, #ffe3ef, #e6ddff);
+        }
+        .sheet {
+            position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 16px 26px;
+            border-radius: 32px 32px 0 0; background: rgba(255,255,255,0.96); backdrop-filter: blur(16px);
+        }
+        .handle { width: 42px; height: 5px; border-radius: 999px; background: #d0d7e2; margin: 0 auto 18px; }
+        .title { font-size: 20px; font-weight: 800; color: var(--text); }
+        .sub { margin-top: 6px; font-size: 13px; color: var(--hint); line-height: 1.6; }
+        .grid {
+            margin-top: 22px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+        }
+        .chip {
+            height: 52px; border-radius: 18px; background: #f7f8fc; border: 1px solid #edf0f4;
+            display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--sub);
+        }
+        .chip.active { background: linear-gradient(135deg, #ff7aa5, #7c5cff); color: #fff; border-color: transparent; }
+        .status {
+            margin-top: 18px; padding: 14px; border-radius: 18px; background: #fff1f6; color: #b83f69;
+            font-size: 12px; line-height: 1.6;
+        }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>定时关闭</h1>
+            <p>补充“媒体”模块音乐播放器里的定时关闭弹层，聚焦时长选择和当前定时状态反馈。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="sheet">
+                    <div class="handle"></div>
+                    <div class="title">定时关闭</div>
+                    <div class="sub">设置播放时长后自动暂停，适合睡前或长时间背景播放场景。</div>
+                    <div class="grid">
+                        <div class="chip">关闭</div>
+                        <div class="chip">15 分钟</div>
+                        <div class="chip active">30 分钟</div>
+                        <div class="chip">45 分钟</div>
+                        <div class="chip">60 分钟</div>
+                        <div class="chip">90 分钟</div>
+                    </div>
+                    <div class="status">已设置 30 分钟后暂停播放。当前曲目播放结束后不会中断，下一次进入播放器时可继续调整。</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

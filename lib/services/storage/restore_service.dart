@@ -6,7 +6,6 @@ import '../../core/base/base_service.dart';
 import '../../data/models/book.dart';
 import '../../data/models/bookmark.dart';
 import '../../data/models/book_group.dart';
-import '../../data/models/book_source.dart';
 import '../../data/models/replace_rule.dart';
 import '../../data/models/dict_rule.dart';
 import '../../data/models/txt_toc_rule.dart';
@@ -352,4 +351,3 @@ class RestoreService extends BaseService {
     }
   }
 }
-

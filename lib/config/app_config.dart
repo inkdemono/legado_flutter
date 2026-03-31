@@ -4,60 +4,105 @@ import '../core/constants/prefer_key.dart';
 /// 应用配置管理
 /// 参考项目：io.legado.app.help.Prefer
 class AppConfig {
-  static late SharedPreferences _prefs;
+  static SharedPreferences? _prefs;
+  static bool _initialized = false;
+  static bool _initializing = false;
 
+  /// 初始化状态
+  static bool get isInitialized => _initialized;
+
+  /// 异步初始化（非阻塞）
   static Future<void> init() async {
+    if (_initialized || _initializing) return;
+    _initializing = true;
     _prefs = await SharedPreferences.getInstance();
+    _initialized = true;
+    _initializing = false;
+  }
+
+  /// 启动时预加载（不阻塞）
+  static void preload() {
+    if (_initialized || _initializing) return;
+    _initializing = true;
+    SharedPreferences.getInstance().then((prefs) {
+      _prefs = prefs;
+      _initialized = true;
+      _initializing = false;
+    }).catchError((e) {
+      _initializing = false;
+    });
   }
 
   // 获取字符串
   static String getString(String key, {String defaultValue = ''}) {
-    return _prefs.getString(key) ?? defaultValue;
+    if (!_initialized || _prefs == null) return defaultValue;
+    return _prefs!.getString(key) ?? defaultValue;
   }
 
   // 设置字符串
-  static Future<bool> setString(String key, String value) {
-    return _prefs.setString(key, value);
+  static Future<bool> setString(String key, String value) async {
+    if (!_initialized || _prefs == null) {
+      await init();
+      if (_prefs == null) return false;
+    }
+    return _prefs!.setString(key, value);
   }
 
   // 获取整数
   static int getInt(String key, {int defaultValue = 0}) {
-    return _prefs.getInt(key) ?? defaultValue;
+    if (!_initialized || _prefs == null) return defaultValue;
+    return _prefs!.getInt(key) ?? defaultValue;
   }
 
   // 设置整数
-  static Future<bool> setInt(String key, int value) {
-    return _prefs.setInt(key, value);
+  static Future<bool> setInt(String key, int value) async {
+    if (!_initialized || _prefs == null) {
+      await init();
+      if (_prefs == null) return false;
+    }
+    return _prefs!.setInt(key, value);
   }
 
   // 获取布尔值
   static bool getBool(String key, {bool defaultValue = false}) {
-    return _prefs.getBool(key) ?? defaultValue;
+    if (!_initialized || _prefs == null) return defaultValue;
+    return _prefs!.getBool(key) ?? defaultValue;
   }
 
   // 设置布尔值
-  static Future<bool> setBool(String key, bool value) {
-    return _prefs.setBool(key, value);
+  static Future<bool> setBool(String key, bool value) async {
+    if (!_initialized || _prefs == null) {
+      await init();
+      if (_prefs == null) return false;
+    }
+    return _prefs!.setBool(key, value);
   }
 
   // 获取双精度浮点数
   static double getDouble(String key, {double defaultValue = 0.0}) {
-    return _prefs.getDouble(key) ?? defaultValue;
+    if (!_initialized || _prefs == null) return defaultValue;
+    return _prefs!.getDouble(key) ?? defaultValue;
   }
 
   // 设置双精度浮点数
-  static Future<bool> setDouble(String key, double value) {
-    return _prefs.setDouble(key, value);
+  static Future<bool> setDouble(String key, double value) async {
+    if (!_initialized || _prefs == null) {
+      await init();
+      if (_prefs == null) return false;
+    }
+    return _prefs!.setDouble(key, value);
   }
 
   // 删除
-  static Future<bool> remove(String key) {
-    return _prefs.remove(key);
+  static Future<bool> remove(String key) async {
+    if (!_initialized || _prefs == null) return false;
+    return _prefs!.remove(key);
   }
 
   // 清空
-  static Future<bool> clear() {
-    return _prefs.clear();
+  static Future<bool> clear() async {
+    if (!_initialized || _prefs == null) return false;
+    return _prefs!.clear();
   }
 
   // ========== 书架相关配置 ==========

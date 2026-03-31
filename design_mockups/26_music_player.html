@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音乐播放器 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background:
+                radial-gradient(circle at 20% 0%, rgba(255,120,180,0.25), transparent 24%),
+                radial-gradient(circle at 80% 0%, rgba(84,160,255,0.24), transparent 24%),
+                linear-gradient(135deg, #140c22, #080b14 70%);
+        }
+        .phone-frame {
+            width: 375px; height: 812px; border-radius: 40px; overflow: hidden; position: relative;
+            box-shadow: 0 26px 60px rgba(0,0,0,0.38);
+            background:
+                radial-gradient(circle at top left, rgba(255,255,255,0.18), transparent 28%),
+                linear-gradient(180deg, #ff7aa5, #7c5cff 42%, #181c3b 100%);
+        }
+        .status-bar, .app-bar { display: flex; align-items: center; color: #fff; }
+        .status-bar { height: 44px; justify-content: space-between; padding: 10px 24px 0; font-size: 14px; font-weight: 600; }
+        .app-bar { height: 56px; padding: 0 14px; }
+        .icon-btn {
+            width: 40px; height: 40px; border-radius: 20px; display: flex; align-items: center; justify-content: center;
+            font-size: 18px; background: rgba(255,255,255,0.12); backdrop-filter: blur(10px);
+        }
+        .app-bar-title { flex: 1; text-align: center; font-size: 18px; font-weight: 700; }
+        .content-area { height: calc(100% - 44px - 56px); padding: 18px 24px 32px; }
+        .vinyl-wrap {
+            width: 280px; height: 280px; margin: 10px auto 28px; border-radius: 50%;
+            background:
+                radial-gradient(circle, #1e1e1e 0 15%, #111 15% 21%, #232323 21% 36%, #161616 36% 47%, #242424 47% 60%, #111 60% 100%);
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 18px 42px rgba(9,10,26,0.35);
+        }
+        .album-core {
+            width: 108px; height: 108px; border-radius: 50%;
+            background: linear-gradient(135deg, #ffd36f, #ff7f50);
+            display: flex; align-items: center; justify-content: center; color: #fff; font-size: 34px; font-weight: 700;
+            box-shadow: 0 0 0 14px rgba(255,255,255,0.08);
+        }
+        .track-title { font-size: 28px; font-weight: 800; color: #fff; text-align: center; }
+        .track-sub { margin-top: 8px; font-size: 14px; color: rgba(255,255,255,0.74); text-align: center; }
+        .lyrics-tip {
+            margin: 22px auto 18px; padding: 12px 16px; border-radius: 18px; max-width: 290px;
+            background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.82); font-size: 13px; text-align: center;
+            backdrop-filter: blur(12px);
+        }
+        .progress-wrap { margin-top: 22px; }
+        .progress-line {
+            height: 6px; border-radius: 999px; background: rgba(255,255,255,0.18); overflow: hidden;
+        }
+        .progress-fill {
+            width: 42%; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #ffd36f, #ffffff);
+        }
+        .progress-meta {
+            margin-top: 10px; display: flex; justify-content: space-between; color: rgba(255,255,255,0.72); font-size: 12px;
+        }
+        .control-row {
+            margin-top: 30px; display: flex; align-items: center; justify-content: center; gap: 20px;
+        }
+        .mini-btn, .play-btn {
+            border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff;
+            background: rgba(255,255,255,0.12); backdrop-filter: blur(12px);
+        }
+        .mini-btn { width: 52px; height: 52px; font-size: 18px; }
+        .play-btn {
+            width: 82px; height: 82px; font-size: 28px; background: linear-gradient(135deg, #fff, #ffd6e6); color: #6b3ce9;
+            box-shadow: 0 18px 32px rgba(255,255,255,0.22);
+        }
+        .bottom-tools {
+            margin-top: 34px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+        }
+        .tool {
+            text-align: center; color: rgba(255,255,255,0.78); font-size: 11px;
+        }
+        .tool-icon {
+            width: 48px; height: 48px; margin: 0 auto 8px; border-radius: 16px; background: rgba(255,255,255,0.10);
+            display: flex; align-items: center; justify-content: center; font-size: 18px; backdrop-filter: blur(12px);
+        }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>音乐播放器</h1>
+            <p>补充“媒体”模块中的核心播放页，强化专辑封面沉浸感，同时保留歌词、速度、定时等功能入口的位置。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="status-bar"><span>9:41</span><span>5G 100%</span></div>
+                <div class="app-bar">
+                    <div class="icon-btn">⌄</div>
+                    <div class="app-bar-title">正在播放</div>
+                    <div class="icon-btn">⋯</div>
+                </div>
+                <div class="content-area">
+                    <div class="vinyl-wrap">
+                        <div class="album-core">♫</div>
+                    </div>
+                    <div class="track-title">人间蜉蝣</div>
+                    <div class="track-sub">房东的猫 · 世界青年</div>
+                    <div class="lyrics-tip">歌词区可上滑展开，默认态不打断播放操作。</div>
+                    <div class="progress-wrap">
+                        <div class="progress-line"><div class="progress-fill"></div></div>
+                        <div class="progress-meta"><span>01:36</span><span>03:48</span></div>
+                    </div>
+                    <div class="control-row">
+                        <div class="mini-btn">⟲</div>
+                        <div class="mini-btn">⏮</div>
+                        <div class="play-btn">⏸</div>
+                        <div class="mini-btn">⏭</div>
+                        <div class="mini-btn">≋</div>
+                    </div>
+                    <div class="bottom-tools">
+                        <div class="tool">
+                            <div class="tool-icon">⏱</div>
+                            定时
+                        </div>
+                        <div class="tool">
+                            <div class="tool-icon">1.0×</div>
+                            倍速
+                        </div>
+                        <div class="tool">
+                            <div class="tool-icon">☰</div>
+                            歌词
+                        </div>
+                        <div class="tool">
+                            <div class="tool-icon">↗</div>
+                            分享
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

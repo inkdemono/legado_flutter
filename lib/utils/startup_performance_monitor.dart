@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as dev;
 import 'package:flutter/foundation.dart';
 
@@ -24,7 +25,7 @@ class StartupPerformanceMonitor {
       _durations[stage] = duration;
 
       if (kDebugMode) {
-        print('Startup Performance: $stage took ${duration.inMilliseconds}ms');
+        debugPrint('Startup Performance: $stage took ${duration.inMilliseconds}ms');
       }
 
       // 发送性能指标到开发者工具
@@ -33,6 +34,19 @@ class StartupPerformanceMonitor {
         name: 'startup.performance',
         level: 1000, // info level
       );
+    }
+  }
+
+  /// 计时一个同步或异步阶段。
+  Future<T> trackAsync<T>(
+    String stage,
+    FutureOr<T> Function() action,
+  ) async {
+    start(stage);
+    try {
+      return await action();
+    } finally {
+      end(stage);
     }
   }
 
@@ -50,11 +64,11 @@ class StartupPerformanceMonitor {
   void printAllDurations() {
     if (!kDebugMode) return;
 
-    print('\n=== 启动性能报告 ===');
+    debugPrint('\n=== 启动性能报告 ===');
     _durations.forEach((stage, duration) {
-      print('$stage: ${duration.inMilliseconds}ms');
+      debugPrint('$stage: ${duration.inMilliseconds}ms');
     });
-    print('==================\n');
+    debugPrint('==================\n');
   }
 
   /// 重置所有计时数据

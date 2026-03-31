@@ -1,120 +1,149 @@
 import 'package:flutter/material.dart';
+
+import '../../widgets/home/home_shell.dart';
 import 'book_manage_batch_actions.dart';
 
 /// 书籍管理操作栏
 class BookManageActionBar extends StatelessWidget {
   final int selectedCount;
   final int totalCount;
-  final VoidCallback onSelectAll;
+  final bool isAllSelected;
+  final VoidCallback onToggleSelectAll;
   final VoidCallback onClearSelection;
-  final Function(BatchAction) onBatchAction;
+  final ValueChanged<BatchAction> onBatchAction;
 
   const BookManageActionBar({
     super.key,
     required this.selectedCount,
     required this.totalCount,
-    required this.onSelectAll,
+    required this.isAllSelected,
+    required this.onToggleSelectAll,
     required this.onClearSelection,
     required this.onBatchAction,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isAllSelected = selectedCount == totalCount;
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer,
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.grey[300]!,
-            width: 1,
-          ),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFEDF3FF), Color(0xFFF7FAFF)],
         ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFD6E4FF)),
       ),
-      child: Row(
+      child: Column(
         children: [
-          // 全选按钮
-          TextButton.icon(
-            icon: Icon(isAllSelected ? Icons.check_box : Icons.check_box_outline_blank),
-            label: Text(isAllSelected ? '取消全选' : '全选'),
-            onPressed: onSelectAll,
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '已选择 $selectedCount / $totalCount 本',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: HomePalette.primaryText(context),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '批量移动、清理缓存、删除或调整更新策略',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: HomePalette.secondaryText(context),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: onToggleSelectAll,
+                child: Text(isAllSelected ? '取消全选' : '全选当前'),
+              ),
+            ],
           ),
-          const Spacer(),
-          // 选中数量
-          Text(
-            '已选择 $selectedCount / $totalCount',
-            style: theme.textTheme.bodySmall,
-          ),
-          const SizedBox(width: 8),
-          // 批量操作按钮
-          PopupMenuButton<BatchAction>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: onBatchAction,
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: BatchAction.moveToGroup,
-                child: Row(
-                  children: [
-                    Icon(Icons.drive_file_move, size: 20),
-                    SizedBox(width: 8),
-                    Text('移动到分组'),
-                  ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _ActionChip(
+                  label: '移动分组',
+                  icon: Icons.swap_horiz_rounded,
+                  onTap: () => onBatchAction(BatchAction.moveToGroup),
                 ),
               ),
-              const PopupMenuItem(
-                value: BatchAction.addToGroup,
-                child: Row(
-                  children: [
-                    Icon(Icons.folder_copy, size: 20),
-                    SizedBox(width: 8),
-                    Text('添加到分组'),
-                  ],
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ActionChip(
+                  label: '清理缓存',
+                  icon: Icons.layers_clear_rounded,
+                  onTap: () => onBatchAction(BatchAction.clearCache),
                 ),
               ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: BatchAction.enableUpdate,
-                child: Row(
-                  children: [
-                    Icon(Icons.update, size: 20),
-                    SizedBox(width: 8),
-                    Text('启用更新'),
-                  ],
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ActionChip(
+                  label: '删除',
+                  icon: Icons.delete_outline_rounded,
+                  danger: true,
+                  onTap: () => onBatchAction(BatchAction.delete),
                 ),
               ),
-              const PopupMenuItem(
-                value: BatchAction.disableUpdate,
-                child: Row(
-                  children: [
-                    Icon(Icons.update_disabled, size: 20),
-                    SizedBox(width: 8),
-                    Text('禁用更新'),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: BatchAction.clearCache,
-                child: Row(
-                  children: [
-                    Icon(Icons.storage, size: 20),
-                    SizedBox(width: 8),
-                    Text('清除缓存'),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: BatchAction.delete,
-                child: Row(
-                  children: [
-                    Icon(Icons.delete_outline, size: 20, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('删除', style: TextStyle(color: Colors.red)),
-                  ],
+              const SizedBox(width: 8),
+              PopupMenuButton<BatchAction>(
+                onSelected: onBatchAction,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18)),
+                color: HomePalette.card(context),
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: BatchAction.addToGroup,
+                    child: Row(
+                      children: [
+                        Icon(Icons.folder_copy_outlined, size: 20),
+                        SizedBox(width: 8),
+                        Text('添加到分组'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: BatchAction.enableUpdate,
+                    child: Row(
+                      children: [
+                        Icon(Icons.update_rounded, size: 20),
+                        SizedBox(width: 8),
+                        Text('启用更新'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: BatchAction.disableUpdate,
+                    child: Row(
+                      children: [
+                        Icon(Icons.update_disabled_rounded, size: 20),
+                        SizedBox(width: 8),
+                        Text('禁用更新'),
+                      ],
+                    ),
+                  ),
+                ],
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFDDE6F6)),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.more_horiz_rounded),
                 ),
               ),
             ],
@@ -125,3 +154,53 @@ class BookManageActionBar extends StatelessWidget {
   }
 }
 
+class _ActionChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool danger;
+  final VoidCallback onTap;
+
+  const _ActionChip({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.danger = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground =
+        danger ? const Color(0xFFF53F3F) : HomePalette.secondaryText(context);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          height: 44,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFDDE6F6)),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: foreground),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: foreground,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

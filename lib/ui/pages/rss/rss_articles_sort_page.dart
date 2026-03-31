@@ -20,7 +20,8 @@ class RssArticlesSortPage extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<RssArticlesSortPage> createState() => _RssArticlesSortPageState();
+  ConsumerState<RssArticlesSortPage> createState() =>
+      _RssArticlesSortPageState();
 }
 
 class _RssArticlesSortPageState extends ConsumerState<RssArticlesSortPage>
@@ -66,12 +67,12 @@ class _RssArticlesSortPageState extends ConsumerState<RssArticlesSortPage>
 
   Future<void> _clearSortCache() async {
     await widget.source.removeSortCache();
-    if (mounted) {
-      await _loadSortUrls();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已清除分类缓存')),
-      );
-    }
+    if (!mounted) return;
+    await _loadSortUrls();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('已清除分类缓存')),
+    );
   }
 
   @override
@@ -169,17 +170,21 @@ class _RssArticlesSortPageState extends ConsumerState<RssArticlesSortPage>
                 final article = articles[index];
                 return RssArticleItemWidget(
                   article: article,
+                  sourceName: widget.source.sourceName,
                   onTap: () {
-                    Navigator.of(context).push(
+                    Navigator.of(context)
+                        .push(
                       MaterialPageRoute(
                         builder: (context) => RssReadPage(
                           source: widget.source,
                           article: article,
                         ),
                       ),
-                    ).then((_) {
+                    )
+                        .then((_) {
                       ref.invalidate(
-                        FutureProvider.family<List<RssArticle>, Map<String, String>>(
+                        FutureProvider.family<List<RssArticle>,
+                            Map<String, String>>(
                           (ref, params) async {
                             return await RssParserService.instance.getArticles(
                               source: widget.source,
@@ -207,7 +212,8 @@ class _RssArticlesSortPageState extends ConsumerState<RssArticlesSortPage>
                 ElevatedButton(
                   onPressed: () {
                     ref.invalidate(
-                      FutureProvider.family<List<RssArticle>, Map<String, String>>(
+                      FutureProvider.family<List<RssArticle>,
+                          Map<String, String>>(
                         (ref, params) async {
                           return await RssParserService.instance.getArticles(
                             source: widget.source,
@@ -228,4 +234,3 @@ class _RssArticlesSortPageState extends ConsumerState<RssArticlesSortPage>
     );
   }
 }
-

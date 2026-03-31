@@ -1,17 +1,79 @@
 import 'dart:convert' show utf8, latin1;
 import 'dart:typed_data' show Uint8List;
-import 'dart:io' show HttpClient, X509Certificate;
+import 'dart:io' show HttpClient, X509Certificate, Directory, gzip, zlib;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:cookie_jar/cookie_jar.dart';
-import 'package:dio_cookie_manager/dio_cookie_manager.dart';
+// 使用自定义 SafeCookieManager 替代 dio_cookie_manager
 import 'package:charset_converter/charset_converter.dart';
 import '../../core/base/base_service.dart';
 import '../../utils/encoding_detect.dart';
 import '../../utils/utf8_bom_utils.dart';
 import '../../utils/network_utils.dart';
 import '../../utils/file_utils.dart';
+
+/// 安全的 CookieManager 包装器，捕获 Cookie 加载/保存错误
+class SafeCookieManager extends Interceptor {
+  final CookieJar cookieJar;
+  bool _hasError = false;
+
+  SafeCookieManager(this.cookieJar);
+
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    if (_hasError) {
+      // 如果之前有错误，跳过 Cookie 处理
+      handler.next(options);
+      return;
+    }
+
+    try {
+      cookieJar.loadForRequest(options.uri).then((cookies) {
+        options.headers['Cookie'] = _buildCookieString(cookies);
+        handler.next(options);
+      }).catchError((e) {
+        _hasError = true;
+        // 继续请求，不带 Cookie
+        handler.next(options);
+      });
+    } catch (e) {
+      _hasError = true;
+      handler.next(options);
+    }
+  }
+
+  @override
+  void onResponse(Response response, ResponseInterceptorHandler handler) {
+    if (!_hasError) {
+      try {
+        _saveCookies(response);
+      } catch (e) {
+        _hasError = true;
+      }
+    }
+    handler.next(response);
+  }
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    handler.next(err);
+  }
+
+  String _buildCookieString(List<Cookie> cookies) {
+    return cookies.map((cookie) => '${cookie.name}=${cookie.value}').join('; ');
+  }
+
+  void _saveCookies(Response response) {
+    final setCookie = response.headers['set-cookie'];
+    if (setCookie != null && setCookie.isNotEmpty) {
+      cookieJar.saveFromResponse(
+        response.requestOptions.uri,
+        setCookie.map((str) => Cookie.fromSetCookieValue(str)).toList(),
+      );
+    }
+  }
+}
 
 /// 网络请求错误类型
 enum NetworkErrorType {
@@ -51,25 +113,41 @@ class NetworkService extends BaseService {
     return await execute(
       action: () async {
         final initStopwatch = Stopwatch()..start();
-        
-        // Web平台使用内存Cookie存储
-        print('NetworkService: Check 1 - CookieJar init start');
+
         if (kIsWeb) {
           _cookieJar = CookieJar();
         } else {
           final appDocPath = await FileUtils.getDocumentsPath();
-          print('NetworkService: Check 1a - getDocumentsPath took ${initStopwatch.elapsedMilliseconds}ms');
           initStopwatch.reset();
-          
+
           final cookiePath = FileUtils.getPath(appDocPath, ['cookies']);
-          _cookieJar = PersistCookieJar(
-            storage: FileStorage(cookiePath),
-          );
-          print('NetworkService: Check 1b - PersistCookieJar init took ${initStopwatch.elapsedMilliseconds}ms');
+
+          // 确保 cookies 目录存在
+          bool usePersistentStorage = true;
+          try {
+            final cookieDir = Directory(cookiePath);
+            if (!await cookieDir.exists()) {
+              await cookieDir.create(recursive: true);
+            }
+          } catch (e) {
+            usePersistentStorage = false;
+          }
+
+          if (usePersistentStorage) {
+            try {
+              _cookieJar = PersistCookieJar(
+                storage: FileStorage(cookiePath),
+              );
+            } catch (e) {
+              _cookieJar = CookieJar();
+            }
+          } else {
+            // 如果创建目录失败，回退到内存存储
+            _cookieJar = CookieJar();
+          }
           initStopwatch.reset();
         }
 
-    print('NetworkService: Check 2 - Dio init start');
     _dio = Dio(
       BaseOptions(
         connectTimeout: const Duration(seconds: 15), // 参考项目使用15秒
@@ -81,7 +159,7 @@ class NetworkService extends BaseService {
           'Accept':
               'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
           'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-          'Accept-Encoding': 'gzip, deflate, br',
+          'Accept-Encoding': 'gzip, deflate',
           'Keep-Alive': '300',
           'Connection': 'Keep-Alive',
           'Cache-Control': 'no-cache',
@@ -94,11 +172,9 @@ class NetworkService extends BaseService {
         },
       ),
     );
-    print('NetworkService: Check 2 - Dio init took ${initStopwatch.elapsedMilliseconds}ms');
     initStopwatch.reset();
 
     // 配置HTTP客户端适配器（仅非Web平台）
-    print('NetworkService: Check 3 - HttpClientAdapter config start');
     if (!kIsWeb) {
       (_dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
         final client = HttpClient();
@@ -111,11 +187,14 @@ class NetworkService extends BaseService {
         return client;
       };
     }
-    print('NetworkService: Check 3 - HttpClientAdapter config took ${initStopwatch.elapsedMilliseconds}ms');
     initStopwatch.reset();
 
-        print('NetworkService: Check 4 - Interceptors config start');
-        _dio.interceptors.add(CookieManager(_cookieJar));
+        try {
+          // 使用安全的 CookieManager 包装器，捕获 Cookie 加载错误
+          _dio.interceptors.add(SafeCookieManager(_cookieJar));
+        } catch (e) {
+          // Silently continue without cookie persistence if the interceptor fails.
+        }
 
         // 错误拦截器
         _dio.interceptors.add(InterceptorsWrapper(
@@ -128,9 +207,6 @@ class NetworkService extends BaseService {
             ));
           },
         ));
-        print('NetworkService: Check 4 - Interceptors config took ${initStopwatch.elapsedMilliseconds}ms');
-        
-        print('NetworkService: Total init time: ${initStopwatch.elapsedMilliseconds}ms');
       },
       operationName: '初始化网络服务',
       logError: true,
@@ -425,6 +501,8 @@ class NetworkService extends BaseService {
       // 其他类型，尝试转换为字符串
       return data.toString();
     }
+
+    bytes = _decompressResponseBytes(bytes, response.headers);
     
     // 参考项目：Utf8BomUtils.removeUTF8BOM(bytes())
     // 移除 UTF-8 BOM 标记
@@ -577,6 +655,38 @@ class NetworkService extends BaseService {
         return String.fromCharCodes(responseBytes);
       }
     }
+  }
+
+  static List<int> _decompressResponseBytes(
+    List<int> bytes,
+    Headers headers,
+  ) {
+    final contentEncoding =
+        headers.value('content-encoding')?.toLowerCase().trim();
+
+    try {
+      if (contentEncoding == 'gzip' || _looksLikeGzip(bytes)) {
+        return gzip.decode(bytes);
+      }
+      if (contentEncoding == 'deflate' || _looksLikeZlib(bytes)) {
+        return zlib.decode(bytes);
+      }
+    } catch (_) {
+      // 解压失败时回退到原始字节，避免影响原本可读的响应。
+    }
+
+    return bytes;
+  }
+
+  static bool _looksLikeGzip(List<int> bytes) {
+    return bytes.length >= 2 && bytes[0] == 0x1f && bytes[1] == 0x8b;
+  }
+
+  static bool _looksLikeZlib(List<int> bytes) {
+    if (bytes.length < 2) return false;
+    final cmf = bytes[0];
+    final flg = bytes[1];
+    return cmf == 0x78 && ((cmf << 8) + flg) % 31 == 0;
   }
 
 }

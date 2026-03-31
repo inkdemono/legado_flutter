@@ -8,6 +8,7 @@ import '../../utils/parsers/html_parser.dart';
 import '../../utils/parsers/rule_parser.dart';
 import '../../utils/js_engine.dart';
 import '../../utils/js_extensions.dart';
+import '../../utils/helpers/book_extensions.dart';
 import '../network/network_service.dart';
 import '../source/book_source_service.dart';
 import '../../utils/app_log.dart';
@@ -19,6 +20,15 @@ class MangaService extends BaseService {
 
   final BookSourceService _bookSourceService = BookSourceService.instance;
   final NetworkService _networkService = NetworkService.instance;
+
+  String _repairChapterUrl(String url, Book book) {
+    final bid = '${book.variableMap['bid'] ?? ''}'.trim();
+    if (url.isEmpty || bid.isEmpty) return url;
+    return url.replaceAllMapped(
+      RegExp(r'([?&]comic_id=)(?:null)?(?=&|$)'),
+      (match) => '${match.group(1)}$bid',
+    );
+  }
 
   /// 获取章节图片列表
   /// 从章节内容中提取所有图片URL
@@ -35,17 +45,27 @@ class MangaService extends BaseService {
 
     try {
       // 发送请求
+      final chapterUrl = _repairChapterUrl(chapter.url, book);
       final response = await _networkService.get(
-        chapter.url,
+        chapterUrl,
         headers: NetworkService.parseHeaders(source.header),
         retryCount: 1,
       );
 
       final html = await NetworkService.getResponseText(response);
+      final effectiveBaseUrl = response.realUri.toString().isNotEmpty
+          ? response.realUri.toString()
+          : chapterUrl;
 
       // 提取图片URL（不清理HTML标签）
-      return await _extractImageUrls(
-          html, source.ruleContent!, source.bookSourceUrl);
+      final imageUrls = await _extractImageUrls(
+          html, source.ruleContent!, effectiveBaseUrl);
+      for (int i = 0; i < imageUrls.length; i++) {
+        AppLog.instance.put(
+          '漫画图片[${i + 1}/${imageUrls.length}]: ${imageUrls[i]}',
+        );
+      }
+      return imageUrls;
     } catch (e) {
       AppLog.instance.put('获取章节图片失败: ${chapter.title}', error: e);
       return [];
@@ -84,12 +104,43 @@ class MangaService extends BaseService {
         return imageUrls;
       }
 
-      // 2. 兼容旧规则：使用 content 容器 + img 标签提取
+      // 2. 优先按 Legado content 规则解析，兼容 JSONPath + @js 生成 <img> 标签
       if (rule.content == null || rule.content!.isEmpty) {
         return imageUrls;
       }
 
-      // 执行网页 JavaScript（如果有）
+      final parsedContent = await RuleParser.parseContentRule(
+        html,
+        rule,
+        baseUrl: baseUrl,
+        applyReplaceRegex: false,
+      );
+      if (parsedContent != null && parsedContent.isNotEmpty) {
+        final parsedDoc = html_parser.parse(parsedContent);
+        final parsedImages = parsedDoc.querySelectorAll('img');
+        if (parsedImages.isNotEmpty) {
+          for (final img in parsedImages) {
+            final src = img.attributes['src']?.trim();
+            if (src != null && src.isNotEmpty && !imageUrls.contains(src)) {
+              imageUrls.add(src);
+            }
+          }
+          if (imageUrls.isNotEmpty) {
+            return imageUrls;
+          }
+        }
+
+        final directUrls = parsedContent
+            .split(RegExp(r'\r?\n+'))
+            .map((item) => item.trim())
+            .where((item) => item.isNotEmpty)
+            .toList();
+        if (directUrls.isNotEmpty) {
+          return directUrls;
+        }
+      }
+
+      // 3. 兼容旧规则：使用 content 容器 + img 标签提取
       String processedHtml = html;
       if (rule.webJs != null && rule.webJs!.isNotEmpty) {
         try {

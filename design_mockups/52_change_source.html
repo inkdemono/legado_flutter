@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>换源弹窗 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #f7f8fc;
+            --card: #fff;
+            --text: #1f2329;
+            --sub: #4e5969;
+            --hint: #86909c;
+            --line: #e5e6eb;
+            --primary: #16a34a;
+            --accent: #1677ff;
+        }
+        body { background: linear-gradient(135deg, #111923, #1a2f3f 60%, #0f172a); }
+        .phone-frame {
+            background:
+                radial-gradient(circle at top, rgba(22,163,74,0.10), transparent 30%),
+                linear-gradient(180deg, #fbfcff, var(--bg));
+        }
+        .status-bar, .app-bar { display: flex; align-items: center; background: rgba(255,255,255,0.95); }
+        .status-bar {
+            height: 44px; justify-content: space-between; padding: 10px 24px 0;
+            font-size: 14px; font-weight: 600; color: var(--text);
+        }
+        .app-bar {
+            height: 56px; padding: 0 12px; border-bottom: 1px solid var(--line);
+        }
+        .icon-btn {
+            width: 40px; height: 40px; border-radius: 20px;
+            display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--text);
+        }
+        .app-bar-title { flex: 1; font-size: 18px; font-weight: 700; color: var(--text); }
+        .hero {
+            padding: 14px 16px 10px; background: #fff; border-bottom: 1px solid var(--line);
+        }
+        .book-name { font-size: 16px; font-weight: 800; color: var(--text); }
+        .book-author { margin-top: 4px; font-size: 12px; color: var(--sub); }
+        .toolbar { display: flex; gap: 10px; padding: 12px 16px; background: #fff; border-bottom: 1px solid var(--line); }
+        .search {
+            flex: 1; height: 44px; border-radius: 16px; border: 1px solid #edf0f4; background: #f7f9fc;
+            display: flex; align-items: center; padding: 0 14px; color: var(--hint); font-size: 14px;
+        }
+        .tool {
+            width: 44px; height: 44px; border-radius: 16px; background: #eefbf3; color: var(--primary);
+            display: flex; align-items: center; justify-content: center; font-size: 18px;
+        }
+        .content-area {
+            height: calc(100% - 44px - 56px - 57px - 69px);
+            overflow-y: auto; padding: 12px 16px 18px;
+        }
+        .source {
+            display: flex; gap: 12px; align-items: center; padding: 14px; margin-bottom: 10px; border-radius: 20px;
+            background: var(--card); box-shadow: 0 8px 20px rgba(15,23,32,0.05);
+        }
+        .source.current { background: linear-gradient(135deg, #eefbf3, #f8fffb); border: 1px solid #ccefd7; }
+        .icon {
+            width: 46px; height: 46px; border-radius: 16px; flex-shrink: 0;
+            background: linear-gradient(135deg, #69b1ff, #1677ff); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px;
+        }
+        .icon.g { background: linear-gradient(135deg, #4ade80, #16a34a); }
+        .icon.o { background: linear-gradient(135deg, #f59e0b, #ea580c); }
+        .info { flex: 1; }
+        .title { font-size: 15px; font-weight: 800; color: var(--text); }
+        .sub { margin-top: 4px; font-size: 12px; color: var(--sub); }
+        .meta-row { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .meta {
+            padding: 4px 8px; border-radius: 999px; background: #f2f3f5; font-size: 11px; color: var(--hint);
+        }
+        .meta.current { background: #eefbf3; color: var(--primary); }
+        .arrow { color: #b8bec8; font-size: 18px; }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>换源弹窗</h1>
+            <p>补充“书架”模块里的换源界面，承接书名同源搜索、来源筛选、当前源标识和一键切换动作。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="status-bar"><span>9:41</span><span>Wi-Fi 100%</span></div>
+                <div class="app-bar">
+                    <div class="icon-btn">‹</div>
+                    <div class="app-bar-title">换源</div>
+                    <div class="icon-btn">↻</div>
+                </div>
+                <div class="hero">
+                    <div class="book-name">三体</div>
+                    <div class="book-author">刘慈欣</div>
+                </div>
+                <div class="toolbar">
+                    <div class="search">⌕ 搜索书源名称</div>
+                    <div class="tool">⛃</div>
+                    <div class="tool">↻</div>
+                </div>
+                <div class="content-area">
+                    <div class="source current">
+                        <div class="icon g">✓</div>
+                        <div class="info">
+                            <div class="title">起点中文网</div>
+                            <div class="sub">当前使用书源 · 章节 178 · 更新稳定</div>
+                            <div class="meta-row">
+                                <span class="meta current">当前源</span>
+                                <span class="meta">官方</span>
+                            </div>
+                        </div>
+                        <div class="arrow">›</div>
+                    </div>
+                    <div class="source">
+                        <div class="icon">B</div>
+                        <div class="info">
+                            <div class="title">笔趣阁精选源</div>
+                            <div class="sub">作者匹配 · 章节 181 · 响应较快</div>
+                            <div class="meta-row">
+                                <span class="meta">民间源</span>
+                                <span class="meta">综合排序</span>
+                            </div>
+                        </div>
+                        <div class="arrow">›</div>
+                    </div>
+                    <div class="source">
+                        <div class="icon o">搜</div>
+                        <div class="info">
+                            <div class="title">搜书吧镜像</div>
+                            <div class="sub">章节 176 · 最近更新时间 10 分钟前</div>
+                            <div class="meta-row">
+                                <span class="meta">镜像</span>
+                                <span class="meta">可切换</span>
+                            </div>
+                        </div>
+                        <div class="arrow">›</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

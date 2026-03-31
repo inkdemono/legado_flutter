@@ -341,19 +341,14 @@ class _BookInfoHeaderState extends State<BookInfoHeader> {
           ? ClipRRect(
               borderRadius: BorderRadius.circular(5),
               child: CachedNetworkImage(
+                key: ValueKey('book_info_cover_$coverUrl'),
                 imageUrl: coverUrl,
                 fit: BoxFit.cover,
-                httpHeaders: {
-                  'Referer': widget.book.origin.isNotEmpty
-                      ? widget.book.origin
-                      : (widget.book.bookUrl.isNotEmpty
-                          ? Uri.parse(widget.book.bookUrl).origin
-                          : ''),
-                  'User-Agent':
-                      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                },
                 placeholder: (context, url) => defaultCover,
                 errorWidget: (context, url, error) {
+                  debugPrint(
+                    'BookInfoHeader._buildCover: 封面加载失败 url=$url error=$error',
+                  );
                   // 封面加载失败，显示默认封面
                   return defaultCover;
                 },

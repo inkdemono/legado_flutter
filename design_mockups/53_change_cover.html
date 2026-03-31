@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>更换封面 - Legado Flutter UI设计稿</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #f7f8fc;
+            --card: #fff;
+            --text: #1f2329;
+            --sub: #4e5969;
+            --hint: #86909c;
+            --line: #e5e6eb;
+            --primary: #1677ff;
+            --accent: #f59e0b;
+        }
+        body { background: linear-gradient(135deg, #111b24, #18314f 60%, #0f172a); }
+        .phone-frame {
+            background:
+                radial-gradient(circle at top, rgba(22,119,255,0.12), transparent 30%),
+                linear-gradient(180deg, #fbfdff, var(--bg));
+        }
+        .status-bar, .app-bar { display: flex; align-items: center; background: rgba(255,255,255,0.95); }
+        .status-bar {
+            height: 44px; justify-content: space-between; padding: 10px 24px 0;
+            font-size: 14px; font-weight: 600; color: var(--text);
+        }
+        .app-bar {
+            height: 56px; padding: 0 12px; border-bottom: 1px solid var(--line);
+        }
+        .icon-btn {
+            width: 40px; height: 40px; border-radius: 20px;
+            display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--text);
+        }
+        .app-bar-title { flex: 1; font-size: 18px; font-weight: 700; color: var(--text); }
+        .content-area {
+            height: calc(100% - 44px - 56px); overflow-y: auto; padding: 16px;
+        }
+        .search-row { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+        .search-btn {
+            width: 44px; height: 44px; border-radius: 16px; background: #eef4ff; color: var(--primary);
+            display: flex; align-items: center; justify-content: center; font-size: 18px;
+        }
+        .preview-card {
+            padding: 18px; border-radius: 26px; background: var(--card); box-shadow: 0 8px 24px rgba(15,23,32,0.05);
+        }
+        .preview {
+            width: 150px; height: 210px; margin: 0 auto; border-radius: 18px;
+            background: linear-gradient(160deg, #5b7cfa, #2a46b7); box-shadow: 0 18px 36px rgba(42,70,183,0.22);
+        }
+        .preview-sub { margin-top: 14px; text-align: center; font-size: 12px; color: var(--hint); }
+        .section { margin-top: 20px; }
+        .section-title { font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 12px; }
+        .results {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .result {
+            border-radius: 18px; padding: 6px; background: #fff; border: 1px solid #edf0f4;
+        }
+        .result.active { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(22,119,255,0.10); }
+        .result-cover {
+            aspect-ratio: 0.72; border-radius: 14px; background: linear-gradient(160deg, #fdba74, #ea580c);
+        }
+        .result-cover.c2 { background: linear-gradient(160deg, #67e8f9, #2563eb); }
+        .result-cover.c3 { background: linear-gradient(160deg, #f9a8d4, #db2777); }
+        .result-name { margin-top: 8px; font-size: 11px; color: var(--sub); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .actions {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+        }
+        .action {
+            height: 48px; border-radius: 16px; border: 1px solid #e5e6eb; background: #fff;
+            display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--text);
+        }
+        .input {
+            height: 48px; border-radius: 16px; border: 1px solid #e5e6eb; background: #fff;
+            display: flex; align-items: center; justify-content: space-between; padding: 0 14px; color: var(--hint); font-size: 14px;
+        }
+        .footer {
+            display: flex; gap: 10px; margin-top: 20px;
+        }
+        .btn {
+            height: 48px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700;
+        }
+        .btn.ghost { flex: 1; background: #f2f3f5; color: var(--sub); }
+        .btn.primary { flex: 2; background: linear-gradient(135deg, #1677ff, #69b1ff); color: #fff; }
+    </style>
+    <link rel="stylesheet" href="design_system.css">
+</head>
+<body>
+    <div class="design-container">
+        <div class="design-header">
+            <h1>更换封面</h1>
+            <p>补充“书架”模块里的更换封面弹层，整合网络搜索结果、相册/拍照入口、URL 输入和封面预览。</p>
+        </div>
+        <div class="phones-container">
+            <div class="phone-frame">
+                <div class="status-bar"><span>9:41</span><span>Wi-Fi 100%</span></div>
+                <div class="app-bar">
+                    <div class="icon-btn">‹</div>
+                    <div class="app-bar-title">更换封面</div>
+                    <div class="icon-btn">✕</div>
+                </div>
+                <div class="content-area">
+                    <div class="search-row">
+                        <div class="search-btn">⌕</div>
+                    </div>
+                    <div class="preview-card">
+                        <div class="preview"></div>
+                        <div class="preview-sub">当前预览已应用新封面候选</div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">网络搜索结果</div>
+                        <div class="results">
+                            <div class="result active">
+                                <div class="result-cover"></div>
+                                <div class="result-name">豆瓣结果</div>
+                            </div>
+                            <div class="result">
+                                <div class="result-cover c2"></div>
+                                <div class="result-name">站点 A</div>
+                            </div>
+                            <div class="result">
+                                <div class="result-cover c3"></div>
+                                <div class="result-name">站点 B</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">选择封面</div>
+                        <div class="actions">
+                            <div class="action">🖼 从相册选择</div>
+                            <div class="action">📷 拍照</div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">或输入封面 URL</div>
+                        <div class="input">
+                            <span>https://img.example.com/cover.jpg</span>
+                            <span>✕</span>
+                        </div>
+                    </div>
+
+                    <div class="footer">
+                        <div class="btn ghost">清空</div>
+                        <div class="btn primary">保存</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

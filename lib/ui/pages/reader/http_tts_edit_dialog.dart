@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../data/models/http_tts.dart';
 import '../../../services/http_tts_service.dart';
 import '../../widgets/base/base_bottom_sheet_stateful.dart';
-import '../../widgets/common/custom_switch_list_tile.dart';
+import '../../widgets/td/td_widgets.dart';
 import '../../../utils/app_log.dart';
 
 /// HTTP TTS编辑对话框
@@ -134,8 +134,8 @@ class _HttpTtsEditDialogState extends BaseBottomSheetState<HttpTtsEditDialog> {
             hint: '并发请求数量限制',
           ),
           const SizedBox(height: 16),
-          CustomSwitchListTile(
-            title: const Text('启用CookieJar', style: TextStyle(color: Colors.white)),
+          TDThemedSwitchListTile(
+            title: '启用CookieJar',
             value: _enabledCookieJar,
             onChanged: (value) {
               setState(() {
