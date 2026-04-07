@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../../data/models/book.dart';
 import '../../../data/models/book_chapter.dart';
 import '../../../data/models/book_source.dart';
@@ -43,7 +44,7 @@ class _ExploreBookChaptersPageState extends State<ExploreBookChaptersPage> {
 
     try {
       // 使用不保存到数据库的方法获取章节列表
-      final chapters = await BookService.instance.getChapterListWithoutSave(
+      final chapters = await readService(AppServices.bookService).getChapterListWithoutSave(
         widget.book,
       );
 

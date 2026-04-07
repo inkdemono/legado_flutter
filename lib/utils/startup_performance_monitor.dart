@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:developer' as dev;
 import 'package:flutter/foundation.dart';
 
+import 'app_log.dart';
+import 'performance_monitor.dart';
+
 /// 启动性能监控工具
 class StartupPerformanceMonitor {
   static final StartupPerformanceMonitor _instance =
@@ -33,6 +36,15 @@ class StartupPerformanceMonitor {
         'Startup Performance: $stage took ${duration.inMilliseconds}ms',
         name: 'startup.performance',
         level: 1000, // info level
+      );
+
+      PerformanceMonitor.instance.record(
+        stage,
+        duration: duration,
+        scope: 'startup',
+        category: LogCategory.startup,
+        warningThreshold: const Duration(milliseconds: 800),
+        logSuccess: AppLog.enableStartupLogs,
       );
     }
   }

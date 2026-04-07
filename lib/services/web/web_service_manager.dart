@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
@@ -84,7 +85,7 @@ class WebServiceManager extends BaseService {
       _hostAddress = 'http://$localIP:$port';
 
       // 显示通知（添加payload用于点击跳转）
-      await NotificationService.instance.showNotification(
+      await readService(AppServices.notificationService).showNotification(
         id: notificationId,
         title: 'Web服务已启动',
         content: '地址: $_hostAddress',
@@ -126,7 +127,7 @@ class WebServiceManager extends BaseService {
       _wsPort = null;
 
       // 取消通知
-      await NotificationService.instance.cancelNotification(notificationId);
+      await readService(AppServices.notificationService).cancelNotification(notificationId);
 
       AppLog.instance.put('Web服务已停止');
     } catch (e) {
@@ -148,7 +149,7 @@ class WebServiceManager extends BaseService {
     // 获取书源列表
     router.get('/getBookSources', (Request request) async {
       try {
-        final sources = await BookSourceService.instance.getAllBookSources();
+        final sources = await readService(AppServices.bookSourceService).getAllBookSources();
         final data = sources.map((BookSource s) => s.toJson()).toList();
         return Response.ok(
           jsonEncode({'isSuccess': true, 'data': data}),
@@ -172,7 +173,7 @@ class WebServiceManager extends BaseService {
             headers: {'Content-Type': 'application/json'},
           );
         }
-        final source = await BookSourceService.instance.getBookSourceByUrl(url);
+        final source = await readService(AppServices.bookSourceService).getBookSourceByUrl(url);
         if (source == null) {
           return Response.notFound(
             jsonEncode({'isSuccess': false, 'errorMsg': '书源不存在'}),
@@ -194,7 +195,7 @@ class WebServiceManager extends BaseService {
     // 获取书架
     router.get('/getBookshelf', (Request request) async {
       try {
-        final books = await BookService.instance.getBookshelfBooks();
+        final books = await readService(AppServices.bookService).getBookshelfBooks();
         final data = books.map((Book b) => b.toJson()).toList();
         return Response.ok(
           jsonEncode({'isSuccess': true, 'data': data}),
@@ -218,14 +219,14 @@ class WebServiceManager extends BaseService {
             headers: {'Content-Type': 'application/json'},
           );
         }
-        final book = await BookService.instance.getBookByUrl(url);
+        final book = await readService(AppServices.bookService).getBookByUrl(url);
         if (book == null) {
           return Response.notFound(
             jsonEncode({'isSuccess': false, 'errorMsg': '书籍不存在'}),
             headers: {'Content-Type': 'application/json'},
           );
         }
-        final chapters = await BookService.instance.getChapterList(book);
+        final chapters = await readService(AppServices.bookService).getChapterList(book);
         final data = chapters.map((BookChapter c) => c.toJson()).toList();
         return Response.ok(
           jsonEncode({'isSuccess': true, 'data': data}),
@@ -257,14 +258,14 @@ class WebServiceManager extends BaseService {
             headers: {'Content-Type': 'application/json'},
           );
         }
-        final book = await BookService.instance.getBookByUrl(url);
+        final book = await readService(AppServices.bookService).getBookByUrl(url);
         if (book == null) {
           return Response.notFound(
             jsonEncode({'isSuccess': false, 'errorMsg': '书籍不存在'}),
             headers: {'Content-Type': 'application/json'},
           );
         }
-        final chapters = await BookService.instance.getChapterList(book);
+        final chapters = await readService(AppServices.bookService).getChapterList(book);
         if (index < 0 || index >= chapters.length) {
           return Response.badRequest(
             body: jsonEncode({'isSuccess': false, 'errorMsg': '章节索引超出范围'}),
@@ -273,14 +274,14 @@ class WebServiceManager extends BaseService {
         }
         final chapter = chapters[index];
         final source =
-            await BookSourceService.instance.getBookSourceByUrl(book.origin);
+            await readService(AppServices.bookSourceService).getBookSourceByUrl(book.origin);
         if (source == null) {
           return Response.internalServerError(
             body: jsonEncode({'isSuccess': false, 'errorMsg': '书源不存在'}),
             headers: {'Content-Type': 'application/json'},
           );
         }
-        final content = await BookService.instance.getChapterContent(
+        final content = await readService(AppServices.bookService).getChapterContent(
           chapter,
           source,
           bookName: book.name,
@@ -316,7 +317,7 @@ class WebServiceManager extends BaseService {
           );
         }
         // 获取封面图片
-        final response = await NetworkService.instance.get(path);
+        final response = await readService(AppServices.networkService).get(path);
         final bytes = await response.data;
         if (bytes == null) {
           return Response.notFound(
@@ -362,9 +363,9 @@ class WebServiceManager extends BaseService {
         if (bookUrl != null &&
             bookUrl.isNotEmpty &&
             !picUrl.startsWith('http')) {
-          final book = await BookService.instance.getBookByUrl(bookUrl);
+          final book = await readService(AppServices.bookService).getBookByUrl(bookUrl);
           if (book != null) {
-            final source = await BookSourceService.instance
+            final source = await readService(AppServices.bookSourceService)
                 .getBookSourceByUrl(book.origin);
             if (source != null) {
               fullUrl = NetworkService.joinUrl(source.bookSourceUrl, picUrl);
@@ -372,7 +373,7 @@ class WebServiceManager extends BaseService {
           }
         }
         // 获取图片
-        final response = await NetworkService.instance.get(fullUrl);
+        final response = await readService(AppServices.networkService).get(fullUrl);
         final bytes = await response.data;
         if (bytes == null) {
           return Response.notFound(
@@ -404,7 +405,7 @@ class WebServiceManager extends BaseService {
     // 获取替换规则
     router.get('/getReplaceRules', (Request request) async {
       try {
-        final rules = await ReplaceRuleService.instance.getAllRules();
+        final rules = await readService(AppServices.replaceRuleService).getAllRules();
         final data = rules.map((ReplaceRule r) => r.toJson()).toList();
         return Response.ok(
           jsonEncode({'isSuccess': true, 'data': data}),
@@ -421,7 +422,7 @@ class WebServiceManager extends BaseService {
     // 获取RSS源列表
     router.get('/getRssSources', (Request request) async {
       try {
-        final sources = await RssService.instance.getAllRssSources();
+        final sources = await readService(AppServices.rssService).getAllRssSources();
         final data = sources.map((s) => s.toJson()).toList();
         return Response.ok(
           jsonEncode({'isSuccess': true, 'data': data}),
@@ -445,7 +446,7 @@ class WebServiceManager extends BaseService {
             headers: {'Content-Type': 'application/json'},
           );
         }
-        final source = await RssService.instance.getRssSourceByUrl(url);
+        final source = await readService(AppServices.rssService).getRssSourceByUrl(url);
         if (source == null) {
           return Response.notFound(
             jsonEncode({'isSuccess': false, 'errorMsg': 'RSS源不存在'}),
@@ -518,7 +519,7 @@ class WebServiceManager extends BaseService {
         final body = await request.readAsString();
         final json = jsonDecode(body) as Map<String, dynamic>;
         final source = BookSource.fromJson(json);
-        await BookSourceService.instance.addBookSource(source);
+        await readService(AppServices.bookSourceService).addBookSource(source);
         return Response.ok(
           jsonEncode({'isSuccess': true}),
           headers: {'Content-Type': 'application/json'},
@@ -547,7 +548,7 @@ class WebServiceManager extends BaseService {
           if (item is Map<String, dynamic>) {
             try {
               final source = BookSource.fromJson(item);
-              await BookSourceService.instance.addBookSource(source);
+              await readService(AppServices.bookSourceService).addBookSource(source);
               successCount++;
             } catch (e) {
               AppLog.instance.put('保存书源失败', error: e);
@@ -583,7 +584,7 @@ class WebServiceManager extends BaseService {
             try {
               final sourceUrl = item['bookSourceUrl'] as String?;
               if (sourceUrl != null) {
-                await BookSourceService.instance.deleteBookSource(sourceUrl);
+                await readService(AppServices.bookSourceService).deleteBookSource(sourceUrl);
                 successCount++;
               }
             } catch (e) {
@@ -609,7 +610,7 @@ class WebServiceManager extends BaseService {
         final body = await request.readAsString();
         final json = jsonDecode(body) as Map<String, dynamic>;
         final book = Book.fromJson(json);
-        await BookService.instance.saveBook(book);
+        await readService(AppServices.bookService).saveBook(book);
         return Response.ok(
           jsonEncode({'isSuccess': true}),
           headers: {'Content-Type': 'application/json'},
@@ -629,7 +630,7 @@ class WebServiceManager extends BaseService {
         final json = jsonDecode(body) as Map<String, dynamic>;
         final bookUrl = json['bookUrl'] as String?;
         if (bookUrl != null) {
-          await BookService.instance.deleteBook(bookUrl);
+          await readService(AppServices.bookService).deleteBook(bookUrl);
         }
         return Response.ok(
           jsonEncode({'isSuccess': true}),
@@ -655,7 +656,7 @@ class WebServiceManager extends BaseService {
             headers: {'Content-Type': 'application/json'},
           );
         }
-        final book = await BookService.instance.getBookByUrl(bookUrl);
+        final book = await readService(AppServices.bookService).getBookByUrl(bookUrl);
         if (book == null) {
           return Response.notFound(
             jsonEncode({'isSuccess': false, 'errorMsg': '书籍不存在'}),
@@ -669,7 +670,7 @@ class WebServiceManager extends BaseService {
           durChapterIndex: durChapterIndex ?? book.durChapterIndex,
           durChapterPos: durChapterPos ?? book.durChapterPos,
         );
-        await BookService.instance.saveBook(updatedBook);
+        await readService(AppServices.bookService).saveBook(updatedBook);
         return Response.ok(
           jsonEncode({'isSuccess': true}),
           headers: {'Content-Type': 'application/json'},
@@ -717,14 +718,14 @@ class WebServiceManager extends BaseService {
             headers: {'Content-Type': 'application/json'},
           );
         }
-        final book = await BookService.instance.getBookByUrl(url);
+        final book = await readService(AppServices.bookService).getBookByUrl(url);
         if (book == null) {
           return Response.notFound(
             jsonEncode({'isSuccess': false, 'errorMsg': '书籍不存在'}),
             headers: {'Content-Type': 'application/json'},
           );
         }
-        final success = await BookService.instance.updateChapterList(book);
+        final success = await readService(AppServices.bookService).updateChapterList(book);
         return Response.ok(
           jsonEncode({'isSuccess': success}),
           headers: {'Content-Type': 'application/json'},
@@ -743,7 +744,7 @@ class WebServiceManager extends BaseService {
         final body = await request.readAsString();
         final json = jsonDecode(body) as Map<String, dynamic>;
         final rule = ReplaceRule.fromJson(json);
-        await ReplaceRuleService.instance.addOrUpdateRule(rule);
+        await readService(AppServices.replaceRuleService).addOrUpdateRule(rule);
         return Response.ok(
           jsonEncode({'isSuccess': true}),
           headers: {'Content-Type': 'application/json'},
@@ -774,7 +775,7 @@ class WebServiceManager extends BaseService {
             headers: {'Content-Type': 'application/json'},
           );
         }
-        await ReplaceRuleService.instance.deleteRuleById(rule.id);
+        await readService(AppServices.replaceRuleService).deleteRuleById(rule.id);
         return Response.ok(
           jsonEncode({'isSuccess': true}),
           headers: {'Content-Type': 'application/json'},
@@ -834,7 +835,7 @@ class WebServiceManager extends BaseService {
         final body = await request.readAsString();
         final json = jsonDecode(body) as Map<String, dynamic>;
         final source = RssSource.fromJson(json);
-        await RssService.instance.addOrUpdateRssSource(source);
+        await readService(AppServices.rssService).addOrUpdateRssSource(source);
         return Response.ok(
           jsonEncode({'isSuccess': true}),
           headers: {'Content-Type': 'application/json'},
@@ -863,7 +864,7 @@ class WebServiceManager extends BaseService {
           if (item is Map<String, dynamic>) {
             try {
               final source = RssSource.fromJson(item);
-              await RssService.instance.addOrUpdateRssSource(source);
+              await readService(AppServices.rssService).addOrUpdateRssSource(source);
               successCount++;
             } catch (e) {
               AppLog.instance.put('保存RSS源失败', error: e);
@@ -899,7 +900,7 @@ class WebServiceManager extends BaseService {
             try {
               final sourceUrl = item['sourceUrl'] as String?;
               if (sourceUrl != null) {
-                await RssService.instance.deleteRssSource(sourceUrl);
+                await readService(AppServices.rssService).deleteRssSource(sourceUrl);
                 successCount++;
               }
             } catch (e) {
@@ -1023,7 +1024,7 @@ class WebServiceManager extends BaseService {
         try {
           // 导入书籍
           final book =
-              await LocalBookService.instance.importBook(tempFile.path);
+              await readService(AppServices.localBookService).importBook(tempFile.path);
           if (book == null) {
             return Response.internalServerError(
               body: jsonEncode({'isSuccess': false, 'errorMsg': '导入书籍失败'}),
@@ -1044,7 +1045,9 @@ class WebServiceManager extends BaseService {
           try {
             await tempFile.delete();
             await tempDir.delete();
-          } catch (_) {}
+          } catch (cleanupError) {
+            AppLog.instance.put('保存书籍失败后的临时文件清理失败', error: cleanupError);
+          }
 
           return Response.internalServerError(
             body: jsonEncode(

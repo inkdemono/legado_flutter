@@ -1,4 +1,5 @@
 import '../../../data/models/book_source.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../../data/models/explore_kind.dart';
 import '../../../core/constants/app_status.dart';
 import '../../../services/explore_service.dart';
@@ -9,13 +10,13 @@ extension BookSourceExtensions on BookSource {
   /// 获取发现分类列表
   /// 参考项目：BookSource.exploreKinds()
   Future<List<ExploreKind>> exploreKinds() async {
-    return await ExploreService.instance.getExploreKinds(this);
+    return await readService(AppServices.exploreService).getExploreKinds(this);
   }
 
   /// 清除发现分类缓存
   /// 参考项目：BookSource.clearExploreKindsCache()
   Future<void> clearExploreKindsCache() async {
-    await ExploreService.instance.clearExploreKindsCache(this);
+    await readService(AppServices.exploreService).clearExploreKindsCache(this);
   }
 
   /// 获取发现分类 JSON

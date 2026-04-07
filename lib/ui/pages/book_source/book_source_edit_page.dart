@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -982,8 +983,8 @@ class _BookSourceEditPageState extends State<BookSourceEditPage>
         // 编辑模式
         if (oldUrl != null && oldUrl != newUrl) {
           // URL 已修改：删除旧书源，添加新书源
-          await BookSourceService.instance.deleteBookSource(oldUrl);
-          await BookSourceService.instance.addBookSource(bookSource);
+          await readService(AppServices.bookSourceService).deleteBookSource(oldUrl);
+          await readService(AppServices.bookSourceService).addBookSource(bookSource);
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -992,11 +993,11 @@ class _BookSourceEditPageState extends State<BookSourceEditPage>
           }
         } else {
           // URL 未修改：正常更新
-          await BookSourceService.instance.updateBookSource(bookSource);
+          await readService(AppServices.bookSourceService).updateBookSource(bookSource);
         }
       } else {
         // 新增模式
-        await BookSourceService.instance.addBookSource(bookSource);
+        await readService(AppServices.bookSourceService).addBookSource(bookSource);
       }
 
       setState(() {
@@ -1209,7 +1210,7 @@ class _BookSourceEditPageState extends State<BookSourceEditPage>
 
   Future<void> _debugSource() async {
     final source = _buildBookSource();
-    await BookSourceService.instance.updateBookSource(source);
+    await readService(AppServices.bookSourceService).updateBookSource(source);
     if (mounted) {
       Navigator.push(
         context,

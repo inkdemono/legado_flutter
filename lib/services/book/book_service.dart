@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:sqflite/sqflite.dart';
@@ -21,16 +22,64 @@ import '../../utils/js_engine.dart';
 import '../../utils/helpers/book_extensions.dart';
 import '../../utils/network_utils.dart';
 import '../source/book_source_service.dart';
-import '../reader/cache_service.dart';
-import '../reader/chapter_content_service.dart';
 import '../reader/content_processor.dart';
 
+abstract class IBookService {
+  Future<Book?> getBookInfo(Book book);
+
+  Future<List<BookChapter>> getChapterList(
+    Book book, {
+    bool loadAllPages = true,
+  });
+
+  Future<Map<String, bool>> updateChapterLists(List<Book> books);
+
+  Future<Book?> getBookByUrl(String bookUrl);
+
+  Future<String?> getChapterContent(
+    BookChapter chapter,
+    BookSource source, {
+    String? bookName,
+    String? bookOrigin,
+    Book? book,
+  });
+
+  Future<void> saveBook(Book book);
+
+  Future<Book> createBook(Book book);
+
+  Future<void> createChapter(BookChapter chapter);
+
+  Future<void> deleteBook(String bookUrl);
+
+  Future<List<Book>> getBookshelfBooks();
+
+  Future<List<Book>> getBooksByGroup(int groupId);
+
+  Future<void> updateBookGroup(String bookUrl, int groupId);
+
+  Future<void> updateReadingProgress(
+    String bookUrl,
+    int chapterIndex,
+    int chapterPos,
+    String? chapterTitle,
+  );
+
+  Future<void> saveChapters(List<BookChapter> chapters);
+
+  Future<void> updateBookOrder(String bookUrl, int order);
+
+  Future<void> updateBook(Book book);
+}
+
 /// 书籍服务 - 处理搜索、详情、章节、正文等功能
-class BookService extends BaseService {
+class BookService extends BaseService implements IBookService {
   static final BookService instance = BookService._init();
   final AppDatabase _db = AppDatabase.instance;
-  final NetworkService _networkService = NetworkService.instance;
-  final BookSourceService _bookSourceService = BookSourceService.instance;
+  final INetworkService _networkService =
+      readService(AppServices.networkService);
+  final IBookSourceService _bookSourceService =
+      readService(AppServices.bookSourceService);
   final ProtocolHandler _protocolHandler = ProtocolHandler.instance;
 
   // 正在请求的章节（用于防止重复请求）
@@ -131,7 +180,8 @@ class BookService extends BaseService {
     }
 
     if (normalizedUrl.endsWith('/')) {
-      addCandidate(NetworkService.joinUrl(normalizedUrl, 'index_$pageNumber.html'));
+      addCandidate(
+          NetworkService.joinUrl(normalizedUrl, 'index_$pageNumber.html'));
       addCandidate(NetworkService.joinUrl(normalizedUrl, '$pageNumber.html'));
       return candidates;
     }
@@ -142,7 +192,8 @@ class BookService extends BaseService {
         final slashIndex = uri.path.lastIndexOf('/');
         final directoryPath =
             slashIndex >= 0 ? uri.path.substring(0, slashIndex + 1) : '/';
-        final pageUri = uri.replace(path: '${directoryPath}index_$pageNumber.html');
+        final pageUri =
+            uri.replace(path: '${directoryPath}index_$pageNumber.html');
         addCandidate(pageUri.toString());
       }
     } catch (_) {
@@ -206,7 +257,8 @@ class BookService extends BaseService {
 
           final newChapters = pageChapters.where((chapter) {
             final identity = _chapterIdentity(chapter);
-            return identity.isNotEmpty && !existingIdentities.contains(identity);
+            return identity.isNotEmpty &&
+                !existingIdentities.contains(identity);
           }).toList();
 
           if (newChapters.isEmpty) {
@@ -758,7 +810,16 @@ class BookService extends BaseService {
   }
 
   bool _hasMeaningfulBookInfo(Map<String, String?> bookInfo) {
-    const keys = ['name', 'author', 'kind', 'wordCount', 'lastChapter', 'intro', 'coverUrl', 'tocUrl'];
+    const keys = [
+      'name',
+      'author',
+      'kind',
+      'wordCount',
+      'lastChapter',
+      'intro',
+      'coverUrl',
+      'tocUrl'
+    ];
     for (final key in keys) {
       final value = bookInfo[key];
       if (value != null && value.trim().isNotEmpty) {
@@ -1206,6 +1267,8 @@ class BookService extends BaseService {
           isVolume: isVolume, // 设置卷名标志
           isVip: chapterData['isVip'] == 'true' || chapterData['isVip'] == '1',
           tag: chapterData['updateTime'],
+          duration:
+              _parseDurationString(chapterData['duration']), // Phase 3：音视频时长
         );
 
         chapters.add(chapter);
@@ -1243,13 +1306,13 @@ class BookService extends BaseService {
             : chapterList.map((item) {
                 final title = item['chapterName'] ?? '';
                 final url = item['chapterUrl'] ?? '';
-                return BookChapter(url: url, title: title, bookUrl: book.bookUrl);
+                return BookChapter(
+                    url: url, title: title, bookUrl: book.bookUrl);
               })) {
           urlCounts[chapter.url] = (urlCounts[chapter.url] ?? 0) + 1;
         }
-        final duplicates = urlCounts.entries
-            .where((entry) => entry.value > 1)
-            .take(5);
+        final duplicates =
+            urlCounts.entries.where((entry) => entry.value > 1).take(5);
         for (final entry in duplicates) {
           AppLog.instance.put(
             '重复章节URL: url=${entry.key}, count=${entry.value}',
@@ -1597,8 +1660,7 @@ class BookService extends BaseService {
         );
         final firstPageChapterList =
             firstPageResult['chapterList'] as List<Map<String, String?>>;
-        AppLog.instance
-            .put('第 1 页解析结果: 找到 ${firstPageChapterList.length} 个章节');
+        AppLog.instance.put('第 1 页解析结果: 找到 ${firstPageChapterList.length} 个章节');
         allChapterList.addAll(firstPageChapterList);
       }
 
@@ -1701,7 +1763,8 @@ class BookService extends BaseService {
                         headers: NetworkService.parseHeaders(source.header),
                         retryCount: 1,
                       );
-                      final html = await NetworkService.getResponseText(response);
+                      final html =
+                          await NetworkService.getResponseText(response);
                       return {'url': url, 'html': html, 'success': true};
                     } catch (e) {
                       return {'url': url, 'html': '', 'success': false};
@@ -2240,9 +2303,8 @@ class BookService extends BaseService {
         for (final chapter in originalChapters) {
           urlCounts[chapter.url] = (urlCounts[chapter.url] ?? 0) + 1;
         }
-        final duplicates = urlCounts.entries
-            .where((entry) => entry.value > 1)
-            .take(5);
+        final duplicates =
+            urlCounts.entries.where((entry) => entry.value > 1).take(5);
         for (final entry in duplicates) {
           AppLog.instance.put(
             '重复章节URL: url=${entry.key}, count=${entry.value}',
@@ -2556,7 +2618,7 @@ class BookService extends BaseService {
     if (book != null && !book.isLocal) {
       // 1. 如果chapter有localPath,从文件读取
       if (chapter.localPath != null && chapter.localPath!.isNotEmpty) {
-        final fileContent = await ChapterContentService.instance
+        final fileContent = await readService(AppServices.chapterContentService)
             .getChapterContent(book, chapter);
         if (fileContent != null && fileContent.isNotEmpty) {
           AppLog.instance
@@ -2568,14 +2630,14 @@ class BookService extends BaseService {
       }
 
       // 2. 尝试从文件系统读取(向后兼容旧缓存)
-      final fileContent =
-          await ChapterContentService.instance.getChapterContent(book, chapter);
+      final fileContent = await readService(AppServices.chapterContentService)
+          .getChapterContent(book, chapter);
       if (fileContent != null && fileContent.isNotEmpty) {
         AppLog.instance.put(
             '从文件系统读取(无localPath): ${chapter.title} (${fileContent.length}字)');
         // 更新localPath
-        final localPath =
-            ChapterContentService.instance.getChapterLocalPath(book, chapter);
+        final localPath = readService(AppServices.chapterContentService)
+            .getChapterLocalPath(book, chapter);
         chapter.localPath = localPath;
         // 异步更新数据库,不阻塞返回
         _updateChapterLocalPath(chapter.bookUrl, chapter.url, localPath)
@@ -2584,8 +2646,8 @@ class BookService extends BaseService {
       }
 
       // 3. 回退: 从旧的CacheService读取
-      final cachedContent =
-          await CacheService.instance.getCachedChapterContent(book, chapter);
+      final cachedContent = await readService(AppServices.cacheService)
+          .getCachedChapterContent(book, chapter);
       if (cachedContent != null && cachedContent.isNotEmpty) {
         AppLog.instance
             .put('从旧缓存读取: ${chapter.title} (${cachedContent.length}字)');
@@ -2593,28 +2655,20 @@ class BookService extends BaseService {
       }
     }
 
-    // 检查是否正在请求该章节（防止重复请求）
-    // 参考项目：使用 bookUrl + chapterUrl 作为缓存的 key
     final chapterKey = chapter.primaryStr();
-    if (_loadingChapters.containsKey(chapterKey)) {
-      // 等待现有请求完成
-      return await _loadingChapters[chapterKey];
-    }
-
-    // 创建请求Future
-    final requestFuture = _getChapterContentInternal(chapter, source,
-        bookName: bookName, bookOrigin: bookOrigin, book: book);
-
-    // 将请求添加到跟踪Map
-    _loadingChapters[chapterKey] = requestFuture;
-
-    try {
-      final result = await requestFuture;
-      return result;
-    } finally {
-      // 请求完成后移除跟踪
-      _loadingChapters.remove(chapterKey);
-    }
+    return _loadingChapters.putIfAbsent(chapterKey, () async {
+      try {
+        return await _getChapterContentInternal(
+          chapter,
+          source,
+          bookName: bookName,
+          bookOrigin: bookOrigin,
+          book: book,
+        );
+      } finally {
+        _loadingChapters.remove(chapterKey);
+      }
+    });
   }
 
   /// 获取章节正文的内部实现
@@ -2647,13 +2701,47 @@ class BookService extends BaseService {
         nextChapter = localChapters[0];
       }
       final nextChapterUrl = nextChapter?.url;
+
+      // ── Phase 3：payAction 预执行（付费章节自动解锁）──────────────────────
+      // 当章节是 VIP 且未购买，且书源配置了 payAction 时，先执行解锁动作，
+      // 成功后重新请求章节页面以获取解锁内容。
+      bool didPayAction = false;
+      if (chapter.isVip &&
+          !chapter.isPay &&
+          source.ruleContent?.payAction != null &&
+          source.ruleContent!.payAction!.isNotEmpty) {
+        AppLog.instance.put('payAction: 检测到付费章节，尝试执行解锁 (章节: ${chapter.title})');
+        // 先请求一次页面（payAction 可能需要当前页的 HTML 上下文，如 cookie/token）
+        try {
+          final preResponse = await _networkService.get(
+            currentUrl,
+            headers: NetworkService.parseHeaders(source.header),
+            retryCount: 1,
+          );
+          final preHtml = await NetworkService.getResponseText(preResponse);
+          didPayAction = await RuleParser.executePayAction(
+            preHtml,
+            source.ruleContent!.payAction!,
+            variables: contentVariables,
+            source: source,
+            book: book,
+            baseUrl: currentUrl,
+          );
+          if (didPayAction) {
+            AppLog.instance.put('payAction: 解锁请求已发送，将重新请求章节页面');
+          }
+        } catch (e) {
+          AppLog.instance.put('payAction: 预请求失败，跳过解锁', error: e);
+        }
+      }
+
       final response = await _networkService.get(
         currentUrl,
         headers: NetworkService.parseHeaders(source.header),
         retryCount: 1,
       );
 
-      final html = await NetworkService.getResponseText(response);
+      var html = await NetworkService.getResponseText(response);
       // 参考项目：获取重定向后的URL（如果有）
       // 注意：Dio的Response可能没有redirectRecord，使用实际请求的URL
       redirectUrl = response.realUri.toString();
@@ -2674,11 +2762,44 @@ class BookService extends BaseService {
         bookName: bookName,
         bookOrigin: bookOrigin,
         applyReplaceRegex: false, // 不在每页应用，而是在合并后统一应用
+        bookSourceType: source.bookSourceType, // 传入书源类型，启用音视频分发路径
       );
 
       if (pageContent == null || pageContent.isEmpty) {
         AppLog.instance.put('章节内容解析失败: 内容为空 (章节: ${chapter.title})');
         throw ContentEmptyException('章节内容为空: ${chapter.title}');
+      }
+
+      // 音频源（bookSourceType == 1）：parseContentRule 返回的是通过
+      // audioUrl 规则或 sourceRegex 嗅探提取的媒体 URL，将其写入
+      // chapter.resourceUrl 供播放器直接使用。
+      if (source.bookSourceType == 1) {
+        chapter.resourceUrl = pageContent;
+        AppLog.instance.put(
+            '音频源: 已提取资源URL → ${chapter.resourceUrl} (章节: ${chapter.title})');
+      }
+
+      // ── Phase 3：解析音视频辅助字段（lyricsUrl/subtitleUrl/qualityOptions）
+      if (source.bookSourceType == 1 || source.bookSourceType == 2) {
+        try {
+          final extras = await RuleParser.parseAudioExtras(
+            html,
+            source.ruleContent,
+            variables: contentVariables,
+            baseUrl: currentUrl,
+          );
+          if (extras['lyricsUrl'] != null) {
+            chapter.lyricsUrl = extras['lyricsUrl'];
+          }
+          if (extras['subtitleUrl'] != null) {
+            chapter.subtitleUrl = extras['subtitleUrl'];
+          }
+          if (extras['qualityOptions'] != null) {
+            chapter.qualityOptions = extras['qualityOptions'];
+          }
+        } catch (e) {
+          AppLog.instance.put('parseAudioExtras: 解析辅助字段失败', error: e);
+        }
       }
 
       contentList.add(pageContent);
@@ -2931,7 +3052,9 @@ class BookService extends BaseService {
                     "hypothesisId": "D"
                   })}\n',
               mode: FileMode.append);
-        } catch (_) {}
+        } catch (_) {
+          // 忽略调试日志写入失败，不影响正文处理流程。
+        }
         // #endregion
 
         AppLog.instance
@@ -2967,7 +3090,9 @@ class BookService extends BaseService {
                     "hypothesisId": "D"
                   })}\n',
               mode: FileMode.append);
-        } catch (_) {}
+        } catch (_) {
+          // 忽略调试日志写入失败，不影响正文处理流程。
+        }
         // #endregion
 
         AppLog.instance.put('应用replaceRegex后，内容长度=${content.length}');
@@ -2979,7 +3104,7 @@ class BookService extends BaseService {
       // 这样可以避免 _loadingChapters 移除后、缓存写入前的竞态条件
       if (book != null && !book.isLocal) {
         // ✅ 新策略: 保存到文件存储
-        final localPath = await ChapterContentService.instance
+        final localPath = await readService(AppServices.chapterContentService)
             .saveChapterContent(book, chapter, content);
 
         if (localPath != null) {
@@ -2992,13 +3117,14 @@ class BookService extends BaseService {
         }
 
         // 同时保存到旧缓存(向后兼容)
-        await CacheService.instance.saveChapterContent(book, chapter, content);
+        await readService(AppServices.cacheService)
+            .saveChapterContent(book, chapter, content);
       } else if (book == null) {
         // 未传入 book 参数，尝试从数据库查询（向后兼容）
         try {
           final dbBook = await getBookByUrl(chapter.bookUrl);
           if (dbBook != null && !dbBook.isLocal) {
-            await CacheService.instance
+            await readService(AppServices.cacheService)
                 .saveChapterContent(dbBook, chapter, content);
           }
         } catch (e) {
@@ -3425,5 +3551,42 @@ class BookService extends BaseService {
         error: e,
       );
     }
+  }
+
+  // ── Phase 3：辅助工具方法 ────────────────────────────────────────────────
+
+  /// 将时长字符串解析为秒数（int）
+  ///
+  /// 支持三种格式：
+  ///   - 纯秒数字符串：`"1800"` → 1800
+  ///   - MM:SS 格式：`"30:00"` → 1800
+  ///   - HH:MM:SS 格式：`"00:30:00"` → 1800
+  ///
+  /// 解析失败或输入为空时返回 null。
+  static int? _parseDurationString(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    final trimmed = raw.trim();
+
+    // 尝试 HH:MM:SS 或 MM:SS 格式
+    final parts = trimmed.split(':');
+    if (parts.length == 2) {
+      // MM:SS
+      final minutes = int.tryParse(parts[0]);
+      final seconds = int.tryParse(parts[1]);
+      if (minutes != null && seconds != null) {
+        return minutes * 60 + seconds;
+      }
+    } else if (parts.length == 3) {
+      // HH:MM:SS
+      final hours = int.tryParse(parts[0]);
+      final minutes = int.tryParse(parts[1]);
+      final seconds = int.tryParse(parts[2]);
+      if (hours != null && minutes != null && seconds != null) {
+        return hours * 3600 + minutes * 60 + seconds;
+      }
+    }
+
+    // 尝试纯数字（秒数）
+    return int.tryParse(trimmed);
   }
 }

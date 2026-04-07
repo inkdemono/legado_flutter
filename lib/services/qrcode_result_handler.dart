@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../data/models/book_source.dart';
 import '../data/models/rss_source.dart';
 import '../data/models/replace_rule.dart';
@@ -57,7 +58,7 @@ class QrcodeResultHandler {
         // 单个书源
         if (json.containsKey('bookSourceUrl')) {
           final source = BookSource.fromJson(Map<String, dynamic>.from(json));
-          await BookSourceService.instance.addBookSource(source);
+          await readService(AppServices.bookSourceService).addBookSource(source);
           return true;
         }
         
@@ -65,7 +66,7 @@ class QrcodeResultHandler {
         if (json.containsKey('pattern') && json.containsKey('replacement')) {
           try {
             final rule = ReplaceRule.fromJson(Map<String, dynamic>.from(json));
-            await ReplaceRuleService.instance.addOrUpdateRule(rule);
+            await readService(AppServices.replaceRuleService).addOrUpdateRule(rule);
             AppLog.instance.put('替换规则导入成功: ${rule.name}');
             return true;
           } catch (e) {
@@ -78,7 +79,7 @@ class QrcodeResultHandler {
         if (json.containsKey('urlRule') || json.containsKey('showRule')) {
           try {
             final rule = DictRule.fromJson(Map<String, dynamic>.from(json));
-            await DictRuleService.instance.addOrUpdateRule(rule);
+            await readService(AppServices.dictRuleService).addOrUpdateRule(rule);
             AppLog.instance.put('字典规则导入成功: ${rule.name}');
             return true;
           } catch (e) {
@@ -91,7 +92,7 @@ class QrcodeResultHandler {
         if (json.containsKey('sourceUrl')) {
           try {
             final source = RssSource.fromJson(Map<String, dynamic>.from(json));
-            await RssService.instance.addOrUpdateRssSource(source);
+            await readService(AppServices.rssService).addOrUpdateRssSource(source);
             AppLog.instance.put('RSS源导入成功: ${source.sourceName}');
             return true;
           } catch (e) {
@@ -114,7 +115,7 @@ class QrcodeResultHandler {
                 }
                 throw Exception('Invalid book source format');
               }).toList();
-              final result = await BookSourceService.instance.importBookSources(sources);
+              final result = await readService(AppServices.bookSourceService).importBookSources(sources);
               final imported = result['imported'] ?? 0;
               final blocked = result['blocked'] ?? 0;
               AppLog.instance.put('批量导入书源成功: $imported 个，已过滤 $blocked 个18+网站');
@@ -134,7 +135,7 @@ class QrcodeResultHandler {
                 }).toList();
                 
                 for (final rule in rules) {
-                  await ReplaceRuleService.instance.addOrUpdateRule(rule);
+                  await readService(AppServices.replaceRuleService).addOrUpdateRule(rule);
                 }
                 AppLog.instance.put('替换规则批量导入成功: ${rules.length} 个');
                 return true;
@@ -157,7 +158,7 @@ class QrcodeResultHandler {
                 }).toList();
                 
                 for (final rule in rules) {
-                  await DictRuleService.instance.addOrUpdateRule(rule);
+                  await readService(AppServices.dictRuleService).addOrUpdateRule(rule);
                 }
                 AppLog.instance.put('字典规则批量导入成功: ${rules.length} 个');
                 return true;
@@ -180,7 +181,7 @@ class QrcodeResultHandler {
                 }).toList();
                 
                 for (final source in sources) {
-                  await RssService.instance.addOrUpdateRssSource(source);
+                  await readService(AppServices.rssService).addOrUpdateRssSource(source);
                 }
                 AppLog.instance.put('RSS源批量导入成功: ${sources.length} 个');
                 return true;
@@ -204,7 +205,7 @@ class QrcodeResultHandler {
   Future<bool> _handleUrlResult(String url) async {
     try {
       // 从URL下载内容
-      final response = await NetworkService.instance.get(url, retryCount: 1);
+      final response = await readService(AppServices.networkService).get(url, retryCount: 1);
       final content = await NetworkService.getResponseText(response);
       
       if (content.isEmpty) {

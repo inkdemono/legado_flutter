@@ -1,6 +1,8 @@
+import 'package:equatable/equatable.dart';
+
 /// Flexbox 子元素样式
 /// 参考项目：FlexChildStyle.kt
-class FlexChildStyle {
+class FlexChildStyle with EquatableMixin {
   /// 弹性增长比例
   /// 0=不增长, 1=平分剩余空间
   final double flexGrow;
@@ -64,4 +66,17 @@ class FlexChildStyle {
     if (flexBasisPercent > 1) return 1.0;
     return flexBasisPercent;
   }
+
+  @override
+  List<Object?> get props => [
+        flexGrow,
+        flexShrink,
+        alignSelf,
+        flexBasisPercent,
+        wrapBefore,
+      ];
+
+  @override
+  String toString() =>
+      'FlexChildStyle(grow: $flexGrow, shrink: $flexShrink, align: $alignSelf)';
 }

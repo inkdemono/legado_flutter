@@ -1,6 +1,9 @@
+import 'package:equatable/equatable.dart';
+
 /// 规则订阅数据模型
 /// 参考项目：io.legado.app.data.entities.RuleSub
-class RuleSub {
+// ignore: must_be_immutable
+class RuleSub with EquatableMixin {
   /// 订阅ID（主键）
   final int id;
 
@@ -60,12 +63,8 @@ class RuleSub {
   }
 
   @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is RuleSub && other.id == id;
-  }
+  List<Object?> get props => [id];
 
   @override
-  int get hashCode => id.hashCode;
+  String toString() => 'RuleSub(id: $id, name: $name, type: $type)';
 }
-

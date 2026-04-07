@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tdesign_flutter/tdesign_flutter.dart';
 import 'config/theme_config.dart';
 import 'config/app_config.dart';
+import 'core/error/global_error_handler.dart';
 import 'core/constants/prefer_key.dart';
 import 'ui/pages/welcome/welcome_page.dart';
 import 'ui/pages/search/search_page.dart';
@@ -11,7 +13,6 @@ import 'services/receiver/media_button_handler.dart';
 import 'utils/localization_helper.dart';
 import 'providers/main_page_index_provider.dart';
 import 'utils/app_log.dart';
-import 'services/media/audio_play_service.dart';
 import 'ui/pages/audio/audio_play_page.dart';
 import 'ui/pages/book_source/book_source_manage_page.dart';
 import 'ui/dialogs/add_to_bookshelf_dialog.dart';
@@ -29,7 +30,6 @@ class LegadoApp extends ConsumerStatefulWidget {
 
 class _LegadoAppState extends ConsumerState<LegadoApp>
     with WidgetsBindingObserver {
-
   @override
   void initState() {
     super.initState();
@@ -139,7 +139,7 @@ class _LegadoAppState extends ConsumerState<LegadoApp>
         case 'audio_play':
           // 导航到音频播放页面
           try {
-            final audioService = AudioPlayService.instance;
+            final audioService = readService(AppServices.audioPlayService);
             final currentBook = audioService.currentBook;
             if (currentBook != null) {
               navigator.push(
@@ -197,8 +197,11 @@ class _LegadoAppState extends ConsumerState<LegadoApp>
           }
           break;
       }
-    } catch (e) {
-      // 忽略错误
+    } catch (e, stackTrace) {
+      AppLog.instance.put(
+        '处理待执行导航失败',
+        error: '$e\n$stackTrace',
+      );
     }
   }
 
@@ -212,12 +215,15 @@ class _LegadoAppState extends ConsumerState<LegadoApp>
         AppConfig.getBool(PreferKey.customWelcome, defaultValue: false);
     final defaultToRead =
         AppConfig.getBool(PreferKey.defaultToRead, defaultValue: false);
-    final initialHome =
-        (customWelcome || defaultToRead) ? const WelcomePage() : const MainPage();
+    final initialHome = (customWelcome || defaultToRead)
+        ? const WelcomePage()
+        : const MainPage();
 
     return TDTheme(
       data: tdTheme,
       child: MaterialApp(
+        navigatorKey: GlobalErrorHandler.navigatorKey,
+        scaffoldMessengerKey: GlobalErrorHandler.scaffoldMessengerKey,
         title: 'Legado',
         debugShowCheckedModeBanner: false,
         theme: theme.lightTheme,

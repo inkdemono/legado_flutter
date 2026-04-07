@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/book_source.dart';
 import '../../../data/models/explore_kind.dart';
@@ -70,22 +71,22 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
 
     try {
       // 加载分组
-      final groups = await BookSourceService.instance.getExploreGroups();
+      final groups = await readService(AppServices.bookSourceService).getExploreGroups();
 
       // 加载书源
       List<BookSource> sources;
       if (_searchKeyword != null && _searchKeyword!.isNotEmpty) {
         // 优先处理搜索
-        sources = await BookSourceService.instance
+        sources = await readService(AppServices.bookSourceService)
             .searchExploreBookSources(_searchKeyword!);
       } else if (_selectedGroup != null && _selectedGroup!.isNotEmpty) {
         // 按分组筛选
-        sources = await BookSourceService.instance
+        sources = await readService(AppServices.bookSourceService)
             .getExploreBookSourcesByGroup(_selectedGroup!);
       } else {
         // 全部分组
         sources =
-            await BookSourceService.instance.getEnabledExploreBookSources();
+            await readService(AppServices.bookSourceService).getEnabledExploreBookSources();
       }
 
       setState(() {
@@ -158,8 +159,8 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
 
   Future<void> _topSource(BookSource source) async {
     try {
-      final minOrder = await BookSourceService.instance.getMinOrder();
-      await BookSourceService.instance.updateBookSource(
+      final minOrder = await readService(AppServices.bookSourceService).getMinOrder();
+      await readService(AppServices.bookSourceService).updateBookSource(
         source.copyWith(customOrder: minOrder - 1),
       );
       _loadData();
@@ -203,7 +204,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
 
     if (confirmed == true) {
       try {
-        await BookSourceService.instance.deleteBookSource(source.bookSourceUrl);
+        await readService(AppServices.bookSourceService).deleteBookSource(source.bookSourceUrl);
         _loadData();
       } catch (e) {
         if (mounted) {
@@ -217,7 +218,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
 
   Future<void> _refreshExploreKinds(int index) async {
     final source = _bookSources[index];
-    await ExploreService.instance.clearExploreKindsCache(source);
+    await readService(AppServices.exploreService).clearExploreKindsCache(source);
     // 如果当前项是展开的，重新展开以刷新数据
     if (_expandedIndex == index) {
       setState(() {
@@ -488,7 +489,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
               if (isExpanded)
                 FutureBuilder<List<ExploreKind>>(
                   key: ValueKey('${source.bookSourceUrl}_$_expandedIndex'),
-                  future: ExploreService.instance.getExploreKinds(source),
+                  future: readService(AppServices.exploreService).getExploreKinds(source),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Padding(

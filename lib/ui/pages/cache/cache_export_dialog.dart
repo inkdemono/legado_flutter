@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../../data/models/book.dart';
 import '../../../services/reader/cache_export_service.dart';
 
@@ -31,7 +32,7 @@ class _CacheExportDialogState extends State<CacheExportDialog> {
     try {
       bool success;
       if (_exportType == 'txt') {
-        success = await CacheExportService.instance.exportAsTxt(
+        success = await readService(AppServices.cacheExportService).exportAsTxt(
           widget.book,
           onProgress: (current, total) {
             if (mounted) {
@@ -43,7 +44,7 @@ class _CacheExportDialogState extends State<CacheExportDialog> {
           },
         );
       } else {
-        success = await CacheExportService.instance.exportAsEpub(
+        success = await readService(AppServices.cacheExportService).exportAsEpub(
           widget.book,
           onProgress: (current, total) {
             if (mounted) {

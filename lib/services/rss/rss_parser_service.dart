@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:xml/xml.dart' as xml;
 import '../../core/base/base_service.dart';
 import '../../data/models/book_source_rule.dart';
@@ -39,7 +40,7 @@ class RssParserService extends BaseService {
       final url = sortUrl ?? source.sourceUrl;
 
       // 发送请求
-      final response = await NetworkService.instance.get(
+      final response = await readService(AppServices.networkService).get(
         url,
         headers: NetworkService.parseHeaders(source.header),
         retryCount: 1,
@@ -81,7 +82,7 @@ class RssParserService extends BaseService {
       visitedUrls.add(currentUrl);
       pageCount++;
 
-      final response = await NetworkService.instance.get(
+      final response = await readService(AppServices.networkService).get(
         currentUrl,
         headers: NetworkService.parseHeaders(source.header),
         retryCount: 1,
@@ -342,7 +343,7 @@ class RssParserService extends BaseService {
         return await contentLoader(articleUrl);
       }
 
-      final response = await NetworkService.instance.get(
+      final response = await readService(AppServices.networkService).get(
         articleUrl,
         headers: NetworkService.parseHeaders(source.header),
         retryCount: 1,

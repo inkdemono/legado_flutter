@@ -1,4 +1,5 @@
 import 'dart:isolate';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../data/models/book.dart';
@@ -69,7 +70,7 @@ class ChapterDownloaderService {
     final uncachedChapters = <BookChapter>[];
     for (final chapter in chapters) {
       final isCached =
-          await CacheService.instance.hasChapterCache(book, chapter);
+          await readService(AppServices.cacheService).hasChapterCache(book, chapter);
       if (!isCached) {
         uncachedChapters.add(chapter);
       }
@@ -230,7 +231,7 @@ class ChapterDownloaderService {
 
     // 显示完成通知
     if (_currentTask?.showNotification ?? false) {
-      NotificationService.instance.showNotification(
+      readService(AppServices.notificationService).showNotification(
         id: notificationId,
         title: '下载完成',
         content: '${_currentTask!.book.name} 已下载$success章',
@@ -254,7 +255,7 @@ class ChapterDownloaderService {
 
     // 显示错误通知
     if (_currentTask?.showNotification ?? false) {
-      NotificationService.instance.showNotification(
+      readService(AppServices.notificationService).showNotification(
         id: notificationId,
         title: '下载失败',
         content: '${_currentTask!.book.name} 下载失败: $error',
@@ -275,7 +276,7 @@ class ChapterDownloaderService {
     required int total,
     required String bookName,
   }) async {
-    await NotificationService.instance.showProgressNotification(
+    await readService(AppServices.notificationService).showProgressNotification(
       id: notificationId,
       title: '下载章节',
       content: '$bookName ($current/$total)',

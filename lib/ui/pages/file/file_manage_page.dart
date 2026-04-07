@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:legado_flutter/providers/service_registry.dart';
 
 import 'package:flutter/material.dart';
 import 'package:open_filex/open_filex.dart';
@@ -18,7 +19,7 @@ class FileManagePage extends StatefulWidget {
 }
 
 class _FileManagePageState extends State<FileManagePage> {
-  final FileManageService _fileService = FileManageService.instance;
+  final FileManageService _fileService = readService(AppServices.fileManageService);
   final TextEditingController _searchController = TextEditingController();
 
   Directory? _currentDirectory;
@@ -158,7 +159,7 @@ class _FileManagePageState extends State<FileManagePage> {
 
   Future<void> _importBook(String filePath) async {
     try {
-      final book = await LocalBookService.instance.importBook(filePath);
+      final book = await readService(AppServices.localBookService).importBook(filePath);
       if (book != null) {
         _showMessage('导入成功: ${book.name}');
       }
@@ -792,7 +793,7 @@ class _FileItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fileService = FileManageService.instance;
+    final fileService = readService(AppServices.fileManageService);
     final style = _styleFor(fileInfo, fileService);
     final isParent = fileInfo.name == '..';
     final title = isParent ? '返回上一级' : fileInfo.name;

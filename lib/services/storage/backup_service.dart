@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:path_provider/path_provider.dart';
@@ -102,31 +103,31 @@ class BackupService extends BaseService {
   /// 备份数据到目录
   Future<void> _backupData(Directory backupDir) async {
       // 备份书架
-      final books = await BookService.instance.getBookshelfBooks();
+      final books = await readService(AppServices.bookService).getBookshelfBooks();
       await _writeJsonFile(backupDir, 'bookshelf.json', books.map((Book b) => b.toJson()).toList());
 
     // 备份书源
-    final bookSources = await BookSourceService.instance.getAllBookSources();
+    final bookSources = await readService(AppServices.bookSourceService).getAllBookSources();
     await _writeJsonFile(backupDir, 'bookSource.json', bookSources.map((BookSource s) => s.toJson()).toList());
 
     // 备份书签
-    final bookmarks = await BookmarkService.instance.getAllBookmarks();
+    final bookmarks = await readService(AppServices.bookmarkService).getAllBookmarks();
     await _writeJsonFile(backupDir, 'bookmark.json', bookmarks.map((b) => b.toMap()).toList());
 
     // 备份书籍分组
-    final bookGroups = await BookGroupService.instance.getAllGroups(showOnly: false);
+    final bookGroups = await readService(AppServices.bookGroupService).getAllGroups(showOnly: false);
     await _writeJsonFile(backupDir, 'bookGroup.json', bookGroups.map((g) => g.toJson()).toList());
 
     // 备份替换规则
-    final replaceRules = await ReplaceRuleService.instance.getAllRules();
+    final replaceRules = await readService(AppServices.replaceRuleService).getAllRules();
     await _writeJsonFile(backupDir, 'replaceRule.json', replaceRules.map((r) => r.toJson()).toList());
 
     // 备份字典规则
-    final dictRules = await DictRuleService.instance.getAllRules();
+    final dictRules = await readService(AppServices.dictRuleService).getAllRules();
     await _writeJsonFile(backupDir, 'dictRule.json', dictRules.map((r) => r.toJson()).toList());
 
     // 备份TXT目录规则
-    final txtTocRules = await TxtTocRuleService.instance.getAllRules();
+    final txtTocRules = await readService(AppServices.txtTocRuleService).getAllRules();
     await _writeJsonFile(backupDir, 'txtTocRule.json', txtTocRules.map((r) => r.toJson()).toList());
 
     // 备份配置
@@ -169,13 +170,13 @@ class BackupService extends BaseService {
   /// 备份到WebDAV
   Future<void> backupToWebDav() async {
     try {
-      await WebDavService.instance.loadConfig();
-      if (!WebDavService.instance.isConfigured) {
+      await readService(AppServices.webDavService).loadConfig();
+      if (!readService(AppServices.webDavService).isConfigured) {
         throw Exception('WebDAV未配置');
       }
 
       // 检查连接
-      final isOk = await WebDavService.instance.check();
+      final isOk = await readService(AppServices.webDavService).check();
       if (!isOk) {
         throw Exception('WebDAV连接失败');
       }
@@ -185,7 +186,7 @@ class BackupService extends BaseService {
       final fileName = _generateBackupFileName();
 
       // 上传到WebDAV
-      await WebDavService.instance.upload(zipPath, remotePath: fileName);
+      await readService(AppServices.webDavService).upload(zipPath, remotePath: fileName);
 
       AppLog.instance.put('备份到WebDAV成功: $fileName');
     } catch (e) {

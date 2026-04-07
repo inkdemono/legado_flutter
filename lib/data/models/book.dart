@@ -1,3 +1,4 @@
+import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
 import '../../core/constants/app_status.dart';
 import '../../utils/helpers/book_help.dart';
@@ -65,7 +66,8 @@ class BookType {
 }
 
 @JsonSerializable()
-class Book {
+// ignore: must_be_immutable
+class Book with EquatableMixin {
   /// 详情页Url(本地书源存储完整文件路径)
   @JsonKey(name: 'bookUrl')
   final String bookUrl;
@@ -443,10 +445,19 @@ class Book {
 
     return newBook;
   }
+
+  @override
+  List<Object?> get props => [bookUrl];
+
+  @override
+  String toString() {
+    return 'Book(name: $name, author: $author, url: $bookUrl)';
+  }
 }
 
 @JsonSerializable()
-class ReadConfig {
+// ignore: must_be_immutable
+class ReadConfig with EquatableMixin {
   @JsonKey(name: 'fontSize')
   double fontSize;
 
@@ -974,4 +985,64 @@ class ReadConfig {
     }
     return null;
   }
+
+  @override
+  List<Object?> get props => [
+        fontSize,
+        lineHeight,
+        paragraphSpacing,
+        letterSpacing,
+        paragraphIndent,
+        fontFamily,
+        textColor,
+        backgroundColor,
+        bold,
+        fontWeight,
+        paddingHorizontal,
+        paddingVertical,
+        paddingTop,
+        paddingBottom,
+        paddingLeft,
+        paddingRight,
+        headerPaddingTop,
+        headerPaddingBottom,
+        headerPaddingLeft,
+        headerPaddingRight,
+        showHeaderLine,
+        footerPaddingTop,
+        footerPaddingBottom,
+        footerPaddingLeft,
+        footerPaddingRight,
+        showFooterLine,
+        pageMode,
+        pageAnimation,
+        styleName,
+        darkStatusIcon,
+        underline,
+        bgAlpha,
+        bgImage,
+        titleMode,
+        titleSize,
+        titleTopSpacing,
+        titleBottomSpacing,
+        tipHeaderLeft,
+        tipHeaderMiddle,
+        tipHeaderRight,
+        tipFooterLeft,
+        tipFooterMiddle,
+        tipFooterRight,
+        tipColor,
+        tipDividerColor,
+        headerMode,
+        footerMode,
+        simulateReading,
+        simulateStartDate,
+        simulateChaptersPerDay,
+        useReplaceRule,
+        reSegment,
+      ];
+
+  @override
+  String toString() =>
+      'ReadConfig(fontSize: $fontSize, lineHeight: $lineHeight, pageMode: $pageMode)';
 }

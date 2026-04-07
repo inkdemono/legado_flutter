@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../../data/models/book_source.dart';
 import '../../../services/explore_service.dart';
 
@@ -30,7 +31,7 @@ class _DebugHelpWidgetState extends State<DebugHelpWidget> {
   Future<void> _loadExploreKinds() async {
     try {
       final kinds =
-          await ExploreService.instance.getExploreKinds(widget.source);
+          await readService(AppServices.exploreService).getExploreKinds(widget.source);
       if (kinds.isNotEmpty) {
         final firstKind = kinds.first;
         setState(() {

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/material.dart';
 import '../../widgets/base/base_bottom_sheet_stateful.dart';
 import '../../../services/file_manage_service.dart';
@@ -71,7 +72,7 @@ class FilePickerDialog extends BaseBottomSheetStateful {
 }
 
 class _FilePickerDialogState extends BaseBottomSheetState<FilePickerDialog> {
-  final FileManageService _fileService = FileManageService.instance;
+  final FileManageService _fileService = readService(AppServices.fileManageService);
   final TextEditingController _searchController = TextEditingController();
 
   Directory? _currentDirectory;

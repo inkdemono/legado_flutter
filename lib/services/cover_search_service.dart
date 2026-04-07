@@ -1,4 +1,5 @@
 import '../core/base/base_service.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'book/book_service.dart';
 import '../utils/app_log.dart';
 import '../utils/default_data.dart';
@@ -48,7 +49,7 @@ class CoverSearchService extends BaseService {
           final url = searchUrl.replaceAll('{{keyword}}', keyword);
           
           // 发送请求
-          final response = await NetworkService.instance.get(
+          final response = await readService(AppServices.networkService).get(
             url,
             retryCount: 1,
           );
@@ -91,7 +92,7 @@ class CoverSearchService extends BaseService {
       // 如果规则搜索没有结果，使用默认搜索方式
       if (results.isEmpty) {
         // 搜索书籍
-        final searchResults = await BookService.instance.searchBooks(bookName);
+        final searchResults = await readService(AppServices.bookService).searchBooks(bookName);
         
         // 过滤：只保留书名相同且作者匹配的书籍，并且有封面URL
         final filteredResults = searchResults.where((book) {

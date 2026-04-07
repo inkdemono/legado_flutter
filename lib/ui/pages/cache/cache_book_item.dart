@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/material.dart';
 
 import '../../../data/models/book.dart';
@@ -66,7 +67,7 @@ class _CacheBookItemState extends State<CacheBookItem> {
     });
 
     try {
-      await CacheService.instance.clearBookCache(widget.book);
+      await readService(AppServices.cacheService).clearBookCache(widget.book);
       await widget.onCacheCleared?.call();
       _showMessage('缓存已清除');
     } catch (e) {
@@ -92,13 +93,13 @@ class _CacheBookItemState extends State<CacheBookItem> {
     });
 
     try {
-      final source = await BookSourceService.instance
+      final source = await readService(AppServices.bookSourceService)
           .getBookSourceByUrl(widget.book.origin);
       if (source == null) {
         throw Exception('书源不存在');
       }
 
-      final chapters = await BookService.instance.getChapterList(widget.book);
+      final chapters = await readService(AppServices.bookService).getChapterList(widget.book);
       if (chapters.isEmpty) {
         throw Exception('章节列表为空');
       }
@@ -106,7 +107,7 @@ class _CacheBookItemState extends State<CacheBookItem> {
       final uncachedChapters = <BookChapter>[];
       for (final chapter in chapters) {
         final hasCache =
-            await CacheService.instance.hasChapterCache(widget.book, chapter);
+            await readService(AppServices.cacheService).hasChapterCache(widget.book, chapter);
         if (!hasCache) {
           uncachedChapters.add(chapter);
         }
@@ -117,7 +118,7 @@ class _CacheBookItemState extends State<CacheBookItem> {
         return;
       }
 
-      await CacheService.instance.cacheChapters(
+      await readService(AppServices.cacheService).cacheChapters(
         widget.book,
         uncachedChapters,
         source,

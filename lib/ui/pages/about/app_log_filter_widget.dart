@@ -1,22 +1,26 @@
 import 'package:flutter/material.dart';
-import 'app_log_page.dart';
+import '../../../utils/app_log.dart';
 
 /// 日志筛选组件
 class AppLogFilterWidget extends StatelessWidget {
   final String searchQuery;
   final LogLevel filterLevel;
+  final LogCategory filterCategory;
   final bool showErrorsOnly;
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<LogLevel> onFilterLevelChanged;
+  final ValueChanged<LogCategory> onFilterCategoryChanged;
   final ValueChanged<bool> onShowErrorsOnlyChanged;
 
   const AppLogFilterWidget({
     super.key,
     required this.searchQuery,
     required this.filterLevel,
+    required this.filterCategory,
     required this.showErrorsOnly,
     required this.onSearchChanged,
     required this.onFilterLevelChanged,
+    required this.onFilterCategoryChanged,
     required this.onShowErrorsOnlyChanged,
   });
 
@@ -73,6 +77,10 @@ class AppLogFilterWidget extends StatelessWidget {
                       child: Text('信息'),
                     ),
                     DropdownMenuItem(
+                      value: LogLevel.debug,
+                      child: Text('调试'),
+                    ),
+                    DropdownMenuItem(
                       value: LogLevel.warning,
                       child: Text('警告'),
                     ),
@@ -84,6 +92,33 @@ class AppLogFilterWidget extends StatelessWidget {
                   onChanged: (value) {
                     if (value != null) {
                       onFilterLevelChanged(value);
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: DropdownButtonFormField<LogCategory>(
+                  initialValue: filterCategory,
+                  decoration: InputDecoration(
+                    labelText: '分类',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  items: LogCategory.values
+                      .map(
+                        (category) => DropdownMenuItem(
+                          value: category,
+                          child: Text(category.label),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      onFilterCategoryChanged(value);
                     }
                   },
                 ),

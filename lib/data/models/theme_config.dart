@@ -1,5 +1,8 @@
+import 'package:equatable/equatable.dart';
+
 /// 主题配置模型
-class ThemeConfig {
+// ignore: must_be_immutable
+class ThemeConfig with EquatableMixin {
   /// 主题名称
   String themeName;
 
@@ -71,27 +74,16 @@ class ThemeConfig {
   }
 
   @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is ThemeConfig &&
-        other.themeName == themeName &&
-        other.isNightTheme == isNightTheme &&
-        other.primaryColor == primaryColor &&
-        other.accentColor == accentColor &&
-        other.backgroundColor == backgroundColor &&
-        other.bottomBackground == bottomBackground;
-  }
+  List<Object?> get props => [
+        themeName,
+        isNightTheme,
+        primaryColor,
+        accentColor,
+        backgroundColor,
+        bottomBackground,
+      ];
 
   @override
-  int get hashCode {
-    return Object.hash(
-      themeName,
-      isNightTheme,
-      primaryColor,
-      accentColor,
-      backgroundColor,
-      bottomBackground,
-    );
-  }
+  String toString() =>
+      'ThemeConfig(themeName: $themeName, night: $isNightTheme)';
 }
-

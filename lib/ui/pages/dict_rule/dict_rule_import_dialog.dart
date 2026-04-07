@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -134,7 +135,7 @@ class _DictRuleImportDialogState extends State<DictRuleImportDialog> {
 
     try {
       await Future.sync(
-          () => DictRuleService.instance.importRules(selectedRules));
+          () => readService(AppServices.dictRuleService).importRules(selectedRules));
       widget.onImportComplete();
       if (!mounted) return;
       navigator.pop();

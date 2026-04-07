@@ -1,10 +1,12 @@
+import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'book_source_rule.dart';
 
 // part 'book_source.g.dart'; // 运行 build_runner 后取消注释
 
 @JsonSerializable()
-class BookSource {
+// ignore: must_be_immutable
+class BookSource with EquatableMixin {
   /// 地址，包括 http/https
   @JsonKey(name: 'bookSourceUrl')
   final String bookSourceUrl;
@@ -178,25 +180,24 @@ class BookSource {
       weight: json['weight'] ?? 0,
       exploreUrl: json['exploreUrl'],
       exploreScreen: json['exploreScreen'],
-      ruleExplore: json['ruleExplore'] != null 
-          ? ExploreRule.fromJson(json['ruleExplore']) 
+      ruleExplore: json['ruleExplore'] != null
+          ? ExploreRule.fromJson(json['ruleExplore'])
           : null,
       searchUrl: json['searchUrl'],
-      ruleSearch: json['ruleSearch'] != null 
-          ? SearchRule.fromJson(json['ruleSearch']) 
+      ruleSearch: json['ruleSearch'] != null
+          ? SearchRule.fromJson(json['ruleSearch'])
           : null,
-      ruleBookInfo: json['ruleBookInfo'] != null 
-          ? BookInfoRule.fromJson(json['ruleBookInfo']) 
+      ruleBookInfo: json['ruleBookInfo'] != null
+          ? BookInfoRule.fromJson(json['ruleBookInfo'])
           : null,
-      ruleToc: json['ruleToc'] != null 
-          ? TocRule.fromJson(json['ruleToc']) 
-          : null,
-      ruleContent: json['ruleContent'] != null 
-          ? ContentRule.fromJson(json['ruleContent']) 
+      ruleToc:
+          json['ruleToc'] != null ? TocRule.fromJson(json['ruleToc']) : null,
+      ruleContent: json['ruleContent'] != null
+          ? ContentRule.fromJson(json['ruleContent'])
           : null,
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'bookSourceUrl': bookSourceUrl,
@@ -294,5 +295,12 @@ class BookSource {
       ruleContent: ruleContent ?? this.ruleContent,
     );
   }
-}
 
+  @override
+  List<Object?> get props => [bookSourceUrl];
+
+  @override
+  String toString() {
+    return 'BookSource(name: $bookSourceName, url: $bookSourceUrl)';
+  }
+}

@@ -1,8 +1,11 @@
 import 'dart:convert';
 
+import 'package:equatable/equatable.dart';
+
 /// 漫画颜色滤镜配置
 /// 参考项目：MangaColorFilterConfig.kt
-class MangaColorFilterConfig {
+// ignore: must_be_immutable
+class MangaColorFilterConfig with EquatableMixin {
   int r; // 红色偏移 (-100 到 100)
   int g; // 绿色偏移 (-100 到 100)
   int b; // 蓝色偏移 (-100 到 100)
@@ -62,5 +65,11 @@ class MangaColorFilterConfig {
 
   /// 是否为空配置
   bool get isEmpty => r == 0 && g == 0 && b == 0 && a == 0 && l == 0;
-}
 
+  @override
+  List<Object?> get props => [r, g, b, a, l];
+
+  @override
+  String toString() =>
+      'MangaColorFilterConfig(r: $r, g: $g, b: $b, a: $a, l: $l)';
+}

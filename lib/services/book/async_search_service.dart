@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:dio/dio.dart';
 import '../../data/models/book.dart';
 import '../../data/models/search_book.dart';
@@ -68,7 +69,7 @@ class SearchResult {
 /// await subscription.cancel();
 /// ```
 class AsyncSearchService {
-  final NetworkService _networkService;
+  final INetworkService _networkService;
   final LegadoParser _parser;
   final SearchBookService _searchBookService;
 
@@ -76,12 +77,14 @@ class AsyncSearchService {
   CancelToken? _cancelToken;
 
   AsyncSearchService({
-    NetworkService? networkService,
+    INetworkService? networkService,
     LegadoParser? parser,
     SearchBookService? searchBookService,
-  })  : _networkService = networkService ?? NetworkService.instance,
+  })  : _networkService =
+            networkService ?? readService(AppServices.networkService),
         _parser = parser ?? LegadoParser(),
-        _searchBookService = searchBookService ?? SearchBookService.instance;
+        _searchBookService =
+            searchBookService ?? readService(AppServices.searchBookService);
 
   /// 异步搜索所有书源
   ///

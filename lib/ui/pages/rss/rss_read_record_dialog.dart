@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../../data/models/rss_read_record.dart';
 import '../../../services/rss_read_record_service.dart';
 
@@ -27,7 +28,7 @@ class _RssReadRecordDialogState extends State<RssReadRecordDialog> {
     });
 
     try {
-      final records = await RssReadRecordService.instance.getRecords();
+      final records = await readService(AppServices.rssReadRecordService).getRecords();
       if (mounted) {
         setState(() {
           _records = records;
@@ -66,7 +67,7 @@ class _RssReadRecordDialogState extends State<RssReadRecordDialog> {
     );
 
     if (confirmed == true) {
-      final success = await RssReadRecordService.instance.clearAllRecords();
+      final success = await readService(AppServices.rssReadRecordService).clearAllRecords();
       if (success && mounted) {
         setState(() {
           _records.clear();

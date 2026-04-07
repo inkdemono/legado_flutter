@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:async';
 import '../../data/models/book.dart';
 import '../../data/models/book_chapter.dart';
@@ -120,9 +121,9 @@ class ContentProcessor {
   Future<void> _updateReplaceRulesAsync() async {
     try {
       // 参考项目：同步从数据库获取，这里使用异步但确保在获取完成前不会使用空列表
-      final titleRules = await ReplaceRuleService.instance
+      final titleRules = await readService(AppServices.replaceRuleService)
           .getEnabledRulesByTitleScope(bookName, bookOrigin);
-      final contentRules = await ReplaceRuleService.instance
+      final contentRules = await readService(AppServices.replaceRuleService)
           .getEnabledRulesByContentScope(bookName, bookOrigin);
 
       // 更新规则列表（确保线程安全）
@@ -143,9 +144,9 @@ class ContentProcessor {
       // 或者直接使用 CacheService 根据 bookName 和 bookOrigin 获取缓存文件
 
       // 方案1：如果 BookService 有相关方法，使用它
-      // final book = await BookService.instance.getBookByOrigin(bookName, bookOrigin);
+      // final book = await readService(AppServices.bookService).getBookByOrigin(bookName, bookOrigin);
       // if (book == null) return;
-      // final cachedFiles = await CacheService.instance.getCachedChapterFiles(book);
+      // final cachedFiles = await readService(AppServices.cacheService).getCachedChapterFiles(book);
 
       // 方案2：直接通过 CacheService 获取（需要扩展 CacheService）
       // 当前实现：暂时跳过，在 getContent 中动态添加
@@ -272,7 +273,7 @@ class ContentProcessor {
 
             try {
               final beforeRule = mContent;
-              final tmp = await ReplaceRuleService.instance.applyRules(
+              final tmp = await readService(AppServices.replaceRuleService).applyRules(
                 mContent,
                 rules: [rule],
               );

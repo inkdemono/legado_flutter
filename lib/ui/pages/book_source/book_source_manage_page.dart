@@ -1,11 +1,11 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../data/models/book_source.dart';
-import '../../../providers/book_source_provider.dart';
 import '../../../services/source/book_source_service.dart';
 import '../../../services/network/network_service.dart';
 import '../../widgets/home/home_shell.dart';
@@ -14,6 +14,77 @@ import 'book_source_edit_page.dart';
 import 'book_source_import_dialog.dart';
 import 'book_source_group_manage_dialog.dart';
 import 'check_source_page.dart';
+
+class BookSourceManageNotifier extends AsyncNotifier<List<BookSource>> {
+  IBookSourceService get _svc => readService(AppServices.bookSourceService);
+
+  @override
+  Future<List<BookSource>> build() => _svc.getAllBookSources();
+
+  Future<void> reload({bool showLoading = false}) async {
+    if (showLoading || !state.hasValue) {
+      state = const AsyncValue.loading();
+    }
+    state = await AsyncValue.guard(_svc.getAllBookSources);
+  }
+
+  Future<void> toggleEnabled(BookSource source, bool enabled) async {
+    final updatedSource = source.copyWith(enabled: enabled);
+    await _svc.updateBookSource(updatedSource);
+    state = AsyncValue.data(
+      state.requireValue
+          .map((item) =>
+              item.bookSourceUrl == source.bookSourceUrl ? updatedSource : item)
+          .toList(),
+    );
+  }
+
+  Future<void> delete(String url) async {
+    await _svc.deleteBookSource(url);
+    state = AsyncValue.data(
+      state.requireValue.where((item) => item.bookSourceUrl != url).toList(),
+    );
+  }
+
+  Future<void> batchSetEnabled(List<String> urls, bool enabled) async {
+    await _svc.batchSetEnabled(urls, enabled);
+    final urlSet = urls.toSet();
+    state = AsyncValue.data(
+      state.requireValue
+          .map((item) => urlSet.contains(item.bookSourceUrl)
+              ? item.copyWith(enabled: enabled)
+              : item)
+          .toList(),
+    );
+  }
+
+  Future<void> batchDelete(List<String> urls) async {
+    await _svc.batchDeleteBookSources(urls);
+    final urlSet = urls.toSet();
+    state = AsyncValue.data(
+      state.requireValue
+          .where((item) => !urlSet.contains(item.bookSourceUrl))
+          .toList(),
+    );
+  }
+
+  Future<void> batchSetGroup(List<String> urls, String? groupName) async {
+    await _svc.batchSetGroup(urls, groupName);
+    final urlSet = urls.toSet();
+    state = AsyncValue.data(
+      state.requireValue
+          .map((item) => urlSet.contains(item.bookSourceUrl)
+              ? item.copyWith(bookSourceGroup: groupName)
+              : item)
+          .toList(),
+    );
+  }
+}
+
+final bookSourceManageNotifierProvider =
+    AsyncNotifierProvider<BookSourceManageNotifier, List<BookSource>>(
+  BookSourceManageNotifier.new,
+);
 
 /// 书源管理页面
 class BookSourceManagePage extends ConsumerStatefulWidget {
@@ -54,7 +125,7 @@ class _BookSourceManagePageState extends ConsumerState<BookSourceManagePage> {
 
   @override
   Widget build(BuildContext context) {
-    final bookSourcesAsync = ref.watch(bookSourceListProvider);
+    final bookSourcesAsync = ref.watch(bookSourceManageNotifierProvider);
     final canPop = Navigator.of(context).canPop();
 
     return Scaffold(
@@ -267,8 +338,10 @@ class _BookSourceManagePageState extends ConsumerState<BookSourceManagePage> {
         builder: (context) => const BookSourceEditPage(),
       ),
     )
-        .then((_) {
-      ref.invalidate(bookSourceListProvider);
+        .then((result) {
+      if (result == true) {
+        ref.read(bookSourceManageNotifierProvider.notifier).reload();
+      }
     });
   }
 
@@ -279,54 +352,28 @@ class _BookSourceManagePageState extends ConsumerState<BookSourceManagePage> {
         builder: (context) => BookSourceEditPage(bookSource: source),
       ),
     )
-        .then((_) {
-      ref.invalidate(bookSourceListProvider);
+        .then((result) {
+      if (result == true) {
+        ref.read(bookSourceManageNotifierProvider.notifier).reload();
+      }
     });
   }
 
-  void _toggleEnabled(BookSource source, bool enabled) {
-    final updatedSource = BookSource(
-      bookSourceUrl: source.bookSourceUrl,
-      bookSourceName: source.bookSourceName,
-      bookSourceGroup: source.bookSourceGroup,
-      bookSourceType: source.bookSourceType,
-      bookUrlPattern: source.bookUrlPattern,
-      customOrder: source.customOrder,
-      enabled: enabled,
-      enabledExplore: source.enabledExplore,
-      jsLib: source.jsLib,
-      enabledCookieJar: source.enabledCookieJar,
-      concurrentRate: source.concurrentRate,
-      header: source.header,
-      loginUrl: source.loginUrl,
-      loginUi: source.loginUi,
-      loginCheckJs: source.loginCheckJs,
-      coverDecodeJs: source.coverDecodeJs,
-      bookSourceComment: source.bookSourceComment,
-      variableComment: source.variableComment,
-      lastUpdateTime: source.lastUpdateTime,
-      respondTime: source.respondTime,
-      weight: source.weight,
-      exploreUrl: source.exploreUrl,
-      exploreScreen: source.exploreScreen,
-      ruleExplore: source.ruleExplore,
-      searchUrl: source.searchUrl,
-      ruleSearch: source.ruleSearch,
-      ruleBookInfo: source.ruleBookInfo,
-      ruleToc: source.ruleToc,
-      ruleContent: source.ruleContent,
-    );
-
-    BookSourceService.instance.updateBookSource(updatedSource).then((_) {
-      ref.invalidate(bookSourceListProvider);
+  Future<void> _toggleEnabled(BookSource source, bool enabled) async {
+    try {
+      await ref
+          .read(bookSourceManageNotifierProvider.notifier)
+          .toggleEnabled(source, enabled);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(enabled ? '已启用' : '已禁用')),
       );
-    }).catchError((error) {
+    } catch (error) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('操作失败: $error')),
       );
-    });
+    }
   }
 
   void _deleteBookSource(BookSource source) {
@@ -344,9 +391,9 @@ class _BookSourceManagePageState extends ConsumerState<BookSourceManagePage> {
             onPressed: () async {
               Navigator.pop(context);
               try {
-                await BookSourceService.instance
-                    .deleteBookSource(source.bookSourceUrl);
-                ref.invalidate(bookSourceListProvider);
+                await ref
+                    .read(bookSourceManageNotifierProvider.notifier)
+                    .delete(source.bookSourceUrl);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('删除成功')),
@@ -369,14 +416,12 @@ class _BookSourceManagePageState extends ConsumerState<BookSourceManagePage> {
 
   Future<void> _batchEnable(bool enabled) async {
     if (_selectedUrls.isEmpty) return;
+    final count = _selectedUrls.length;
 
     try {
-      await BookSourceService.instance.batchSetEnabled(
-        _selectedUrls.toList(),
-        enabled,
-      );
-
-      ref.invalidate(bookSourceListProvider);
+      await ref
+          .read(bookSourceManageNotifierProvider.notifier)
+          .batchSetEnabled(_selectedUrls.toList(), enabled);
 
       if (mounted) {
         setState(() {
@@ -384,9 +429,7 @@ class _BookSourceManagePageState extends ConsumerState<BookSourceManagePage> {
           _selectedUrls.clear();
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(
-                  '已${enabled ? '启用' : '禁用'} ${_selectedUrls.length} 个书源')),
+          SnackBar(content: Text('已${enabled ? '启用' : '禁用'} $count 个书源')),
         );
       }
     } catch (e) {
@@ -407,7 +450,8 @@ class _BookSourceManagePageState extends ConsumerState<BookSourceManagePage> {
   }
 
   Future<void> _startBatchCheck() async {
-    final sources = await BookSourceService.instance.getAllBookSources();
+    final sources =
+        await readService(AppServices.bookSourceService).getAllBookSources();
     if (sources.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -432,7 +476,8 @@ class _BookSourceManagePageState extends ConsumerState<BookSourceManagePage> {
     final controller = TextEditingController();
 
     // 获取所有现有分组
-    final allGroups = await BookSourceService.instance.getAllGroups();
+    final allGroups =
+        await readService(AppServices.bookSourceService).getAllGroups();
 
     if (!mounted) return;
 
@@ -485,12 +530,15 @@ class _BookSourceManagePageState extends ConsumerState<BookSourceManagePage> {
               final groupName = controller.text.trim();
 
               try {
-                await BookSourceService.instance.batchSetGroup(
-                  _selectedUrls.toList(),
-                  groupName.isEmpty ? null : groupName,
-                );
-
-                ref.invalidate(bookSourceListProvider);
+                final count = _selectedUrls.length;
+                final normalizedGroupName =
+                    groupName.isEmpty ? null : groupName;
+                await ref
+                    .read(bookSourceManageNotifierProvider.notifier)
+                    .batchSetGroup(
+                      _selectedUrls.toList(),
+                      normalizedGroupName,
+                    );
 
                 if (mounted) {
                   setState(() {
@@ -499,9 +547,9 @@ class _BookSourceManagePageState extends ConsumerState<BookSourceManagePage> {
                   });
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(groupName.isEmpty
-                          ? '已移除 ${_selectedUrls.length} 个书源的分组'
-                          : '已将 ${_selectedUrls.length} 个书源设置为分组: $groupName'),
+                      content: Text(normalizedGroupName == null
+                          ? '已移除 $count 个书源的分组'
+                          : '已将 $count 个书源设置为分组: $normalizedGroupName'),
                     ),
                   );
                 }
@@ -589,11 +637,9 @@ class _BookSourceManagePageState extends ConsumerState<BookSourceManagePage> {
             onPressed: () async {
               Navigator.pop(context);
               try {
-                await BookSourceService.instance.batchDeleteBookSources(
-                  _selectedUrls.toList(),
-                );
-
-                ref.invalidate(bookSourceListProvider);
+                await ref
+                    .read(bookSourceManageNotifierProvider.notifier)
+                    .batchDelete(_selectedUrls.toList());
 
                 if (mounted) {
                   setState(() {
@@ -698,7 +744,8 @@ class _BookSourceManagePageState extends ConsumerState<BookSourceManagePage> {
                         });
 
                         try {
-                          final response = await NetworkService.instance.get(
+                          final response =
+                              await readService(AppServices.networkService).get(
                             content,
                             retryCount: 1,
                           );
@@ -733,7 +780,8 @@ class _BookSourceManagePageState extends ConsumerState<BookSourceManagePage> {
 
   Future<void> _exportBookSources() async {
     try {
-      final sources = await BookSourceService.instance.getAllBookSources();
+      final sources =
+          await readService(AppServices.bookSourceService).getAllBookSources();
 
       if (sources.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -777,13 +825,15 @@ class _BookSourceManagePageState extends ConsumerState<BookSourceManagePage> {
 
       // 如果处于批量模式且有选中项，只分享选中的书源
       if (_isBatchMode && _selectedUrls.isNotEmpty) {
-        final allSources = await BookSourceService.instance.getAllBookSources();
+        final allSources = await readService(AppServices.bookSourceService)
+            .getAllBookSources();
         sources = allSources
             .where((s) => _selectedUrls.contains(s.bookSourceUrl))
             .toList();
       } else {
         // 否则分享所有书源
-        sources = await BookSourceService.instance.getAllBookSources();
+        sources = await readService(AppServices.bookSourceService)
+            .getAllBookSources();
       }
 
       if (sources.isEmpty) {
@@ -821,7 +871,7 @@ class _BookSourceManagePageState extends ConsumerState<BookSourceManagePage> {
       builder: (context) => BookSourceImportDialog(
         content: content,
         onImportComplete: () {
-          ref.invalidate(bookSourceListProvider);
+          ref.read(bookSourceManageNotifierProvider.notifier).reload();
         },
       ),
     );
@@ -1210,7 +1260,7 @@ class _BookSourceManagePageState extends ConsumerState<BookSourceManagePage> {
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(bookSourceListProvider);
+        await ref.read(bookSourceManageNotifierProvider.notifier).reload();
       },
       child: ScrollConfiguration(
         behavior: const MaterialScrollBehavior().copyWith(
@@ -1331,7 +1381,7 @@ class _BookSourceManagePageState extends ConsumerState<BookSourceManagePage> {
       context: context,
       builder: (context) => const BookSourceGroupManageDialog(),
     ).then((_) {
-      ref.invalidate(bookSourceListProvider);
+      ref.read(bookSourceManageNotifierProvider.notifier).reload();
     });
   }
 
@@ -1556,7 +1606,9 @@ class _BookSourceManagePageState extends ConsumerState<BookSourceManagePage> {
             const SizedBox(height: 16),
             FilledButton(
               onPressed: () {
-                ref.invalidate(bookSourceListProvider);
+                ref
+                    .read(bookSourceManageNotifierProvider.notifier)
+                    .reload(showLoading: true);
               },
               child: const Text('重试'),
             ),

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import '../../utils/crypto/symmetric_crypto.dart';
@@ -13,7 +14,7 @@ class BackupAES {
 
   /// 获取 AES 密钥（从本地密码的 MD5 哈希）
   static Uint8List _getKey() {
-    final password = LocalConfigService.instance.password ?? '';
+    final password = readService(AppServices.localConfigService).password ?? '';
     final bytes = utf8.encode(password);
     final digest = md5.convert(bytes);
     // 取前16字节作为 AES-128 密钥

@@ -1,35 +1,35 @@
 import 'package:sqflite/sqflite.dart';
+import 'migration.dart';
+import 'migration_runner.dart';
 
 /// 数据库迁移管理
 /// 参考项目：io.legado.app.data.DatabaseMigrations
-/// 
+///
 /// 将所有数据库迁移逻辑集中管理，提高代码可维护性
 class DatabaseMigrations {
   DatabaseMigrations._();
 
-  /// 获取所有迁移函数
-  /// 返回一个 Map，key 是目标版本，value 是迁移函数
-  static Map<int, Future<void> Function(Database)> get migrations => {
-        2: _migration1To2,
-        3: _migration2To3,
-        4: _migration3To4,
-        5: _migration4To5,
-        6: _migration5To6,
-        7: _migration6To7,
-        8: _migration7To8,
-        9: _migration8To9,
-        10: _migration9To10,
-        11: _migration10To11,
-        12: _migration11To12,
-        13: _migration12To13,
-        14: _migration13To14,
-        15: _migration14To15,
-        16: _migration15To16,
-        17: _migration16To17,
-        18: _migration17To18,
-        19: _migration18To19,
-        20: _migration19To20,
-      };
+  static List<Migration> get migrations => [
+        const CallbackMigration(version: 2, callback: _migration1To2),
+        const CallbackMigration(version: 3, callback: _migration2To3),
+        const CallbackMigration(version: 4, callback: _migration3To4),
+        const CallbackMigration(version: 5, callback: _migration4To5),
+        const CallbackMigration(version: 6, callback: _migration5To6),
+        const CallbackMigration(version: 7, callback: _migration6To7),
+        const CallbackMigration(version: 8, callback: _migration7To8),
+        const CallbackMigration(version: 9, callback: _migration8To9),
+        const CallbackMigration(version: 10, callback: _migration9To10),
+        const CallbackMigration(version: 11, callback: _migration10To11),
+        const CallbackMigration(version: 12, callback: _migration11To12),
+        const CallbackMigration(version: 13, callback: _migration12To13),
+        const CallbackMigration(version: 14, callback: _migration13To14),
+        const CallbackMigration(version: 15, callback: _migration14To15),
+        const CallbackMigration(version: 16, callback: _migration15To16),
+        const CallbackMigration(version: 17, callback: _migration16To17),
+        const CallbackMigration(version: 18, callback: _migration17To18),
+        const CallbackMigration(version: 19, callback: _migration18To19),
+        const CallbackMigration(version: 20, callback: _migration19To20),
+      ];
 
   /// 执行迁移
   /// [db] 数据库实例
@@ -40,19 +40,13 @@ class DatabaseMigrations {
     int oldVersion,
     int newVersion,
   ) async {
-    // 按版本顺序执行迁移，确保每个版本只执行一次
-    for (int version = oldVersion + 1; version <= newVersion; version++) {
-      final migration = migrations[version];
-      if (migration != null) {
-        await migration(db);
-      }
-    }
+    await MigrationRunner.run(db, migrations, oldVersion, newVersion);
   }
 
   // ========== 迁移函数 ==========
 
   /// 从版本1升级到版本2：添加 book_groups 表
-  static Future<void> _migration1To2(Database db) async {
+  static Future<void> _migration1To2(DatabaseExecutor db) async {
     // 检查 book_groups 表是否存在
     final tables = await db.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='book_groups'",
@@ -73,7 +67,8 @@ class DatabaseMigrations {
       ''');
 
       // 创建索引
-      await db.execute('CREATE INDEX idx_book_groups_order ON book_groups("order")');
+      await db.execute(
+          'CREATE INDEX idx_book_groups_order ON book_groups("order")');
 
       // 初始化默认分组
       await db.insert('book_groups', {
@@ -107,12 +102,13 @@ class DatabaseMigrations {
     final hasGroupColumn = booksColumns.any((col) => col['name'] == 'group');
 
     if (!hasGroupColumn) {
-      await db.execute('ALTER TABLE books ADD COLUMN "group" INTEGER DEFAULT -1');
+      await db
+          .execute('ALTER TABLE books ADD COLUMN "group" INTEGER DEFAULT -1');
     }
   }
 
   /// 从版本2升级到版本3：添加 bookmarks 表
-  static Future<void> _migration2To3(Database db) async {
+  static Future<void> _migration2To3(DatabaseExecutor db) async {
     // 检查 bookmarks 表是否存在
     final tables = await db.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='bookmarks'",
@@ -140,7 +136,7 @@ class DatabaseMigrations {
   }
 
   /// 从版本3升级到版本4：添加 txtTocRules 表
-  static Future<void> _migration3To4(Database db) async {
+  static Future<void> _migration3To4(DatabaseExecutor db) async {
     // 检查 txtTocRules 表是否存在
     final tables = await db.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='txtTocRules'",
@@ -165,7 +161,7 @@ class DatabaseMigrations {
   }
 
   /// 从版本4升级到版本5：添加 dictRules 表
-  static Future<void> _migration4To5(Database db) async {
+  static Future<void> _migration4To5(DatabaseExecutor db) async {
     // 检查 dictRules 表是否存在
     final tables = await db.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='dictRules'",
@@ -182,12 +178,13 @@ class DatabaseMigrations {
         )
       ''');
 
-      await db.execute('CREATE INDEX idx_dictRules_sortNumber ON dictRules(sortNumber)');
+      await db.execute(
+          'CREATE INDEX idx_dictRules_sortNumber ON dictRules(sortNumber)');
     }
   }
 
   /// 从版本5升级到版本6：添加 replaceRules 表
-  static Future<void> _migration5To6(Database db) async {
+  static Future<void> _migration5To6(DatabaseExecutor db) async {
     // 检查 replaceRules 表是否存在
     final tables = await db.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='replaceRules'",
@@ -213,8 +210,10 @@ class DatabaseMigrations {
       ''');
 
       // 创建索引
-      await db.execute('CREATE INDEX idx_replaceRules_sortNumber ON replaceRules(sortNumber)');
-      await db.execute('CREATE INDEX idx_replaceRules_group ON replaceRules("group")');
+      await db.execute(
+          'CREATE INDEX idx_replaceRules_sortNumber ON replaceRules(sortNumber)');
+      await db.execute(
+          'CREATE INDEX idx_replaceRules_group ON replaceRules("group")');
       await db.execute('CREATE INDEX idx_replaceRules_id ON replaceRules(id)');
     } else {
       // 检查并添加新字段（用于从旧版本升级）
@@ -235,16 +234,20 @@ class DatabaseMigrations {
         await db.execute('ALTER TABLE replaceRules ADD COLUMN scope TEXT');
       }
       if (!columnNames.contains('scopeTitle')) {
-        await db.execute('ALTER TABLE replaceRules ADD COLUMN scopeTitle INTEGER DEFAULT 0');
+        await db.execute(
+            'ALTER TABLE replaceRules ADD COLUMN scopeTitle INTEGER DEFAULT 0');
       }
       if (!columnNames.contains('scopeContent')) {
-        await db.execute('ALTER TABLE replaceRules ADD COLUMN scopeContent INTEGER DEFAULT 1');
+        await db.execute(
+            'ALTER TABLE replaceRules ADD COLUMN scopeContent INTEGER DEFAULT 1');
       }
       if (!columnNames.contains('excludeScope')) {
-        await db.execute('ALTER TABLE replaceRules ADD COLUMN excludeScope TEXT');
+        await db
+            .execute('ALTER TABLE replaceRules ADD COLUMN excludeScope TEXT');
       }
       if (!columnNames.contains('isRegex')) {
-        await db.execute('ALTER TABLE replaceRules ADD COLUMN isRegex INTEGER DEFAULT 1');
+        await db.execute(
+            'ALTER TABLE replaceRules ADD COLUMN isRegex INTEGER DEFAULT 1');
       }
       if (!columnNames.contains('timeoutMillisecond')) {
         await db.execute(
@@ -255,7 +258,7 @@ class DatabaseMigrations {
   }
 
   /// 从版本6升级到版本7：添加 RSS 表
-  static Future<void> _migration6To7(Database db) async {
+  static Future<void> _migration6To7(DatabaseExecutor db) async {
     // 检查 rssSources 表是否存在
     final rssSourcesTables = await db.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='rssSources'",
@@ -304,9 +307,12 @@ class DatabaseMigrations {
       ''');
 
       // 创建RSS源索引
-      await db.execute('CREATE INDEX idx_rssSources_sourceUrl ON rssSources(sourceUrl)');
-      await db.execute('CREATE INDEX idx_rssSources_enabled ON rssSources(enabled)');
-      await db.execute('CREATE INDEX idx_rssSources_customOrder ON rssSources(customOrder)');
+      await db.execute(
+          'CREATE INDEX idx_rssSources_sourceUrl ON rssSources(sourceUrl)');
+      await db.execute(
+          'CREATE INDEX idx_rssSources_enabled ON rssSources(enabled)');
+      await db.execute(
+          'CREATE INDEX idx_rssSources_customOrder ON rssSources(customOrder)');
     }
 
     // 检查 rssArticles 表是否存在
@@ -335,15 +341,19 @@ class DatabaseMigrations {
       ''');
 
       // 创建RSS文章索引
-      await db.execute('CREATE INDEX idx_rssArticles_origin ON rssArticles(origin)');
-      await db.execute('CREATE INDEX idx_rssArticles_group ON rssArticles("group")');
-      await db.execute('CREATE INDEX idx_rssArticles_read ON rssArticles(read)');
-      await db.execute('CREATE INDEX idx_rssArticles_order ON rssArticles("order")');
+      await db.execute(
+          'CREATE INDEX idx_rssArticles_origin ON rssArticles(origin)');
+      await db.execute(
+          'CREATE INDEX idx_rssArticles_group ON rssArticles("group")');
+      await db
+          .execute('CREATE INDEX idx_rssArticles_read ON rssArticles(read)');
+      await db.execute(
+          'CREATE INDEX idx_rssArticles_order ON rssArticles("order")');
     }
   }
 
   /// 从版本7升级到版本8：添加 readRecord 表
-  static Future<void> _migration7To8(Database db) async {
+  static Future<void> _migration7To8(DatabaseExecutor db) async {
     // 检查 readRecord 表是否存在
     final tables = await db.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='readRecord'",
@@ -362,13 +372,15 @@ class DatabaseMigrations {
       ''');
 
       // 创建索引
-      await db.execute('CREATE INDEX idx_readRecord_deviceId ON readRecord(deviceId)');
-      await db.execute('CREATE INDEX idx_readRecord_bookName ON readRecord(bookName, author)');
+      await db.execute(
+          'CREATE INDEX idx_readRecord_deviceId ON readRecord(deviceId)');
+      await db.execute(
+          'CREATE INDEX idx_readRecord_bookName ON readRecord(bookName, author)');
     }
   }
 
   /// 从版本8升级到版本9：添加 cookies 表
-  static Future<void> _migration8To9(Database db) async {
+  static Future<void> _migration8To9(DatabaseExecutor db) async {
     // 检查 cookies 表是否存在
     final tables = await db.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='cookies'",
@@ -394,7 +406,7 @@ class DatabaseMigrations {
   }
 
   /// 从版本9升级到版本10：添加 searchBooks 和 searchKeywords 表
-  static Future<void> _migration9To10(Database db) async {
+  static Future<void> _migration9To10(DatabaseExecutor db) async {
     // 检查 searchBooks 表是否存在
     final searchBooksTables = await db.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='searchBooks'",
@@ -420,8 +432,10 @@ class DatabaseMigrations {
       ''');
 
       // 创建索引
-      await db.execute('CREATE INDEX idx_searchBooks_time ON searchBooks(time)');
-      await db.execute('CREATE INDEX idx_searchBooks_origin ON searchBooks(origin)');
+      await db
+          .execute('CREATE INDEX idx_searchBooks_time ON searchBooks(time)');
+      await db.execute(
+          'CREATE INDEX idx_searchBooks_origin ON searchBooks(origin)');
     }
 
     // 检查 searchKeywords 表是否存在
@@ -438,12 +452,13 @@ class DatabaseMigrations {
       ''');
 
       // 创建索引
-      await db.execute('CREATE INDEX idx_searchKeywords_time ON searchKeywords(time)');
+      await db.execute(
+          'CREATE INDEX idx_searchKeywords_time ON searchKeywords(time)');
     }
   }
 
   /// 从版本10升级到版本11：添加 httpTTS 表
-  static Future<void> _migration10To11(Database db) async {
+  static Future<void> _migration10To11(DatabaseExecutor db) async {
     // 检查 httpTTS 表是否存在
     final tables = await db.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='httpTTS'",
@@ -461,12 +476,13 @@ class DatabaseMigrations {
       ''');
 
       // 创建索引
-      await db.execute('CREATE INDEX idx_httpTTS_sortNumber ON httpTTS(sortNumber)');
+      await db.execute(
+          'CREATE INDEX idx_httpTTS_sortNumber ON httpTTS(sortNumber)');
     }
   }
 
   /// 从版本11升级到版本12：添加 ruleSub 表
-  static Future<void> _migration11To12(Database db) async {
+  static Future<void> _migration11To12(DatabaseExecutor db) async {
     // 检查 ruleSub 表是否存在
     final tables = await db.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='ruleSub'",
@@ -485,12 +501,13 @@ class DatabaseMigrations {
       ''');
 
       // 创建索引
-      await db.execute('CREATE INDEX idx_ruleSub_customOrder ON ruleSub(customOrder)');
+      await db.execute(
+          'CREATE INDEX idx_ruleSub_customOrder ON ruleSub(customOrder)');
     }
   }
 
   /// 从版本12升级到版本13：添加 keyboardAssists 表
-  static Future<void> _migration12To13(Database db) async {
+  static Future<void> _migration12To13(DatabaseExecutor db) async {
     // 检查 keyboardAssists 表是否存在
     final tables = await db.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='keyboardAssists'",
@@ -509,12 +526,13 @@ class DatabaseMigrations {
       ''');
 
       // 创建索引
-      await db.execute('CREATE INDEX idx_keyboardAssists_customOrder ON keyboardAssists(customOrder)');
+      await db.execute(
+          'CREATE INDEX idx_keyboardAssists_customOrder ON keyboardAssists(customOrder)');
     }
   }
 
   /// 从版本13升级到版本14：添加 servers 表
-  static Future<void> _migration13To14(Database db) async {
+  static Future<void> _migration13To14(DatabaseExecutor db) async {
     // 检查 servers 表是否存在
     final tables = await db.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='servers'",
@@ -532,12 +550,13 @@ class DatabaseMigrations {
       ''');
 
       // 创建索引
-      await db.execute('CREATE INDEX idx_servers_sortNumber ON servers(sortNumber)');
+      await db.execute(
+          'CREATE INDEX idx_servers_sortNumber ON servers(sortNumber)');
     }
   }
 
   /// 从版本14升级到版本15：添加 rssStars 表
-  static Future<void> _migration14To15(Database db) async {
+  static Future<void> _migration14To15(DatabaseExecutor db) async {
     // 检查 rssStars 表是否存在
     final tables = await db.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='rssStars'",
@@ -564,7 +583,7 @@ class DatabaseMigrations {
   }
 
   /// 从版本15升级到版本16：添加 rssReadRecord 表
-  static Future<void> _migration15To16(Database db) async {
+  static Future<void> _migration15To16(DatabaseExecutor db) async {
     // 检查 rssReadRecord 表是否存在
     final tables = await db.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='rssReadRecord'",
@@ -581,12 +600,13 @@ class DatabaseMigrations {
       ''');
 
       // 创建索引
-      await db.execute('CREATE INDEX idx_rssReadRecord_origin ON rssReadRecord(origin)');
+      await db.execute(
+          'CREATE INDEX idx_rssReadRecord_origin ON rssReadRecord(origin)');
     }
   }
 
   /// 从版本16升级到版本17：添加 caches 表
-  static Future<void> _migration16To17(Database db) async {
+  static Future<void> _migration16To17(DatabaseExecutor db) async {
     // 检查 caches 表是否存在
     final tables = await db.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='caches'",
@@ -595,19 +615,39 @@ class DatabaseMigrations {
     if (tables.isEmpty) {
       await db.execute('''
         CREATE TABLE caches (
-          key TEXT PRIMARY KEY,
+          "key" TEXT PRIMARY KEY,
           value TEXT,
-          expireTime INTEGER DEFAULT 0
+          deadline INTEGER DEFAULT 0
         )
       ''');
 
-      // 创建索引
-      await db.execute('CREATE INDEX idx_caches_expireTime ON caches(expireTime)');
+      await db.execute('CREATE UNIQUE INDEX idx_caches_key ON caches("key")');
+      return;
+    }
+
+    final columns = await db.rawQuery("PRAGMA table_info(caches)");
+    final columnNames = columns.map((col) => col['name'] as String).toSet();
+
+    if (!columnNames.contains('deadline')) {
+      await db
+          .execute('ALTER TABLE caches ADD COLUMN deadline INTEGER DEFAULT 0');
+      if (columnNames.contains('expireTime')) {
+        await db.execute(
+            'UPDATE caches SET deadline = expireTime WHERE deadline = 0');
+      }
+    }
+
+    final indexes = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='caches'",
+    );
+    final indexNames = indexes.map((row) => row['name']).toSet();
+    if (!indexNames.contains('idx_caches_key')) {
+      await db.execute('CREATE UNIQUE INDEX idx_caches_key ON caches("key")');
     }
   }
 
   /// 从版本17升级到版本18：添加 book_chapter_review 表
-  static Future<void> _migration17To18(Database db) async {
+  static Future<void> _migration17To18(DatabaseExecutor db) async {
     // 检查 book_chapter_review 表是否存在
     final tables = await db.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='book_chapter_review'",
@@ -624,7 +664,8 @@ class DatabaseMigrations {
       ''');
 
       // 创建索引
-      await db.execute('CREATE INDEX idx_book_chapter_review_bookId ON book_chapter_review(bookId)');
+      await db.execute(
+          'CREATE INDEX idx_book_chapter_review_bookId ON book_chapter_review(bookId)');
     }
   }
 
@@ -646,10 +687,11 @@ class DatabaseMigrations {
   /// - 新下载的章节将使用文件存储
   ///
   /// 参考项目: io.legado.app (Legado 原版使用文件存储策略)
-  static Future<void> _migration18To19(Database db) async {
+  static Future<void> _migration18To19(DatabaseExecutor db) async {
     // 检查 chapters 表是否已有 localPath 字段
     final chaptersColumns = await db.rawQuery("PRAGMA table_info(chapters)");
-    final hasLocalPathColumn = chaptersColumns.any((col) => col['name'] == 'localPath');
+    final hasLocalPathColumn =
+        chaptersColumns.any((col) => col['name'] == 'localPath');
 
     if (!hasLocalPathColumn) {
       // 添加 localPath 字段
@@ -657,8 +699,7 @@ class DatabaseMigrations {
 
       // 创建索引,加速基于 localPath 的查询
       await db.execute(
-        'CREATE INDEX idx_chapters_localPath ON chapters(localPath) WHERE localPath IS NOT NULL'
-      );
+          'CREATE INDEX idx_chapters_localPath ON chapters(localPath) WHERE localPath IS NOT NULL');
     }
   }
 
@@ -672,7 +713,7 @@ class DatabaseMigrations {
   /// - music_tracks: 音乐曲目表
   /// - music_playlists: 播放列表表
   /// - video_items: 视频项表
-  static Future<void> _migration19To20(Database db) async {
+  static Future<void> _migration19To20(DatabaseExecutor db) async {
     // ========== 音乐曲目表 ==========
     final musicTracksTables = await db.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='music_tracks'",
@@ -702,10 +743,14 @@ class DatabaseMigrations {
       ''');
 
       // 创建索引
-      await db.execute('CREATE INDEX idx_music_tracks_artist ON music_tracks(artist)');
-      await db.execute('CREATE INDEX idx_music_tracks_album ON music_tracks(album)');
-      await db.execute('CREATE INDEX idx_music_tracks_added_at ON music_tracks(added_at)');
-      await db.execute('CREATE INDEX idx_music_tracks_play_count ON music_tracks(play_count)');
+      await db.execute(
+          'CREATE INDEX idx_music_tracks_artist ON music_tracks(artist)');
+      await db.execute(
+          'CREATE INDEX idx_music_tracks_album ON music_tracks(album)');
+      await db.execute(
+          'CREATE INDEX idx_music_tracks_added_at ON music_tracks(added_at)');
+      await db.execute(
+          'CREATE INDEX idx_music_tracks_play_count ON music_tracks(play_count)');
     }
 
     // ========== 播放列表表 ==========
@@ -728,8 +773,10 @@ class DatabaseMigrations {
       ''');
 
       // 创建索引
-      await db.execute('CREATE INDEX idx_music_playlists_name ON music_playlists(name)');
-      await db.execute('CREATE INDEX idx_music_playlists_updated_at ON music_playlists(updated_at)');
+      await db.execute(
+          'CREATE INDEX idx_music_playlists_name ON music_playlists(name)');
+      await db.execute(
+          'CREATE INDEX idx_music_playlists_updated_at ON music_playlists(updated_at)');
 
       // 初始化系统默认播放列表
       final now = DateTime.now().millisecondsSinceEpoch;
@@ -790,9 +837,10 @@ class DatabaseMigrations {
       ''');
 
       // 创建索引
-      await db.execute('CREATE INDEX idx_video_items_added_at ON video_items(added_at)');
-      await db.execute('CREATE INDEX idx_video_items_last_watched ON video_items(last_watched_at)');
+      await db.execute(
+          'CREATE INDEX idx_video_items_added_at ON video_items(added_at)');
+      await db.execute(
+          'CREATE INDEX idx_video_items_last_watched ON video_items(last_watched_at)');
     }
   }
 }
-

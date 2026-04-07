@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:html/dom.dart' as html_dom;
 import 'package:json_path/json_path.dart';
@@ -16,6 +17,11 @@ import '../js_extensions.dart';
 import 'elements_single.dart';
 import 'analyze_by_regex.dart';
 import 'regex_cache.dart';
+
+// ── 拆分出去的实现模块（part 文件共享同一 Dart 库，可访问库级私有符号）──────────
+part 'rule_parser_media.dart';   // 音视频解析：_RuleParserMedia
+part 'rule_parser_replace.dart'; // 正则替换：  _RuleParserReplace
+part 'rule_parser_toc.dart';     // 目录解析：  _RuleParserToc
 
 /// 规则片段类型
 enum _RuleFragmentType {
@@ -2081,14 +2087,14 @@ class RuleParser {
       // 参考项目：getString0 会先获取列表再取第一个元素
       // 注意：参考项目的 getString 返回 String（非空），当前项目返回 String?（可空）
       // 为了保持一致，将 null 转换为空字符串
-      final chapterName = _parseFieldRuleSyncWithContext(
+      final chapterName = _RuleParserToc._parseFieldRuleSyncWithContext(
             chapterHtml,
             rule.chapterName,
             itemVariables,
             baseUrl: baseUrl,
           ) ??
           '';
-      final chapterUrl = _parseFieldRuleSyncWithContext(
+      final chapterUrl = _RuleParserToc._parseFieldRuleSyncWithContext(
             chapterHtml,
             rule.chapterUrl,
             itemVariables,
@@ -2096,33 +2102,41 @@ class RuleParser {
             isUrl: true,
           ) ??
           '';
-      final isVip = _parseFieldRuleSyncWithContext(
+      final isVip = _RuleParserToc._parseFieldRuleSyncWithContext(
             chapterHtml,
             rule.isVip,
             itemVariables,
             baseUrl: baseUrl,
           ) ??
           '';
-      final isVolumeStr = _parseFieldRuleSyncWithContext(
+      final isVolumeStr = _RuleParserToc._parseFieldRuleSyncWithContext(
             chapterHtml,
             rule.isVolume,
             itemVariables,
             baseUrl: baseUrl,
           ) ??
           '';
-      final updateTime = _parseFieldRuleSyncWithContext(
+      final updateTime = _RuleParserToc._parseFieldRuleSyncWithContext(
             chapterHtml,
             rule.updateTime,
             itemVariables,
             baseUrl: baseUrl,
           ) ??
           '';
-      final nextTocUrl = _parseFieldRuleSyncWithContext(
+      final nextTocUrl = _RuleParserToc._parseFieldRuleSyncWithContext(
             chapterHtml,
             rule.nextTocUrl,
             itemVariables,
             baseUrl: baseUrl,
             isUrl: true,
+          ) ??
+          '';
+      // Phase 3：章节时长（音视频目录）
+      final duration = _RuleParserToc._parseFieldRuleSyncWithContext(
+            chapterHtml,
+            rule.duration,
+            itemVariables,
+            baseUrl: baseUrl,
           ) ??
           '';
 
@@ -2158,6 +2172,7 @@ class RuleParser {
           'isVolume': isVolume ? '1' : '0', // 转换为字符串格式，与数据库存储一致
           'updateTime': updateTime,
           'nextTocUrl': nextTocUrl,
+          'duration': duration,
         });
       }
     }
@@ -2165,105 +2180,7 @@ class RuleParser {
     return results;
   }
 
-  static Future<List<Map<String, String?>>> _parseTocRuleAsync(
-    String html,
-    TocRule? rule, {
-    Map<String, String>? variables,
-    String? baseUrl,
-  }) async {
-    if (rule == null || rule.chapterList == null) {
-      return [];
-    }
-
-    final chapterEntries = _parseListEntries(
-      html,
-      rule.chapterList,
-      variables: variables,
-      baseUrl: baseUrl,
-    );
-
-    final results = <Map<String, String?>>[];
-
-    for (int i = 0; i < chapterEntries.length; i++) {
-      final chapterHtml = chapterEntries[i].content;
-      final itemVariables = <String, String>{
-        ...?variables,
-        ...chapterEntries[i].groups,
-      };
-
-      final chapterName = await _parseFieldRuleWithContext(
-            chapterHtml,
-            rule.chapterName,
-            itemVariables,
-            baseUrl: baseUrl,
-          ) ??
-          '';
-      final chapterUrl = await _parseFieldRuleWithContext(
-            chapterHtml,
-            rule.chapterUrl,
-            itemVariables,
-            baseUrl: baseUrl,
-            isUrl: true,
-          ) ??
-          '';
-      final isVip = await _parseFieldRuleWithContext(
-            chapterHtml,
-            rule.isVip,
-            itemVariables,
-            baseUrl: baseUrl,
-          ) ??
-          '';
-      final isVolumeStr = await _parseFieldRuleWithContext(
-            chapterHtml,
-            rule.isVolume,
-            itemVariables,
-            baseUrl: baseUrl,
-          ) ??
-          '';
-      final updateTime = await _parseFieldRuleWithContext(
-            chapterHtml,
-            rule.updateTime,
-            itemVariables,
-            baseUrl: baseUrl,
-          ) ??
-          '';
-      final nextTocUrl = await _parseFieldRuleWithContext(
-            chapterHtml,
-            rule.nextTocUrl,
-            itemVariables,
-            baseUrl: baseUrl,
-            isUrl: true,
-          ) ??
-          '';
-
-      final isVolume = isVolumeStr.isNotEmpty &&
-          (isVolumeStr.toLowerCase() == 'true' ||
-              isVolumeStr == '1' ||
-              isVolumeStr.trim().isNotEmpty);
-
-      String? finalChapterUrl = chapterUrl;
-      if (finalChapterUrl.isEmpty) {
-        if (!isVolume) {
-          finalChapterUrl = baseUrl;
-        } else {
-          finalChapterUrl = null;
-        }
-      }
-
-      if (chapterName.isNotEmpty) {
-        results.add({
-          'chapterName': chapterName,
-          'chapterUrl': finalChapterUrl,
-          'isVip': isVip,
-          'isVolume': isVolume ? '1' : '0',
-          'updateTime': updateTime,
-          'nextTocUrl': nextTocUrl,
-        });
-      }
-    }
-
-    return results;
-  }
+  // _parseTocRuleAsync → 已迁移至 rule_parser_toc.dart → _RuleParserToc._parseTocRuleAsync
 
   static List<_ListRuleEntry> _parseListEntries(
     String html,
@@ -2507,42 +2424,7 @@ class RuleParser {
     return result;
   }
 
-  static String? _parseFieldRuleSyncWithContext(
-    String html,
-    String? rule,
-    Map<String, String>? variables, {
-    String? baseUrl,
-    bool isUrl = false,
-  }) {
-    if (rule == null || rule.isEmpty) return null;
-    final contextualRule = _applyCaptureGroupVariables(rule, variables);
-    final splitIndex = contextualRule.indexOf('##');
-    final actualRule =
-        splitIndex >= 0 ? contextualRule.substring(0, splitIndex) : contextualRule;
-    final replaceRule = splitIndex >= 0 ? contextualRule.substring(splitIndex) : null;
-    final literalResult = _resolveCaptureGroupLiteral(
-      rule,
-      actualRule,
-      baseUrl: baseUrl,
-      isUrl: isUrl,
-    );
-    if (literalResult != null) {
-      return replaceRule == null
-          ? literalResult
-          : _applyReplaceRegexInternal(literalResult, replaceRule);
-    }
-    final parsed = parseRule(
-      html,
-      actualRule,
-      variables: variables,
-      baseUrl: baseUrl,
-      isUrl: isUrl,
-    );
-    if (parsed == null || replaceRule == null) {
-      return parsed;
-    }
-    return _applyReplaceRegexInternal(parsed, replaceRule);
-  }
+  // _parseFieldRuleSyncWithContext → 已迁移至 rule_parser_toc.dart → _RuleParserToc._parseFieldRuleSyncWithContext
 
   static Future<_PreparedFieldRule> _prepareContextualFieldRule(
     String html,
@@ -2767,219 +2649,37 @@ class RuleParser {
   }
 
   /// 解析章节列表规则，并返回章节列表和下一页URL列表
-  /// 参考项目：BookChapterList.analyzeChapterList (私有方法)
-  /// 返回：Pair<List<Map<String, String?>>, List<String>> (章节列表, 下一页URL列表)
+  ///
+  /// 实现在 `rule_parser_toc.dart` → [_RuleParserToc.parseTocRuleWithNextUrl]
   static Future<Map<String, dynamic>> parseTocRuleWithNextUrl(
     String html,
     TocRule? rule, {
     Map<String, String>? variables,
     String? baseUrl,
     bool getNextUrl = true,
-  }) async {
-    // 先解析章节列表
-    final chapterList = await _parseTocRuleAsync(
-      html,
-      rule,
-      variables: variables,
-      baseUrl: baseUrl,
-    );
+  }) =>
+      _RuleParserToc.parseTocRuleWithNextUrl(html, rule,
+          variables: variables, baseUrl: baseUrl, getNextUrl: getNextUrl);
 
-    // 获取下一页URL列表
-    final nextUrlList = <String>[];
-    if (getNextUrl &&
-        rule?.nextTocUrl != null &&
-        rule!.nextTocUrl!.isNotEmpty) {
-      // 参考项目：使用 getStringList(nextTocRule, isUrl = true) 获取URL列表
-      // 检查规则是否包含属性选择器（@href, @src等）
-      final urls = await parseUrlListRuleAsync(
-        html,
-        rule.nextTocUrl!,
-        variables: variables,
-        baseUrl: baseUrl,
-      );
-      nextUrlList.addAll(urls);
-
-      // 过滤掉与当前URL相同的URL，并拼接完整URL
-      final filteredUrls = nextUrlList
-          .where((url) => url.isNotEmpty && url != baseUrl)
-          .map((url) {
-            try {
-              return NetworkService.joinUrl(baseUrl ?? '', url);
-            } catch (e) {
-              AppLog.instance
-                  .put('parseTocRuleWithNextUrl: 拼接URL失败: $url, 错误: $e');
-              return url;
-            }
-          })
-          .where((url) => url != baseUrl && url.isNotEmpty)
-          .toList();
-
-      nextUrlList.clear();
-      nextUrlList.addAll(filteredUrls);
-
-    }
-
-    return {
-      'chapterList': chapterList,
-      'nextUrlList': nextUrlList,
-    };
-  }
-
-  /// 解析返回 URL 列表的规则。
+  /// 解析返回 URL 列表的规则
   ///
-  /// 兼容说明页中 nextTocUrl/nextContentUrl 这类“可返回多个链接”的规则：
-  /// 1. 普通 CSS/XPath/JSONPath 列表规则
-  /// 2. JavaScript 规则返回 JSON 数组 / 文本列表 / 单个链接
-  /// 3. 混合规则返回的单值结果
+  /// 实现在 `rule_parser_toc.dart` → [_RuleParserToc.parseUrlListRuleAsync]
   static Future<List<String>> parseUrlListRuleAsync(
     String html,
     String? rule, {
     Map<String, String>? variables,
     String? baseUrl,
-  }) async {
-    if (rule == null || rule.isEmpty) return const [];
+  }) =>
+      _RuleParserToc.parseUrlListRuleAsync(html, rule,
+          variables: variables, baseUrl: baseUrl);
 
-    final results = <String>[];
-    final seen = <String>{};
-
-    void addValue(String? value) {
-      if (value == null) return;
-      final trimmed = value.trim();
-      if (trimmed.isEmpty || !seen.add(trimmed)) return;
-      results.add(trimmed);
-    }
-
-    void addAllValues(Iterable<String> values) {
-      for (final value in values) {
-        addValue(value);
-      }
-    }
-
-    final hasExecutableJs = _ruleContainsExecutableJs(rule, variables);
-    final jsOnlyRule = _isJsOnlyRule(rule);
-
-    if (hasExecutableJs) {
-      final jsResult = await parseRuleAsync(
-        html,
-        rule,
-        variables: variables,
-        baseUrl: baseUrl,
-        isUrl: true,
-      );
-      addAllValues(_normalizeRuleListResult(jsResult));
-    }
-
-    if (!jsOnlyRule) {
-      final listResult = parseListRule(
-        html,
-        rule,
-        variables: variables,
-        baseUrl: baseUrl,
-        returnHtml: false,
-      );
-      addAllValues(listResult);
-    }
-
-    if (results.isEmpty) {
-      final singleResult = await parseRuleAsync(
-        html,
-        rule,
-        variables: variables,
-        baseUrl: baseUrl,
-        isUrl: true,
-      );
-      addAllValues(_normalizeRuleListResult(singleResult));
-    }
-
-    if (baseUrl == null || baseUrl.isEmpty) {
-      return results;
-    }
-
-    return results
-        .map((item) => item.startsWith('http') || item.startsWith('data:')
-            ? item
-            : NetworkService.joinUrl(baseUrl, item))
-        .toList();
-  }
-
-  static bool _ruleContainsExecutableJs(
-    String rule,
-    Map<String, String>? variables,
-  ) {
-    if (rule.contains('<js>') ||
-        rule.contains('</js>') ||
-        rule.toLowerCase().contains('@js:')) {
-      return true;
-    }
-
-    final varPattern = RegexCache.instance.getOrCompile(r'\{\{([^}]+)\}\}');
-    for (final match in varPattern.allMatches(rule)) {
-      final key = match.group(1)?.trim();
-      if (key == null) continue;
-      if (variables == null || !variables.containsKey(key)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  static bool _isJsOnlyRule(String rule) {
-    final trimmed = rule.trim();
-    if (trimmed.isEmpty) return false;
-    if (trimmed.startsWith('@js:')) return true;
-    if (trimmed.startsWith('<js>') && trimmed.endsWith('</js>')) return true;
-    if (trimmed.startsWith('{{') && trimmed.endsWith('}}')) return true;
-    return false;
-  }
-
-  static List<String> _normalizeRuleListResult(String? rawResult) {
-    if (rawResult == null) return const [];
-
-    final trimmed = rawResult.trim();
-    if (trimmed.isEmpty ||
-        trimmed == 'null' ||
-        trimmed == 'undefined' ||
-        trimmed == '[]') {
-      return const [];
-    }
-
-    if ((trimmed.startsWith('[') && trimmed.endsWith(']')) ||
-        (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
-      try {
-        final decoded = jsonDecode(trimmed);
-        return _flattenRuleListValue(decoded);
-      } catch (_) {}
-    }
-
-    if (trimmed.contains('&&') || trimmed.contains('\n')) {
-      return trimmed
-          .split(RegExp(r'(?:&&|\r?\n)+'))
-          .map((item) => item.trim())
-          .where((item) => item.isNotEmpty)
-          .toList();
-    }
-
-    return [trimmed];
-  }
-
-  static List<String> _flattenRuleListValue(dynamic value) {
-    if (value == null) return const [];
-    if (value is String) {
-      final trimmed = value.trim();
-      return trimmed.isEmpty ? const [] : [trimmed];
-    }
-    if (value is List) {
-      return value.expand(_flattenRuleListValue).toList();
-    }
-    if (value is Map) {
-      return value.values.expand(_flattenRuleListValue).toList();
-    }
-    return [value.toString()];
-  }
+  // _ruleContainsExecutableJs / _isJsOnlyRule / _normalizeRuleListResult
+  // / _flattenRuleListValue → 已迁移至 rule_parser_toc.dart → _RuleParserToc
 
   /// 解析正文内容规则
   /// [applyReplaceRegex] 是否应用replaceRegex规则，默认为true
   /// 参考项目：replaceRegex是在所有页面内容合并后统一应用的，而不是每页单独应用
+  /// [bookSourceType] 书源类型：0=文本 1=音频 2=图片/视频 3=文件
   static Future<String?> parseContentRule(
     String html,
     ContentRule? rule, {
@@ -2988,8 +2688,27 @@ class RuleParser {
     String? bookName,
     String? bookOrigin,
     bool applyReplaceRegex = true,
+    int bookSourceType = 0,
   }) async {
-    if (rule == null || rule.content == null) return null;
+    if (rule == null) return null;
+
+    // ── 音频源（bookSourceType == 1）专用解析路径 ──────────────────────────
+    // 优先使用书源作者明确配置的 audioUrl 规则；
+    // 若未配置则退回 content + sourceRegex 通用机制（可兼容旧书源）。
+    // 实现在 rule_parser_media.dart → _RuleParserMedia.parseAudioContent
+    if (bookSourceType == 1) {
+      return await _RuleParserMedia.parseAudioContent(html, rule,
+          variables: variables, baseUrl: baseUrl);
+    }
+
+    // ── 视频/图片源（bookSourceType == 2）专用解析路径 ────────────────────
+    // 实现在 rule_parser_media.dart → _RuleParserMedia.parseVideoContent
+    if (bookSourceType == 2) {
+      return await _RuleParserMedia.parseVideoContent(html, rule,
+          variables: variables, baseUrl: baseUrl);
+    }
+
+    if (rule.content == null) return null;
 
     try {
       // 执行网页 JavaScript（如果有）
@@ -3310,13 +3029,13 @@ class RuleParser {
         List<ReplaceRule>? rules;
         if (bookName != null && bookOrigin != null) {
           rules =
-              await ReplaceRuleService.instance.getEnabledRulesByContentScope(
+              await readService(AppServices.replaceRuleService).getEnabledRulesByContentScope(
             bookName,
             bookOrigin,
           );
         }
         if (rules != null && rules.isNotEmpty) {
-          processedContent = await ReplaceRuleService.instance
+          processedContent = await readService(AppServices.replaceRuleService)
               .applyRules(processedContent, rules: rules);
         }
       } catch (e) {
@@ -3330,108 +3049,47 @@ class RuleParser {
     }
   }
 
+  // ── Phase 2：音视频专用解析方法（实现已迁移至 rule_parser_media.dart）────────
+
+  /// 解析音视频章节辅助字段（Phase 3）
+  ///
+  /// 实现在 `rule_parser_media.dart` → [_RuleParserMedia.parseAudioExtras]
+  static Future<Map<String, String?>> parseAudioExtras(
+    String html,
+    ContentRule? rule, {
+    Map<String, String>? variables,
+    String? baseUrl,
+  }) =>
+      _RuleParserMedia.parseAudioExtras(html, rule,
+          variables: variables, baseUrl: baseUrl);
+
+  /// 执行 payAction（Phase 3 基础实现）
+  ///
+  /// 实现在 `rule_parser_media.dart` → [_RuleParserMedia.executePayAction]
+  static Future<bool> executePayAction(
+    String html,
+    String payAction, {
+    Map<String, String>? variables,
+    BookSource? source,
+    Book? book,
+    String? baseUrl,
+  }) =>
+      _RuleParserMedia.executePayAction(html, payAction,
+          variables: variables, source: source, book: book, baseUrl: baseUrl);
+
   /// 应用正则替换规则（公开方法，供外部调用）
-  /// 支持格式：##match##replace 或 ##match##replace###（只替换第一个）
-  static String applyReplaceRegex(String content, String replaceRule) {
-    return _applyReplaceRegexInternal(content, replaceRule);
-  }
+  ///
+  /// 支持格式：`##match##replace` 或 `##match##replace###`（只替换第一个）
+  /// 实现在 `rule_parser_replace.dart` → [_RuleParserReplace.apply]
+  static String applyReplaceRegex(String content, String replaceRule) =>
+      _RuleParserReplace.apply(content, replaceRule);
 
-  /// 处理替换字符串中的分组引用（$1, $2等）
-  /// 参考项目：正则替换中的分组引用
-  static String _processReplacementGroups(
-      String replacement, RegExpMatch match) {
-    String result = replacement;
-    // 替换$1, $2等分组引用
-    final groupPattern = RegExp(r'\$(\d{1,2})');
-    result = result.replaceAllMapped(groupPattern, (m) {
-      final groupIndex = int.tryParse(m.group(1) ?? '0') ?? 0;
-      if (groupIndex > 0 && groupIndex <= match.groupCount) {
-        return match.group(groupIndex) ?? '';
-      }
-      return m.group(0) ?? '';
-    });
-    return result;
-  }
-
-  /// 应用正则替换规则（内部实现）
-  /// 参考项目：AnalyzeRule.replaceRegex
-  /// 支持格式：
-  /// - sourceRegex@replaceRegex：替换所有匹配
-  /// - ##match##replace：替换所有匹配
-  /// - ##match##replace###：只替换第一个匹配
-  /// 支持分组引用：$1, $2等在replacement中使用
-  static String _applyReplaceRegexInternal(String content, String replaceRule) {
-    if (replaceRule.isEmpty) return content;
-
-    try {
-      String sourceRegex;
-      String replacement;
-      bool replaceFirst = false;
-
-      // 检查是否是 ##match##replace 格式
-      if (replaceRule.contains('##')) {
-        final parts = replaceRule.split('##');
-        if (parts.length >= 3) {
-          sourceRegex = parts[1];
-          replacement = parts[2];
-          // 如果有第四个部分（###），表示只替换第一个
-          if (parts.length > 3 && parts[3].isNotEmpty) {
-            replaceFirst = true;
-          }
-        } else {
-          // 格式错误，返回原内容
-          return content;
-        }
-      } else if (replaceRule.contains('@')) {
-        // 旧格式：sourceRegex@replaceRegex
-        final parts = replaceRule.split('@');
-        if (parts.length != 2) return content;
-        sourceRegex = parts[0];
-        replacement = parts[1];
-      } else {
-        // 格式错误，返回原内容
-        return content;
-      }
-
-      // 编译正则表达式（使用缓存）
-      RegExp pattern;
-      try {
-        pattern = RegexCache.instance.getOrCompile(sourceRegex, multiLine: true);
-      } catch (e) {
-        AppLog.instance
-            .put('_applyReplaceRegexInternal: 正则表达式错误: $sourceRegex, 错误: $e');
-        return content;
-      }
-
-      // 应用替换（支持$1, $2等分组引用）
-      if (replaceFirst) {
-        // 只替换第一个匹配
-        final match = pattern.firstMatch(content);
-        if (match != null) {
-          final matchedText = match.group(0)!;
-          // 处理分组引用（$1, $2等）
-          String processedReplacement =
-              _processReplacementGroups(replacement, match);
-          final replaced =
-              matchedText.replaceFirst(pattern, processedReplacement);
-          return content.replaceFirst(matchedText, replaced);
-        }
-        return content;
-      } else {
-        // 替换所有匹配（支持分组引用）
-        final result = content.replaceAllMapped(pattern, (match) {
-          if (match is RegExpMatch) {
-            return _processReplacementGroups(replacement, match);
-          }
-          return replacement;
-        });
-        return result;
-      }
-    } catch (e) {
-      AppLog.instance.put('_applyReplaceRegexInternal: 替换失败: $e');
-      return content;
-    }
-  }
+  /// 内部正则替换（供类内调用，委托给 [_RuleParserReplace]）
+  ///
+  /// 主文件内有多处直接调用此私有方法（parseRule、parseContentRule 等），
+  /// 通过此 shim 保持内部调用链完整，无需逐一修改。
+  static String _applyReplaceRegexInternal(String content, String replaceRule) =>
+      _RuleParserReplace.apply(content, replaceRule);
 
   /// 清理多余空白
   static String _cleanWhitespace(String text) {

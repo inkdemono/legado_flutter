@@ -1,5 +1,7 @@
+import 'package:equatable/equatable.dart';
+
 /// 书签模型
-class Bookmark {
+class Bookmark with EquatableMixin {
   final int time; // 时间戳（毫秒）
   final String bookName;
   final String bookAuthor;
@@ -45,5 +47,20 @@ class Bookmark {
       content: map['content'] as String,
     );
   }
-}
 
+  @override
+  List<Object?> get props => [
+        time,
+        bookName,
+        bookAuthor,
+        chapterIndex,
+        chapterPos,
+        chapterName,
+        bookText,
+        content,
+      ];
+
+  @override
+  String toString() =>
+      'Bookmark(book: $bookName, chapter: $chapterName, time: $time)';
+}

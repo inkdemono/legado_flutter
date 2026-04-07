@@ -1,15 +1,17 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../data/models/book_source.dart';
-import '../../../services/source/login_info_service.dart';
 import '../../../services/network/network_service.dart';
 import '../../../utils/js_engine.dart' as js_engine;
 import '../../../utils/app_log.dart';
-import '../../widgets/base/base_bottom_sheet_stateful.dart';
+import '../../../providers/login_info_provider.dart';
+import '../../widgets/base/base_bottom_sheet_consumer.dart';
 
 /// 表单登录对话框
-class FormLoginDialog extends BaseBottomSheetStateful {
+class FormLoginDialog extends BaseBottomSheetConsumer {
   final BookSource source;
   final VoidCallback? onLoginSuccess;
 
@@ -23,10 +25,11 @@ class FormLoginDialog extends BaseBottomSheetStateful {
         );
 
   @override
-  State<FormLoginDialog> createState() => _FormLoginDialogState();
+  ConsumerState<FormLoginDialog> createState() => _FormLoginDialogState();
 }
 
-class _FormLoginDialogState extends BaseBottomSheetState<FormLoginDialog> {
+class _FormLoginDialogState
+    extends BaseBottomSheetConsumerState<FormLoginDialog> {
   final Map<int, TextEditingController> _controllers = {};
   final Map<int, RowUiData> _uiData = {};
   bool _isLoading = false;
@@ -51,9 +54,9 @@ class _FormLoginDialogState extends BaseBottomSheetState<FormLoginDialog> {
 
     try {
       // 获取已保存的登录信息
-      final savedLoginInfo = await LoginInfoService.instance.getLoginInfo(
-        widget.source.bookSourceUrl,
-      );
+      final savedLoginInfo = await ref
+          .read(loginInfoOperationsProvider)
+          .getLoginInfo(widget.source.bookSourceUrl);
 
       final jsonData = jsonDecode(loginUi);
       if (jsonData is List) {
@@ -121,10 +124,10 @@ class _FormLoginDialogState extends BaseBottomSheetState<FormLoginDialog> {
 
     try {
       // 保存登录信息
-      await LoginInfoService.instance.saveLoginInfo(
-        widget.source.bookSourceUrl,
-        loginData,
-      );
+      await ref.read(loginInfoOperationsProvider).saveLoginInfo(
+            widget.source.bookSourceUrl,
+            loginData,
+          );
 
       // 如果有登录URL，执行登录请求
       if (widget.source.loginUrl != null &&
@@ -171,7 +174,7 @@ class _FormLoginDialogState extends BaseBottomSheetState<FormLoginDialog> {
     // 参考项目：source.login()
     // 这里简化处理，直接发送POST请求
     try {
-      final response = await NetworkService.instance.post(
+      final response = await readService(AppServices.networkService).post(
         fullUrl,
         data: loginData,
         headers: headers,

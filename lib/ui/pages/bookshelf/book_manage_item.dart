@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/material.dart';
 
 import '../../../data/models/book.dart';
@@ -261,7 +262,7 @@ class BookManageItem extends StatelessWidget {
                 if (confirmed != true) return;
 
                 try {
-                  await BookService.instance.deleteBook(book.bookUrl);
+                  await readService(AppServices.bookService).deleteBook(book.bookUrl);
                   await onDeleted?.call();
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(

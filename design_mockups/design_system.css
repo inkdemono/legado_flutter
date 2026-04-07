@@ -923,3 +923,237 @@ body {
 .stats-value {
     font-weight: 800;
 }
+
+/* ═══════════════════════════════════════════════════
+   Dark Mode Tokens  —  [data-theme="dark"]
+   also supports legacy  .phone-frame.dark  class
+   ═══════════════════════════════════════════════════ */
+
+[data-theme="dark"],
+.phone-frame.dark {
+    --ds-text-primary:    #e6edf3;
+    --ds-text-secondary:  #8b949e;
+    --ds-text-tertiary:   #6e7681;
+    --ds-surface:         rgba(22, 27, 34, 0.97);
+    --ds-surface-soft:    rgba(22, 27, 34, 0.72);
+    --ds-surface-muted:   #0d1117;
+    --ds-surface-tint:    #161b22;
+    --ds-line:            rgba(48, 54, 61, 0.92);
+    --ds-accent-soft:     rgba(22, 119, 255, 0.18);
+    --ds-shadow-soft:     0 10px 24px rgba(0, 0, 0, 0.30);
+    --ds-shadow-float:    0 20px 44px rgba(0, 0, 0, 0.44);
+    --ds-shadow-hero:     0 18px 34px rgba(0, 0, 0, 0.38);
+
+    /* Legacy aliases (keeps old --var-name references working) */
+    --primary-color:   var(--ds-accent);
+    --bg-color:        #0d1117;
+    --card-bg:         rgba(22, 27, 34, 0.97);
+    --text-primary:    #e6edf3;
+    --text-secondary:  #8b949e;
+    --text-hint:       #6e7681;
+    --divider:         rgba(48, 54, 61, 0.92);
+}
+
+/* Phone frame background */
+.phone-frame[data-theme="dark"],
+.phone-frame.dark {
+    background: #0d1117 !important;
+}
+
+/* Bars and navigation */
+[data-theme="dark"] .status-bar,
+[data-theme="dark"] .app-bar,
+[data-theme="dark"] .filter-bar,
+[data-theme="dark"] .tab-bar,
+[data-theme="dark"] .search-bar,
+[data-theme="dark"] .toolbar,
+[data-theme="dark"] .tab-strip,
+[data-theme="dark"] .tabs,
+[data-theme="dark"] .bottom-nav,
+[data-theme="dark"] .bottom-bar,
+[data-theme="dark"] .menu-top,
+[data-theme="dark"] .menu-bottom,
+[data-theme="dark"] .settings-panel,
+.phone-frame.dark .status-bar,
+.phone-frame.dark .app-bar,
+.phone-frame.dark .filter-bar,
+.phone-frame.dark .tab-bar,
+.phone-frame.dark .search-bar,
+.phone-frame.dark .toolbar,
+.phone-frame.dark .bottom-nav,
+.phone-frame.dark .bottom-bar,
+.phone-frame.dark .menu-top,
+.phone-frame.dark .menu-bottom,
+.phone-frame.dark .settings-panel {
+    background: rgba(22, 27, 34, 0.97) !important;
+    border-color: rgba(48, 54, 61, 0.92) !important;
+}
+
+/* Icon buttons */
+[data-theme="dark"] .icon-btn,
+[data-theme="dark"] .back-btn,
+[data-theme="dark"] .action-btn,
+[data-theme="dark"] .btn-icon,
+[data-theme="dark"] .circle-btn,
+[data-theme="dark"] .mini-btn,
+[data-theme="dark"] .tool-icon,
+[data-theme="dark"] .quick-action-icon,
+.phone-frame.dark .icon-btn,
+.phone-frame.dark .back-btn,
+.phone-frame.dark .action-btn,
+.phone-frame.dark .btn-icon,
+.phone-frame.dark .circle-btn,
+.phone-frame.dark .tool-icon,
+.phone-frame.dark .quick-action-icon {
+    background: #161b22 !important;
+    color: #e6edf3 !important;
+    border-color: rgba(48, 54, 61, 0.92) !important;
+}
+
+/* Cards and list items */
+[data-theme="dark"] .section,
+[data-theme="dark"] .field,
+[data-theme="dark"] .field-box,
+[data-theme="dark"] .option,
+[data-theme="dark"] .switch-row,
+[data-theme="dark"] .source-card,
+[data-theme="dark"] .song,
+[data-theme="dark"] .video-card,
+[data-theme="dark"] .group,
+[data-theme="dark"] .item,
+[data-theme="dark"] .article,
+[data-theme="dark"] .book-card,
+[data-theme="dark"] .book-item,
+[data-theme="dark"] .detail-item,
+[data-theme="dark"] .status-card,
+[data-theme="dark"] .hint-item,
+[data-theme="dark"] .menu-section,
+[data-theme="dark"] .quick-actions,
+.phone-frame.dark .section,
+.phone-frame.dark .field,
+.phone-frame.dark .option,
+.phone-frame.dark .source-card,
+.phone-frame.dark .song,
+.phone-frame.dark .video-card,
+.phone-frame.dark .group,
+.phone-frame.dark .item,
+.phone-frame.dark .article,
+.phone-frame.dark .book-card,
+.phone-frame.dark .book-item,
+.phone-frame.dark .quick-actions {
+    background: linear-gradient(180deg,
+        rgba(22, 27, 34, 0.98),
+        rgba(13, 17, 23, 0.96)) !important;
+    border-color: rgba(48, 54, 61, 0.92) !important;
+}
+
+/* Filter and tab chips */
+[data-theme="dark"] .filter-chip,
+[data-theme="dark"] .tab,
+[data-theme="dark"] .chip,
+.phone-frame.dark .filter-chip,
+.phone-frame.dark .tab,
+.phone-frame.dark .chip {
+    background: #161b22 !important;
+    color: #8b949e !important;
+    border-color: rgba(48, 54, 61, 0.92) !important;
+}
+
+[data-theme="dark"] .filter-chip.active,
+[data-theme="dark"] .tab.active,
+[data-theme="dark"] .chip.active,
+.phone-frame.dark .filter-chip.active,
+.phone-frame.dark .tab.active {
+    background: rgba(22, 119, 255, 0.18) !important;
+    color: var(--ds-accent) !important;
+}
+
+/* Inputs and search */
+[data-theme="dark"] .search-input,
+[data-theme="dark"] .search-box,
+[data-theme="dark"] .input,
+[data-theme="dark"] .textarea,
+[data-theme="dark"] .name-field,
+.phone-frame.dark .search-input,
+.phone-frame.dark .search-box,
+.phone-frame.dark .input,
+.phone-frame.dark .textarea {
+    background: #161b22 !important;
+    border-color: rgba(48, 54, 61, 0.92) !important;
+    color: #e6edf3 !important;
+}
+
+/* Ghost and secondary buttons */
+[data-theme="dark"] .btn.ghost,
+[data-theme="dark"] .ghost-btn,
+[data-theme="dark"] .btn-secondary,
+.phone-frame.dark .btn.ghost,
+.phone-frame.dark .btn-secondary {
+    background: #161b22 !important;
+    color: #e6edf3 !important;
+    border-color: rgba(48, 54, 61, 0.92) !important;
+}
+
+/* Text */
+[data-theme="dark"] .title,
+[data-theme="dark"] .section-title,
+[data-theme="dark"] .action-title,
+[data-theme="dark"] .book-title,
+[data-theme="dark"] .song-title,
+[data-theme="dark"] .video-title,
+[data-theme="dark"] .app-bar-title,
+[data-theme="dark"] .app-bar h1,
+[data-theme="dark"] .app-bar h2,
+[data-theme="dark"] .app-bar h3,
+.phone-frame.dark .title,
+.phone-frame.dark .section-title,
+.phone-frame.dark .book-title,
+.phone-frame.dark .app-bar-title,
+.phone-frame.dark .app-bar h2 {
+    color: #e6edf3 !important;
+}
+
+[data-theme="dark"] .sub,
+[data-theme="dark"] .desc,
+[data-theme="dark"] .meta,
+[data-theme="dark"] .hint,
+[data-theme="dark"] .book-progress,
+[data-theme="dark"] .book-author,
+[data-theme="dark"] .song-meta,
+[data-theme="dark"] .video-meta,
+[data-theme="dark"] .chapter-date,
+[data-theme="dark"] .nav-label,
+.phone-frame.dark .book-progress,
+.phone-frame.dark .chapter-date,
+.phone-frame.dark .nav-label {
+    color: #6e7681 !important;
+}
+
+/* Bottom nav active */
+[data-theme="dark"] .nav-item.active .nav-icon,
+[data-theme="dark"] .nav-item.active .nav-label,
+.phone-frame.dark .nav-item.active .nav-icon,
+.phone-frame.dark .nav-item.active .nav-label {
+    color: var(--ds-accent) !important;
+}
+
+/* Settings panel specifics */
+[data-theme="dark"] .settings-handle,
+.phone-frame.dark .settings-handle {
+    background: rgba(48, 54, 61, 0.92) !important;
+}
+
+[data-theme="dark"] .progress-slider,
+[data-theme="dark"] .setting-btn,
+.phone-frame.dark .progress-slider,
+.phone-frame.dark .setting-btn {
+    background: #161b22 !important;
+    border-color: rgba(48, 54, 61, 0.92) !important;
+}
+
+[data-theme="dark"] .setting-label,
+[data-theme="dark"] .setting-value,
+.phone-frame.dark .setting-label,
+.phone-frame.dark .setting-value {
+    color: #e6edf3 !important;
+}

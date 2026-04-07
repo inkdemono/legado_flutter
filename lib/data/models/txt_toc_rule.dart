@@ -1,5 +1,8 @@
+import 'package:equatable/equatable.dart';
+
 /// TXT目录规则模型
-class TxtTocRule {
+// ignore: must_be_immutable
+class TxtTocRule with EquatableMixin {
   /// 规则ID（主键）
   final int id;
 
@@ -69,5 +72,11 @@ class TxtTocRule {
       enable: enable ?? this.enable,
     );
   }
-}
 
+  @override
+  List<Object?> get props =>
+      [id, name, rule, example, serialNumber, enable];
+
+  @override
+  String toString() => 'TxtTocRule(id: $id, name: $name, enable: $enable)';
+}

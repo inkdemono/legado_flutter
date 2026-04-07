@@ -1,4 +1,5 @@
 import 'dart:io' show Platform;
+import 'package:legado_flutter/providers/service_registry.dart';
 
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -722,7 +723,7 @@ class _AboutPageState extends State<AboutPage> {
     );
 
     try {
-      await LogSaveService.instance.saveLogs();
+      await readService(AppServices.logSaveService).saveLogs();
 
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -765,7 +766,7 @@ class _AboutPageState extends State<AboutPage> {
     );
 
     try {
-      await HeapDumpService.instance.createHeapDump();
+      await readService(AppServices.heapDumpService).createHeapDump();
 
       if (!mounted) return;
       Navigator.of(context).pop();

@@ -9,6 +9,7 @@
 library;
 
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 
 import '../services/network/network_service.dart';
 import 'app_log.dart';
@@ -483,7 +484,7 @@ class AnalyzeUrl {
     );
 
     try {
-      final networkService = NetworkService.instance;
+      final networkService = readService(AppServices.networkService);
       await networkService.init();
 
       if (result.method == 'POST') {

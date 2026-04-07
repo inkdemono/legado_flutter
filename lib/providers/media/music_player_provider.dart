@@ -1,80 +1,104 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/media/music_track.dart';
+import '../helpers/async_value_extension.dart';
+import '../helpers/listenable_stream.dart';
+import '../service_registry.dart';
 import '../../services/media/music/music_player_service.dart';
 
 /// 音乐播放服务 Provider
 final musicPlayerServiceProvider = Provider<MusicPlayerService>((ref) {
-  return MusicPlayerService.instance;
+  return ref.watch(AppServices.musicPlayerService);
 });
 
 /// 当前播放状态 Provider
-final musicPlayStatusProvider = NotifierProvider<MusicPlayStatusNotifier, MusicPlayStatus>(() {
+final musicPlayStatusProvider =
+    NotifierProvider<MusicPlayStatusNotifier, MusicPlayStatus>(() {
   return MusicPlayStatusNotifier();
+});
+
+final _musicPlayStatusStreamProvider = StreamProvider<MusicPlayStatus>((ref) {
+  final service = ref.watch(musicPlayerServiceProvider);
+  return streamFromListenables(
+    ref,
+    listenables: [service.statusNotifier],
+    read: () => service.statusNotifier.value,
+  );
 });
 
 class MusicPlayStatusNotifier extends Notifier<MusicPlayStatus> {
   @override
   MusicPlayStatus build() {
-    // 监听服务状态变化
     final service = ref.watch(musicPlayerServiceProvider);
-    service.statusNotifier.addListener(_onStatusChanged);
-    ref.onDispose(() {
-      service.statusNotifier.removeListener(_onStatusChanged);
+    ref.listen(_musicPlayStatusStreamProvider, (_, next) {
+      final status = next.valueOrNull;
+      if (status != null) {
+        state = status;
+      }
     });
-    return service.status;
-  }
-
-  void _onStatusChanged() {
-    final service = ref.read(musicPlayerServiceProvider);
-    state = service.status;
+    return ref.watch(_musicPlayStatusStreamProvider).valueOrNull ??
+        service.status;
   }
 }
 
 /// 当前播放曲目 Provider
-final currentTrackProvider = NotifierProvider<CurrentTrackNotifier, MusicTrack?>(() {
+final currentTrackProvider =
+    NotifierProvider<CurrentTrackNotifier, MusicTrack?>(() {
   return CurrentTrackNotifier();
+});
+
+final _currentTrackStreamProvider = StreamProvider<MusicTrack?>((ref) {
+  final service = ref.watch(musicPlayerServiceProvider);
+  return streamFromListenables(
+    ref,
+    listenables: [service.currentTrackNotifier],
+    read: () => service.currentTrackNotifier.value,
+  );
 });
 
 class CurrentTrackNotifier extends Notifier<MusicTrack?> {
   @override
   MusicTrack? build() {
     final service = ref.watch(musicPlayerServiceProvider);
-    service.currentTrackNotifier.addListener(_onTrackChanged);
-    ref.onDispose(() {
-      service.currentTrackNotifier.removeListener(_onTrackChanged);
+    ref.listen(_currentTrackStreamProvider, (_, next) {
+      state = next.valueOrNull;
     });
-    return service.currentTrack;
-  }
-
-  void _onTrackChanged() {
-    final service = ref.read(musicPlayerServiceProvider);
-    state = service.currentTrack;
+    return ref.watch(_currentTrackStreamProvider).valueOrNull ??
+        service.currentTrack;
   }
 }
 
 /// 播放列表 Provider
-final musicPlaylistProvider = NotifierProvider<MusicPlaylistNotifier, List<MusicTrack>>(() {
+final musicPlaylistProvider =
+    NotifierProvider<MusicPlaylistNotifier, List<MusicTrack>>(() {
   return MusicPlaylistNotifier();
+});
+
+final _musicPlaylistStreamProvider = StreamProvider<List<MusicTrack>>((ref) {
+  final service = ref.watch(musicPlayerServiceProvider);
+  return streamFromListenables(
+    ref,
+    listenables: [service.playlistNotifier],
+    read: () => List<MusicTrack>.from(service.playlistNotifier.value),
+  );
 });
 
 class MusicPlaylistNotifier extends Notifier<List<MusicTrack>> {
   @override
   List<MusicTrack> build() {
     final service = ref.watch(musicPlayerServiceProvider);
-    service.playlistNotifier.addListener(_onPlaylistChanged);
-    ref.onDispose(() {
-      service.playlistNotifier.removeListener(_onPlaylistChanged);
+    ref.listen(_musicPlaylistStreamProvider, (_, next) {
+      final playlist = next.valueOrNull;
+      if (playlist != null) {
+        state = playlist;
+      }
     });
-    return service.playlist;
-  }
-
-  void _onPlaylistChanged() {
-    final service = ref.read(musicPlayerServiceProvider);
-    state = List.from(service.playlist);
+    return ref.watch(_musicPlaylistStreamProvider).valueOrNull ??
+        service.playlist;
   }
 
   /// 设置播放列表
-  Future<void> setPlaylist(List<MusicTrack> tracks, {int startIndex = 0}) async {
+  Future<void> setPlaylist(List<MusicTrack> tracks,
+      {int startIndex = 0}) async {
     final service = ref.read(musicPlayerServiceProvider);
     await service.setPlaylist(tracks, startIndex: startIndex);
   }
@@ -93,32 +117,38 @@ class MusicPlaylistNotifier extends Notifier<List<MusicTrack>> {
 }
 
 /// 播放进度 Provider
-final musicProgressProvider = NotifierProvider<MusicProgressNotifier, MusicProgress>(() {
+final musicProgressProvider =
+    NotifierProvider<MusicProgressNotifier, MusicProgress>(() {
   return MusicProgressNotifier();
+});
+
+final _musicProgressStreamProvider = StreamProvider<MusicProgress>((ref) {
+  final service = ref.watch(musicPlayerServiceProvider);
+  return streamFromListenables(
+    ref,
+    listenables: [service.positionNotifier, service.durationNotifier],
+    read: () => MusicProgress(
+      position: service.positionNotifier.value,
+      duration: service.durationNotifier.value,
+    ),
+  );
 });
 
 class MusicProgressNotifier extends Notifier<MusicProgress> {
   @override
   MusicProgress build() {
     final service = ref.watch(musicPlayerServiceProvider);
-    service.positionNotifier.addListener(_updateProgress);
-    service.durationNotifier.addListener(_updateProgress);
-    ref.onDispose(() {
-      service.positionNotifier.removeListener(_updateProgress);
-      service.durationNotifier.removeListener(_updateProgress);
+    ref.listen(_musicProgressStreamProvider, (_, next) {
+      final progress = next.valueOrNull;
+      if (progress != null) {
+        state = progress;
+      }
     });
-    return MusicProgress(
-      position: service.positionNotifier.value,
-      duration: service.durationNotifier.value,
-    );
-  }
-
-  void _updateProgress() {
-    final service = ref.read(musicPlayerServiceProvider);
-    state = MusicProgress(
-      position: service.positionNotifier.value,
-      duration: service.durationNotifier.value,
-    );
+    return ref.watch(_musicProgressStreamProvider).valueOrNull ??
+        MusicProgress(
+          position: service.positionNotifier.value,
+          duration: service.durationNotifier.value,
+        );
   }
 
   /// 跳转
@@ -154,24 +184,32 @@ class MusicProgress {
 }
 
 /// 播放模式 Provider
-final musicPlayModeProvider = NotifierProvider<MusicPlayModeNotifier, MusicPlayMode>(() {
+final musicPlayModeProvider =
+    NotifierProvider<MusicPlayModeNotifier, MusicPlayMode>(() {
   return MusicPlayModeNotifier();
+});
+
+final _musicPlayModeStreamProvider = StreamProvider<MusicPlayMode>((ref) {
+  final service = ref.watch(musicPlayerServiceProvider);
+  return streamFromListenables(
+    ref,
+    listenables: [service.playModeNotifier],
+    read: () => service.playModeNotifier.value,
+  );
 });
 
 class MusicPlayModeNotifier extends Notifier<MusicPlayMode> {
   @override
   MusicPlayMode build() {
     final service = ref.watch(musicPlayerServiceProvider);
-    service.playModeNotifier.addListener(_onModeChanged);
-    ref.onDispose(() {
-      service.playModeNotifier.removeListener(_onModeChanged);
+    ref.listen(_musicPlayModeStreamProvider, (_, next) {
+      final playMode = next.valueOrNull;
+      if (playMode != null) {
+        state = playMode;
+      }
     });
-    return service.playMode;
-  }
-
-  void _onModeChanged() {
-    final service = ref.read(musicPlayerServiceProvider);
-    state = service.playMode;
+    return ref.watch(_musicPlayModeStreamProvider).valueOrNull ??
+        service.playMode;
   }
 
   /// 切换播放模式
@@ -246,5 +284,15 @@ class MusicControlNotifier extends Notifier<void> {
 /// 当前播放索引 Provider
 final currentTrackIndexProvider = Provider<int>((ref) {
   final service = ref.watch(musicPlayerServiceProvider);
-  return service.currentIndex;
+  final currentIndexAsync = ref.watch(_currentTrackIndexStreamProvider);
+  return currentIndexAsync.valueOrNull ?? service.currentIndex;
+});
+
+final _currentTrackIndexStreamProvider = StreamProvider<int>((ref) {
+  final service = ref.watch(musicPlayerServiceProvider);
+  return streamFromListenables(
+    ref,
+    listenables: [service.currentIndexNotifier],
+    read: () => service.currentIndexNotifier.value,
+  );
 });

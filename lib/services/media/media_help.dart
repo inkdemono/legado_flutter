@@ -1,3 +1,5 @@
+import '../../utils/app_log.dart';
+
 /// 媒体帮助类
 /// 参考项目：io.legado.app.help.MediaHelp
 ///
@@ -24,6 +26,7 @@ class MediaHelp {
       // 这里返回 true 表示成功（实际应该调用平台通道或使用 audio_service）
       return true;
     } catch (e) {
+      AppLog.instance.put('请求音频焦点失败', error: e);
       return false;
     }
   }
@@ -34,7 +37,7 @@ class MediaHelp {
       // 在 Flutter 中，音频焦点管理由 audio_service 插件处理
       // 如果使用 just_audio，停止播放时会自动释放音频焦点
     } catch (e) {
-      // 忽略错误
+      AppLog.instance.putDebug('释放音频焦点失败', error: e);
     }
   }
 
@@ -49,8 +52,7 @@ class MediaHelp {
       // 如果需要，可以使用平台通道播放静音音频
       // 这里提供一个占位实现
     } catch (e) {
-      // 忽略错误
+      AppLog.instance.putDebug('播放静音音频失败', error: e);
     }
   }
 }
-

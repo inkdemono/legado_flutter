@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_web_socket/shelf_web_socket.dart';
@@ -64,7 +65,7 @@ class WebSocketDebugHandler {
       }
 
       // 获取书源
-      final source = await BookSourceService.instance.getBookSourceByUrl(tag);
+      final source = await readService(AppServices.bookSourceService).getBookSourceByUrl(tag);
       if (source == null) {
         channel.sink.add('未找到书源: $tag');
         channel.sink.close();
@@ -72,7 +73,7 @@ class WebSocketDebugHandler {
       }
 
       // 创建调试服务实例
-      final debugService = BookSourceDebugService.instance;
+      final debugService = readService(AppServices.bookSourceDebugService);
       
       // 设置消息回调
       debugService.onMessage = (state, msg) {

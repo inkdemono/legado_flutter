@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../data/models/book.dart';
 import '../../../../data/models/book_chapter.dart';
@@ -51,7 +52,7 @@ class _ChangeSourceDialogState
   }
 
   Future<void> _loadGroups() async {
-    final groups = await BookSourceService.instance.getAllGroups();
+    final groups = await readService(AppServices.bookSourceService).getAllGroups();
     setState(() {
       _groups = groups;
     });
@@ -69,10 +70,10 @@ class _ChangeSourceDialogState
       // 获取要搜索的书源列表
       List<BookSource> sources;
       if (_selectedGroup != null && _selectedGroup!.isNotEmpty) {
-        sources = await BookSourceService.instance
+        sources = await readService(AppServices.bookSourceService)
             .getBookSourcesByGroup(_selectedGroup!);
       } else {
-        sources = await BookSourceService.instance.getEnabledBookSources();
+        sources = await readService(AppServices.bookSourceService).getEnabledBookSources();
       }
 
       // 限制搜索书源数量，避免搜索过慢
@@ -99,7 +100,7 @@ class _ChangeSourceDialogState
       final tempResults = <Book>[];
       
       // 搜索同名书籍（带超时，支持实时结果）
-      final results = await BookService.instance.searchBooks(
+      final results = await readService(AppServices.bookService).searchBooks(
         widget.oldBook.name,
         sources: sourcesToSearch,
         onResult: (book) {
@@ -159,19 +160,19 @@ class _ChangeSourceDialogState
     try {
       // 获取书源
       final source =
-          await BookSourceService.instance.getBookSourceByUrl(newBook.origin);
+          await readService(AppServices.bookSourceService).getBookSourceByUrl(newBook.origin);
       if (source == null) {
         throw Exception('书源不存在');
       }
 
       // 获取书籍详情
-      final bookInfo = await BookService.instance.getBookInfo(newBook);
+      final bookInfo = await readService(AppServices.bookService).getBookInfo(newBook);
       if (bookInfo == null) {
         throw Exception('获取书籍信息失败');
       }
 
       // 获取章节列表
-      final chapters = await BookService.instance.getChapterList(bookInfo);
+      final chapters = await readService(AppServices.bookService).getChapterList(bookInfo);
       if (chapters.isEmpty) {
         throw Exception('获取章节列表失败');
       }

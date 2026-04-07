@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../providers/bookshelf_layout_provider.dart';
@@ -532,7 +533,7 @@ class _BookshelfLayoutSettingsPageState
   }
 
   Future<void> _showTagSelectorDialog() async {
-    final allBooks = await BookService.instance.getBookshelfBooks();
+    final allBooks = await readService(AppServices.bookService).getBookshelfBooks();
     final tags = <String>{};
     for (final book in allBooks) {
       if (book.customTag != null && book.customTag!.isNotEmpty) {

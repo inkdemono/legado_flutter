@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:intl/intl.dart';
 
 import '../../../services/file_manage_service.dart';
@@ -20,7 +21,7 @@ class FileDetailDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fileService = FileManageService.instance;
+    final fileService = readService(AppServices.fileManageService);
     final icon = fileService.getFileIcon(fileInfo.name, fileInfo.isDirectory);
     final isBookFile =
         !fileInfo.isDirectory && fileService.isBookFile(fileInfo.name);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../../data/models/book_chapter.dart';
 import '../../../data/models/book.dart';
 import '../../widgets/base/base_bottom_sheet_stateful.dart';
@@ -203,7 +204,7 @@ class _ContentEditDialogState extends BaseBottomSheetState<ContentEditDialog> {
         );
         // 更新数据库中的章节标题
         final chapters = [updatedChapter];
-        await BookService.instance.saveChapters(chapters);
+        await readService(AppServices.bookService).saveChapters(chapters);
       }
 
       // 2. 保存章节内容到缓存文件

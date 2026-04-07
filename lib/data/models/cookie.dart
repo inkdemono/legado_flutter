@@ -1,6 +1,9 @@
+import 'package:equatable/equatable.dart';
+
 /// Cookie数据模型
 /// 参考项目：io.legado.app.data.entities.Cookie
-class Cookie {
+// ignore: must_be_immutable
+class Cookie with EquatableMixin {
   /// URL（主键）
   final String url;
 
@@ -40,12 +43,8 @@ class Cookie {
   }
 
   @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is Cookie && other.url == url;
-  }
+  List<Object?> get props => [url];
 
   @override
-  int get hashCode => url.hashCode;
+  String toString() => 'Cookie(url: $url)';
 }
-

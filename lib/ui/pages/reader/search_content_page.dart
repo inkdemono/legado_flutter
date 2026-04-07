@@ -1,9 +1,7 @@
 import 'dart:async';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/material.dart';
 import '../../../data/models/book.dart';
-import '../../../services/book/book_service.dart';
-import '../../../services/book/local_book_service.dart';
-import '../../../services/source/book_source_service.dart';
 import '../../../services/reader/content_processor.dart';
 
 /// 内容搜索结果
@@ -71,14 +69,15 @@ class _SearchContentPageState extends State<SearchContentPage> {
 
     try {
       // 获取章节列表
-      final chapters = await BookService.instance.getChapterList(widget.book);
+      final chapters = await readService(AppServices.bookService)
+          .getChapterList(widget.book);
       final results = <ContentSearchResult>[];
 
       // 确定搜索范围
-      final startIndex = _searchStartChapter.clamp(0, chapters.length);
+      final startIndex = _searchStartChapter.clamp(0, chapters.length) as int;
       final endIndex = _searchEndChapter < 0
           ? chapters.length
-          : _searchEndChapter.clamp(0, chapters.length);
+          : _searchEndChapter.clamp(0, chapters.length) as int;
 
       // 搜索每个章节（在指定范围内）
       for (int i = startIndex; i < endIndex; i++) {
@@ -89,15 +88,17 @@ class _SearchContentPageState extends State<SearchContentPage> {
           String? rawContent;
           if (widget.book.isLocal) {
             // 本地书籍使用 LocalBookService
-            rawContent = await LocalBookService.instance.getChapterContent(
+            rawContent = await readService(AppServices.localBookService)
+                .getChapterContent(
               chapter,
               widget.book,
             );
           } else {
-            final source = await BookSourceService.instance
+            final source = await readService(AppServices.bookSourceService)
                 .getBookSourceByUrl(widget.book.origin);
             if (source != null) {
-              rawContent = await BookService.instance.getChapterContent(
+              rawContent =
+                  await readService(AppServices.bookService).getChapterContent(
                 chapter,
                 source,
                 bookName: widget.book.name,
@@ -201,7 +202,8 @@ class _SearchContentPageState extends State<SearchContentPage> {
   /// 显示搜索范围设置对话框
   Future<void> _showSearchRangeDialog() async {
     // 获取章节总数
-    final chapters = await BookService.instance.getChapterList(widget.book);
+    final chapters =
+        await readService(AppServices.bookService).getChapterList(widget.book);
     final totalChapters = chapters.length;
 
     if (totalChapters == 0) {

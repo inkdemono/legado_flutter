@@ -1,9 +1,11 @@
+import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 // part 'book_chapter.g.dart'; // 运行 build_runner 后取消注释
 
 @JsonSerializable()
-class BookChapter {
+// ignore: must_be_immutable
+class BookChapter with EquatableMixin {
   /// 章节地址
   @JsonKey(name: 'url')
   final String url;
@@ -74,6 +76,32 @@ class BookChapter {
   @JsonKey(name: 'localPath')
   String? localPath;
 
+  // ── Phase 3：音视频章节扩展字段 ──────────────────────────────────────────
+
+  /// 章节时长（单位：秒）
+  /// 从 TocRule.duration 规则解析，支持 "HH:MM:SS"、"MM:SS"、纯秒数字符串三种格式。
+  /// 用于播放器进度条总时长展示，存入数据库便于离线展示。
+  @JsonKey(name: 'duration')
+  int? duration;
+
+  /// 已解析的歌词/字幕文件 URL（音频源，运行时写入）
+  /// 对应 ContentRule.lyricsUrl 规则解析结果（.lrc / .srt 等格式）。
+  /// 播放器根据此 URL 加载歌词并同步滚动展示。
+  @JsonKey(name: 'lyricsUrl')
+  String? lyricsUrl;
+
+  /// 已解析的外挂字幕文件 URL（视频源，运行时写入）
+  /// 对应 ContentRule.subtitleUrl 规则解析结果（.srt / .ass / .vtt 等格式）。
+  @JsonKey(name: 'subtitleUrl')
+  String? subtitleUrl;
+
+  /// 多码率/多清晰度选项（JSON 字符串，运行时写入）
+  /// 对应 ContentRule.qualityList 规则解析结果。
+  /// 格式：`[{"label":"高清","url":"https://..."},{"label":"标清","url":"..."}]`
+  /// 播放器解析此 JSON 后向用户提供清晰度切换菜单。
+  @JsonKey(name: 'qualityOptions')
+  String? qualityOptions;
+
   BookChapter({
     required this.url,
     this.title = '',
@@ -92,6 +120,10 @@ class BookChapter {
     this.endFragmentId,
     this.variable,
     this.localPath,
+    this.duration,
+    this.lyricsUrl,
+    this.subtitleUrl,
+    this.qualityOptions,
   });
 
   factory BookChapter.fromJson(Map<String, dynamic> json) {
@@ -113,9 +145,13 @@ class BookChapter {
       endFragmentId: json['endFragmentId'],
       variable: json['variable'],
       localPath: json['localPath'],
+      duration: json['duration'],
+      lyricsUrl: json['lyricsUrl'],
+      subtitleUrl: json['subtitleUrl'],
+      qualityOptions: json['qualityOptions'],
     );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'url': url,
@@ -135,6 +171,10 @@ class BookChapter {
       'endFragmentId': endFragmentId,
       'variable': variable,
       'localPath': localPath,
+      'duration': duration,
+      'lyricsUrl': lyricsUrl,
+      'subtitleUrl': subtitleUrl,
+      'qualityOptions': qualityOptions,
     };
   }
 
@@ -156,6 +196,10 @@ class BookChapter {
     String? endFragmentId,
     String? variable,
     String? localPath,
+    int? duration,
+    String? lyricsUrl,
+    String? subtitleUrl,
+    String? qualityOptions,
   }) {
     return BookChapter(
       url: url ?? this.url,
@@ -175,6 +219,10 @@ class BookChapter {
       endFragmentId: endFragmentId ?? this.endFragmentId,
       variable: variable ?? this.variable,
       localPath: localPath ?? this.localPath,
+      duration: duration ?? this.duration,
+      lyricsUrl: lyricsUrl ?? this.lyricsUrl,
+      subtitleUrl: subtitleUrl ?? this.subtitleUrl,
+      qualityOptions: qualityOptions ?? this.qualityOptions,
     );
   }
 
@@ -184,16 +232,11 @@ class BookChapter {
     return bookUrl + url;
   }
 
-  /// 参考项目：BookChapter.equals 和 hashCode
-  /// 使用 url 作为唯一标识符
   @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    if (other is! BookChapter) return false;
-    return other.url == url;
+  List<Object?> get props => [url];
+
+  @override
+  String toString() {
+    return 'BookChapter(title: $title, url: $url, index: $index)';
   }
-
-  @override
-  int get hashCode => url.hashCode;
 }
-

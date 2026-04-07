@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../../data/models/book_source.dart';
 import '../../../services/source/book_source_service.dart';
 import '../../widgets/base/base_bottom_sheet_stateful.dart';
@@ -54,8 +55,8 @@ class _SearchScopeDialogState extends BaseBottomSheetState<SearchScopeDialog> {
 
     try {
       final sources =
-          await BookSourceService.instance.getAllBookSources(enabledOnly: true);
-      final groups = await BookSourceService.instance.getAllGroups();
+          await readService(AppServices.bookSourceService).getAllBookSources(enabledOnly: true);
+      final groups = await readService(AppServices.bookSourceService).getAllGroups();
 
       setState(() {
         _allSources = sources;

@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/book.dart';
 import '../data/models/book_chapter.dart';
-import '../services/book/book_service.dart';
 import '../utils/app_log.dart';
+import 'book_provider.dart';
 
 /// 阅读器状态：章节列表与当前章节索引，供 ReaderPage 与预加载/进度同步使用。
 class ReaderState {
@@ -47,7 +47,7 @@ class ReaderViewModel extends Notifier<ReaderState> {
   Future<void> openBook(Book book, int initialChapterIndex) async {
     state = state.copyWith(book: book, isLoading: true, error: null);
     try {
-      final chapters = await BookService.instance.getChapterList(book);
+      final chapters = await ref.read(bookServiceProvider).getChapterList(book);
       final index = initialChapterIndex.clamp(
         0,
         chapters.isEmpty ? 0 : chapters.length - 1,

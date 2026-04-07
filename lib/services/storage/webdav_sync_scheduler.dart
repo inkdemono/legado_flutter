@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../config/app_config.dart';
 import '../../utils/app_log.dart';
 import 'webdav_service.dart';
@@ -217,9 +218,9 @@ class WebDavSyncScheduler {
 
     try {
       // 加载 WebDAV 配置
-      await WebDavService.instance.loadConfig();
+      await readService(AppServices.webDavService).loadConfig();
 
-      if (!WebDavService.instance.isConfigured) {
+      if (!readService(AppServices.webDavService).isConfigured) {
         final result = SyncResult(
           status: SyncStatus.failed,
           message: 'WebDAV 未配置',
@@ -232,7 +233,7 @@ class WebDavSyncScheduler {
       }
 
       // 检查连接
-      final isOk = await WebDavService.instance.check();
+      final isOk = await readService(AppServices.webDavService).check();
       if (!isOk) {
         final result = SyncResult(
           status: SyncStatus.failed,
@@ -246,11 +247,11 @@ class WebDavSyncScheduler {
       }
 
       // 获取本地最后备份时间
-      final localBackupTime = BackupService.instance.getLastBackupTime();
+      final localBackupTime = readService(AppServices.backupService).getLastBackupTime();
       final localBackupTimeMs = localBackupTime * 1000;
 
       // 获取云端最后备份文件
-      final cloudBackup = await WebDavService.instance.getLastBackup();
+      final cloudBackup = await readService(AppServices.webDavService).getLastBackup();
       final cloudBackupTimeMs = cloudBackup?.lastModified.millisecondsSinceEpoch ?? 0;
 
       // 比较时间戳决定同步方向
@@ -337,7 +338,7 @@ class WebDavSyncScheduler {
 
       if (fileName.isEmpty) {
         // 获取最新的备份文件
-        final lastBackup = await WebDavService.instance.getLastBackup();
+        final lastBackup = await readService(AppServices.webDavService).getLastBackup();
         if (lastBackup == null) {
           final result = SyncResult(
             status: SyncStatus.failed,
@@ -372,7 +373,7 @@ class WebDavSyncScheduler {
   /// 执行备份
   Future<SyncResult> _performBackup() async {
     try {
-      await BackupService.instance.backupToWebDav();
+      await readService(AppServices.backupService).backupToWebDav();
 
       return SyncResult(
         status: SyncStatus.success,
@@ -389,7 +390,7 @@ class WebDavSyncScheduler {
   /// 执行恢复
   Future<SyncResult> _performRestore(String backupFileName) async {
     try {
-      await RestoreService.instance.restoreFromWebDav(backupFileName);
+      await readService(AppServices.restoreService).restoreFromWebDav(backupFileName);
 
       return SyncResult(
         status: SyncStatus.success,
@@ -406,11 +407,11 @@ class WebDavSyncScheduler {
   /// 获取可用备份列表
   Future<List<String>> getAvailableBackups() async {
     try {
-      await WebDavService.instance.loadConfig();
-      if (!WebDavService.instance.isConfigured) {
+      await readService(AppServices.webDavService).loadConfig();
+      if (!readService(AppServices.webDavService).isConfigured) {
         return [];
       }
-      return await WebDavService.instance.getBackupNames();
+      return await readService(AppServices.webDavService).getBackupNames();
     } catch (e) {
       AppLog.instance.put('获取备份列表失败', error: e);
       return [];
@@ -456,11 +457,11 @@ class WebDavSyncScheduler {
 
     try {
       // 获取本地最后备份时间
-      final localBackupTime = BackupService.instance.getLastBackupTime();
+      final localBackupTime = readService(AppServices.backupService).getLastBackupTime();
       final localBackupTimeMs = localBackupTime * 1000;
 
       // 获取云端最后备份文件
-      final cloudBackup = await WebDavService.instance.getLastBackup();
+      final cloudBackup = await readService(AppServices.webDavService).getLastBackup();
       final cloudBackupTimeMs = cloudBackup?.lastModified.millisecondsSinceEpoch ?? 0;
 
       // 检查时间差异（如果差异小于5分钟，不认为有冲突）
@@ -551,9 +552,9 @@ class WebDavSyncScheduler {
 
     try {
       // 加载 WebDAV 配置
-      await WebDavService.instance.loadConfig();
+      await readService(AppServices.webDavService).loadConfig();
 
-      if (!WebDavService.instance.isConfigured) {
+      if (!readService(AppServices.webDavService).isConfigured) {
         final result = SyncResult(
           status: SyncStatus.failed,
           message: 'WebDAV 未配置',
@@ -566,7 +567,7 @@ class WebDavSyncScheduler {
       }
 
       // 检查连接
-      final isOk = await WebDavService.instance.check();
+      final isOk = await readService(AppServices.webDavService).check();
       if (!isOk) {
         final result = SyncResult(
           status: SyncStatus.failed,
@@ -609,7 +610,7 @@ class WebDavSyncScheduler {
           result = await _performBackup();
           break;
         case SyncType.restore:
-          final lastBackup = await WebDavService.instance.getLastBackup();
+          final lastBackup = await readService(AppServices.webDavService).getLastBackup();
           if (lastBackup == null) {
             result = SyncResult(
               status: SyncStatus.failed,
@@ -659,11 +660,11 @@ class WebDavSyncScheduler {
   /// 确定同步方向（无冲突时）
   Future<SyncType> _determineSyncDirection() async {
     // 获取本地最后备份时间
-    final localBackupTime = BackupService.instance.getLastBackupTime();
+    final localBackupTime = readService(AppServices.backupService).getLastBackupTime();
     final localBackupTimeMs = localBackupTime * 1000;
 
     // 获取云端最后备份文件
-    final cloudBackup = await WebDavService.instance.getLastBackup();
+    final cloudBackup = await readService(AppServices.webDavService).getLastBackup();
     final cloudBackupTimeMs = cloudBackup?.lastModified.millisecondsSinceEpoch ?? 0;
 
     if (cloudBackup == null || cloudBackupTimeMs == 0) {

@@ -1,8 +1,10 @@
+import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 /// 书籍分组模型
 @JsonSerializable()
-class BookGroup {
+// ignore: must_be_immutable
+class BookGroup with EquatableMixin {
   /// 分组ID（主键）
   @JsonKey(name: 'groupId')
   final int groupId;
@@ -64,7 +66,8 @@ class BookGroup {
         groupName: json['groupName'] as String,
         cover: json['cover'] as String?,
         order: json['order'] as int? ?? 0,
-        enableRefresh: json['enableRefresh'] == 1 || json['enableRefresh'] == true,
+        enableRefresh:
+            json['enableRefresh'] == 1 || json['enableRefresh'] == true,
         show: json['show'] == 1 || json['show'] == true,
         bookSort: json['bookSort'] as int? ?? -1,
       );
@@ -102,27 +105,18 @@ class BookGroup {
   }
 
   @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is BookGroup &&
-        other.groupId == groupId &&
-        other.groupName == groupName &&
-        other.cover == cover &&
-        other.order == order &&
-        other.enableRefresh == enableRefresh &&
-        other.show == show &&
-        other.bookSort == bookSort;
-  }
+  List<Object?> get props => [
+        groupId,
+        groupName,
+        cover,
+        order,
+        enableRefresh,
+        show,
+        bookSort,
+      ];
 
   @override
-  int get hashCode {
-    return groupId.hashCode ^
-        groupName.hashCode ^
-        (cover?.hashCode ?? 0) ^
-        order.hashCode ^
-        enableRefresh.hashCode ^
-        show.hashCode ^
-        bookSort.hashCode;
+  String toString() {
+    return 'BookGroup(id: $groupId, name: $groupName, order: $order)';
   }
 }
-

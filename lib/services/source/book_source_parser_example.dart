@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/material.dart';
 import 'book_source_parser.dart';
 import 'book_source_service.dart';
@@ -35,7 +36,7 @@ class _ImportBookSourcesWithProgressExampleState
       });
 
       // 第一步: 下载JSON文件(这里需要使用NetworkService)
-      // final response = await NetworkService.instance.get(url);
+      // final response = await readService(AppServices.networkService).get(url);
       // final jsonString = response.data as String;
 
       // 示例用的假数据
@@ -51,7 +52,7 @@ class _ImportBookSourcesWithProgressExampleState
       });
 
       // 第二步: 在Isolate中解析JSON,并导入数据库
-      final result = await BookSourceService.instance.importBookSourcesFromJson(
+      final result = await readService(AppServices.bookSourceService).importBookSourcesFromJson(
         jsonString,
         onProgress: (progress) {
           setState(() {
@@ -153,7 +154,7 @@ class BatchParseExample {
     if (allSources.isNotEmpty) {
       print('开始导入数据库...');
       final importResult =
-          await BookSourceService.instance.importBookSources(allSources);
+          await readService(AppServices.bookSourceService).importBookSources(allSources);
       print('✅ 导入完成: ${importResult['imported']}个成功, '
           '${importResult['blocked']}个被过滤');
     }
@@ -184,7 +185,7 @@ class ImportFromFileExample {
 
       // 导入数据库
       // if (sources.isNotEmpty) {
-      //   final result = await BookSourceService.instance.importBookSources(sources);
+      //   final result = await readService(AppServices.bookSourceService).importBookSources(sources);
       //   print('✅ 导入完成: ${result['imported']}个成功, '
       //       '${result['blocked']}个被过滤');
       // }
@@ -321,7 +322,7 @@ class ErrorHandlingExample {
 /// 
 /// 4. 导入到数据库(推荐):
 ///    ```dart
-///    final result = await BookSourceService.instance.importBookSourcesFromJson(
+///    final result = await readService(AppServices.bookSourceService).importBookSourcesFromJson(
 ///      jsonString,
 ///      onProgress: (progress) => updateUI(progress),
 ///    );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../../data/models/book_source.dart';
 import '../../../services/source/book_source_service.dart';
 import '../../../services/source/check_source_service.dart';
@@ -20,7 +21,7 @@ class CheckSourcePage extends StatefulWidget {
 }
 
 class _CheckSourcePageState extends State<CheckSourcePage> {
-  final CheckSourceService _checkService = CheckSourceService.instance;
+  final CheckSourceService _checkService = readService(AppServices.checkSourceService);
   
   List<BookSource> _sources = [];
   Set<String> _selectedUrls = {};
@@ -50,7 +51,7 @@ class _CheckSourcePageState extends State<CheckSourcePage> {
       if (widget.initialSources != null) {
         _sources = widget.initialSources!;
       } else {
-        _sources = await BookSourceService.instance.getAllBookSources();
+        _sources = await readService(AppServices.bookSourceService).getAllBookSources();
       }
       
       // 默认全选

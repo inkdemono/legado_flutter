@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -43,8 +44,8 @@ class _MyPageState extends ConsumerState<MyPage> {
 
   Future<void> _loadStats() async {
     try {
-      final books = await BookService.instance.getBookshelfBooks();
-      final sources = await BookSourceService.instance.getAllBookSources();
+      final books = await readService(AppServices.bookService).getBookshelfBooks();
+      final sources = await readService(AppServices.bookSourceService).getAllBookSources();
       if (mounted) {
         setState(() {
           _bookCount = books.length;

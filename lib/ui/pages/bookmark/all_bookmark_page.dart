@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -95,7 +96,7 @@ class _AllBookmarkPageState extends ConsumerState<AllBookmarkPage> {
     });
 
     try {
-      final bookmarks = await BookmarkService.instance.getAllBookmarks();
+      final bookmarks = await readService(AppServices.bookmarkService).getAllBookmarks();
       if (!mounted) return;
       setState(() {
         _bookmarks = bookmarks;
@@ -487,7 +488,7 @@ class _AllBookmarkPageState extends ConsumerState<AllBookmarkPage> {
 
   Future<void> _jumpToBookmark(Bookmark bookmark) async {
     try {
-      final books = await BookService.instance.getBookshelfBooks();
+      final books = await readService(AppServices.bookService).getBookshelfBooks();
       if (books.isEmpty) {
         _showMessage('当前书架为空，无法跳转');
         return;
@@ -536,7 +537,7 @@ class _AllBookmarkPageState extends ConsumerState<AllBookmarkPage> {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              await BookmarkService.instance.clearAllBookmarks();
+              await readService(AppServices.bookmarkService).clearAllBookmarks();
               await _loadBookmarks();
             },
             child: const Text('确定'),

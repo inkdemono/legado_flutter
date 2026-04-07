@@ -1,6 +1,8 @@
+import 'package:equatable/equatable.dart';
+
 /// 阅读记录实体
 /// 参考项目：ReadRecord.kt
-class ReadRecordEntity {
+class ReadRecordEntity with EquatableMixin {
   /// 设备ID（用于区分不同设备）
   final String deviceId;
   
@@ -51,5 +53,11 @@ class ReadRecordEntity {
       lastRead: lastRead ?? this.lastRead,
     );
   }
-}
 
+  @override
+  List<Object?> get props => [deviceId, bookName, readTime, lastRead];
+
+  @override
+  String toString() =>
+      'ReadRecordEntity(deviceId: $deviceId, bookName: $bookName, lastRead: $lastRead)';
+}

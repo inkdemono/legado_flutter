@@ -35,6 +35,7 @@
 library;
 
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
@@ -261,7 +262,7 @@ class JSExtensions {
   Future<String> _ajax(dynamic url) async {
     try {
       final urlStr = url is List ? url.first.toString() : url.toString();
-      final response = await NetworkService.instance.get(urlStr);
+      final response = await readService(AppServices.networkService).get(urlStr);
       final html = await NetworkService.getResponseText(response);
       return html;
     } catch (e) {
@@ -287,7 +288,7 @@ class JSExtensions {
       }
 
       final response =
-          await NetworkService.instance.get(urlStr, headers: headers);
+          await readService(AppServices.networkService).get(urlStr, headers: headers);
       final html = await NetworkService.getResponseText(response);
 
       return {
@@ -313,11 +314,11 @@ class JSExtensions {
     try {
       if (key != null && key.isNotEmpty) {
         // 获取指定key的cookie
-        final cookies = await CookieService.instance.getCookiesForSource(tag);
+        final cookies = await readService(AppServices.cookieService).getCookiesForSource(tag);
         return cookies[key] ?? '';
       } else {
         // 获取所有cookie
-        final cookies = await CookieService.instance.getCookiesForSource(tag);
+        final cookies = await readService(AppServices.cookieService).getCookiesForSource(tag);
         return cookies.entries.map((e) => '${e.key}=${e.value}').join('; ');
       }
     } catch (e) {
@@ -403,7 +404,7 @@ class JSExtensions {
   /// 参考项目：JsExtensions.readTxtFile
   Future<String> _readTxtFile(String path) async {
     try {
-      final cacheDir = await CacheService.instance.getCacheDir();
+      final cacheDir = await readService(AppServices.cacheService).getCacheDir();
       final filePath = FileUtils.getPath(cacheDir.path, [path]);
       return await FileUtils.readText(filePath);
     } catch (e) {
@@ -505,11 +506,11 @@ class JSExtensions {
       }
 
       // 下载文件
-      final response = await NetworkService.instance.get(urlStr);
+      final response = await readService(AppServices.networkService).get(urlStr);
       final content = await NetworkService.getResponseText(response);
 
       // 保存到缓存
-      final cacheDir = await CacheService.instance.getCacheDir();
+      final cacheDir = await readService(AppServices.cacheService).getCacheDir();
       final fileName = '$key.txt';
       final filePath = FileUtils.getPath(cacheDir.path, [fileName]);
       await FileUtils.writeText(filePath, content);
@@ -843,7 +844,7 @@ class JSExtensions {
       }
 
       // 如果是相对路径或绝对路径，读取文件
-      final cacheDir = await CacheService.instance.getCacheDir();
+      final cacheDir = await readService(AppServices.cacheService).getCacheDir();
       final filePath = FileUtils.getPath(cacheDir.path, [urlOrPath]);
       return await FileUtils.readText(filePath);
     } catch (e) {
@@ -1023,7 +1024,7 @@ class JSExtensions {
     try {
       final futures = urlList.map((url) async {
         try {
-          final response = await NetworkService.instance.get(url);
+          final response = await readService(AppServices.networkService).get(url);
           final body = await NetworkService.getResponseText(response);
           return {
             'url': url,
@@ -1054,7 +1055,7 @@ class JSExtensions {
   /// 参考项目：JsExtensions.getFile
   Future<String> _getFile(String path) async {
     try {
-      final cacheDir = await CacheService.instance.getCacheDir();
+      final cacheDir = await readService(AppServices.cacheService).getCacheDir();
       final filePath = FileUtils.getPath(cacheDir.path, [path]);
       return filePath;
     } catch (e) {
@@ -1094,7 +1095,7 @@ class JSExtensions {
   Future<String> _downloadFile(String url) async {
     try {
       final key = _md5Encode16(url);
-      final cacheDir = await CacheService.instance.getCacheDir();
+      final cacheDir = await readService(AppServices.cacheService).getCacheDir();
 
       // 获取文件后缀
       final uri = Uri.tryParse(url);
@@ -1111,7 +1112,7 @@ class JSExtensions {
       final filePath = FileUtils.getPath(cacheDir.path, [fileName]);
 
       // 下载文件
-      final response = await NetworkService.instance.get(url);
+      final response = await readService(AppServices.networkService).get(url);
       final bytes = response.data as List<int>?;
 
       if (bytes != null) {
@@ -1135,7 +1136,7 @@ class JSExtensions {
     Map<String, String>? headers,
   ) async {
     try {
-      final response = await NetworkService.instance.get(
+      final response = await readService(AppServices.networkService).get(
         urlStr,
         headers: headers,
       );
@@ -1171,7 +1172,7 @@ class JSExtensions {
   ) async {
     try {
       // 使用 GET 请求，只返回 headers 信息
-      final response = await NetworkService.instance.get(
+      final response = await readService(AppServices.networkService).get(
         urlStr,
         headers: headers,
       );
@@ -1202,7 +1203,7 @@ class JSExtensions {
     Map<String, String>? headers,
   ) async {
     try {
-      final response = await NetworkService.instance.post(
+      final response = await readService(AppServices.networkService).post(
         urlStr,
         data: body,
         headers: headers,
@@ -1260,7 +1261,7 @@ class JSExtensions {
         Uint8List? font;
         if (data.startsWith('http://') || data.startsWith('https://')) {
           // URL - 下载字体
-          final response = await NetworkService.instance.get(
+          final response = await readService(AppServices.networkService).get(
             data,
             options: Options(responseType: ResponseType.bytes),
           );

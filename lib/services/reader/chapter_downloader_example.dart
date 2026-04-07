@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'chapter_downloader_service.dart';
 import '../../data/models/book.dart';
 import '../book/book_service.dart';
@@ -25,7 +26,7 @@ class DownloadWholeBookExample extends StatefulWidget {
 }
 
 class _DownloadWholeBookExampleState extends State<DownloadWholeBookExample> {
-  final _downloader = ChapterDownloaderService.instance;
+  final _downloader = readService(AppServices.chapterDownloaderService);
 
   @override
   void initState() {
@@ -50,14 +51,14 @@ class _DownloadWholeBookExampleState extends State<DownloadWholeBookExample> {
   Future<void> _startDownloadWholeBook() async {
     try {
       // 1. 获取所有章节
-      final chapters = await BookService.instance.getChapterList(widget.book);
+      final chapters = await readService(AppServices.bookService).getChapterList(widget.book);
       if (chapters.isEmpty) {
         _showMessage('该书没有章节');
         return;
       }
 
       // 2. 获取书源
-      final source = await BookSourceService.instance
+      final source = await readService(AppServices.bookSourceService)
           .getBookSourceByUrl(widget.book.origin);
       if (source == null) {
         _showMessage('书源不存在');
@@ -184,7 +185,7 @@ class CacheNextChaptersExample {
   }) async {
     try {
       // 1. 获取章节列表
-      final allChapters = await BookService.instance.getChapterList(book);
+      final allChapters = await readService(AppServices.bookService).getChapterList(book);
       if (allChapters.isEmpty) return;
 
       // 2. 计算要缓存的章节范围
@@ -200,14 +201,14 @@ class CacheNextChaptersExample {
 
       // 3. 获取书源
       final source =
-          await BookSourceService.instance.getBookSourceByUrl(book.origin);
+          await readService(AppServices.bookSourceService).getBookSourceByUrl(book.origin);
       if (source == null) {
         print('书源不存在');
         return;
       }
 
       // 4. 开始后台缓存(不显示通知)
-      await ChapterDownloaderService.instance.startDownload(
+      await readService(AppServices.chapterDownloaderService).startDownload(
         book: book,
         chapters: chaptersToCache,
         source: source,
@@ -232,7 +233,7 @@ class DownloadProgressWidget extends StatefulWidget {
 }
 
 class _DownloadProgressWidgetState extends State<DownloadProgressWidget> {
-  final _downloader = ChapterDownloaderService.instance;
+  final _downloader = readService(AppServices.chapterDownloaderService);
 
   @override
   void initState() {
@@ -313,7 +314,7 @@ class BookCoverWithDownloadBadge extends StatefulWidget {
 
 class _BookCoverWithDownloadBadgeState
     extends State<BookCoverWithDownloadBadge> {
-  final _downloader = ChapterDownloaderService.instance;
+  final _downloader = readService(AppServices.chapterDownloaderService);
 
   @override
   void initState() {

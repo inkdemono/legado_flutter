@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:async';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
@@ -87,7 +88,7 @@ class ExploreService extends BaseService {
           headers['Pragma'] = 'no-cache';
           headers['Expires'] = '0';
           
-          final response = await NetworkService.instance.get(
+          final response = await readService(AppServices.networkService).get(
             fullUrl,
             headers: headers,
             retryCount: 1,
@@ -446,14 +447,14 @@ class ExploreService extends BaseService {
         'exploreBooks: 请求URL=$fullUrl, 页码=$page, method=$requestMethod, 请求头数量=${headers.length}',
       );
       final response = requestMethod == 'POST'
-          ? await NetworkService.instance.post(
+          ? await readService(AppServices.networkService).post(
               fullUrl,
               data: requestBody,
               headers: headers,
               retryCount: retryCount,
               options: requestOptions,
             )
-          : await NetworkService.instance.get(
+          : await readService(AppServices.networkService).get(
               fullUrl,
               headers: headers,
               retryCount: retryCount,

@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import '../../core/base/base_service.dart';
+import '../../core/constants/app_constants.dart';
 import '../../data/models/book.dart';
 import '../../data/models/book_chapter.dart';
 import '../../data/models/book_source.dart';
@@ -18,16 +20,153 @@ class CacheService extends BaseService {
 
   static const String cacheFolderName = 'book_cache';
   static const int notificationId = 103; // 参考项目：NotificationId.CacheBookService
+  static const Duration _cacheTtl = Duration(days: 30);
+  static const Duration _cleanupThrottle = Duration(minutes: 2);
+  static const int _maxCacheSizeBytes = AppConstants.defaultCacheSize;
+
+  DateTime? _lastCleanupAt;
+  Future<void>? _cleanupFuture;
 
   /// 获取缓存目录
   Future<Directory> _getCacheDir() async {
     final appDir = await getApplicationDocumentsDirectory();
-    return Directory('${appDir.path}/$cacheFolderName');
+    final cacheDir = Directory('${appDir.path}/$cacheFolderName');
+    if (!await cacheDir.exists()) {
+      await cacheDir.create(recursive: true);
+    }
+    return cacheDir;
   }
 
   /// 获取缓存目录（公共方法）
   Future<Directory> getCacheDir() async {
     return await _getCacheDir();
+  }
+
+  bool _isExpired(FileStat stat) {
+    final age = DateTime.now().difference(stat.modified);
+    return age > _cacheTtl;
+  }
+
+  Future<bool> _validateCacheFile(File file) async {
+    if (!await file.exists()) {
+      return false;
+    }
+
+    final stat = await file.stat();
+    if (!_isExpired(stat)) {
+      return true;
+    }
+
+    try {
+      await file.delete();
+    } catch (e) {
+      AppLog.instance.put('删除过期缓存失败: ${file.path}', error: e);
+    }
+    return false;
+  }
+
+  Future<void> _removeEmptyDirectories(Directory rootDir) async {
+    final directories = <Directory>[];
+    await for (final entity
+        in rootDir.list(recursive: true, followLinks: false)) {
+      if (entity is Directory) {
+        directories.add(entity);
+      }
+    }
+
+    directories.sort(
+      (a, b) => b.path.split(Platform.pathSeparator).length.compareTo(
+            a.path.split(Platform.pathSeparator).length,
+          ),
+    );
+
+    for (final directory in directories) {
+      try {
+        if (await directory.exists() && await directory.list().isEmpty) {
+          await directory.delete();
+        }
+      } catch (_) {
+        // 忽略空目录删除失败，避免影响主流程。
+      }
+    }
+  }
+
+  Future<void> _enforceCacheConstraints({bool force = false}) async {
+    if (!force &&
+        _lastCleanupAt != null &&
+        DateTime.now().difference(_lastCleanupAt!) < _cleanupThrottle) {
+      return;
+    }
+
+    final currentCleanup = _cleanupFuture;
+    if (currentCleanup != null) {
+      return currentCleanup;
+    }
+
+    final cleanup = _performCacheCleanup();
+    _cleanupFuture = cleanup;
+    try {
+      await cleanup;
+    } finally {
+      _cleanupFuture = null;
+    }
+  }
+
+  Future<void> _performCacheCleanup() async {
+    final cacheDir = await _getCacheDir();
+    if (!await cacheDir.exists()) {
+      _lastCleanupAt = DateTime.now();
+      return;
+    }
+
+    final validFiles = <_CacheFileEntry>[];
+    var totalSize = 0;
+    var expiredCount = 0;
+    var evictedCount = 0;
+
+    await for (final entity
+        in cacheDir.list(recursive: true, followLinks: false)) {
+      if (entity is! File) continue;
+
+      final stat = await entity.stat();
+      if (_isExpired(stat)) {
+        expiredCount++;
+        try {
+          await entity.delete();
+        } catch (e) {
+          AppLog.instance.put('删除过期缓存失败: ${entity.path}', error: e);
+        }
+        continue;
+      }
+
+      validFiles.add(_CacheFileEntry(entity, stat.modified, stat.size));
+      totalSize += stat.size;
+    }
+
+    if (totalSize > _maxCacheSizeBytes) {
+      validFiles.sort((a, b) => a.modified.compareTo(b.modified));
+      for (final entry in validFiles) {
+        if (totalSize <= _maxCacheSizeBytes) {
+          break;
+        }
+        try {
+          await entry.file.delete();
+          totalSize -= entry.size;
+          evictedCount++;
+        } catch (e) {
+          AppLog.instance.put('淘汰旧缓存失败: ${entry.file.path}', error: e);
+        }
+      }
+    }
+
+    await _removeEmptyDirectories(cacheDir);
+    _lastCleanupAt = DateTime.now();
+
+    if (expiredCount > 0 || evictedCount > 0) {
+      AppLog.instance.put(
+        '章节缓存清理完成: 过期 $expiredCount 个, 淘汰 $evictedCount 个, 当前 ${(totalSize / 1024 / 1024).toStringAsFixed(2)} MB',
+      );
+    }
   }
 
   /// 获取书籍缓存目录
@@ -74,7 +213,7 @@ class CacheService extends BaseService {
       final bookDir = await _getBookCacheDir(book);
       final fileName = _getChapterFileName(chapter);
       final file = File('${bookDir.path}/$fileName');
-      return await file.exists();
+      return await _validateCacheFile(file);
     } catch (e) {
       return false;
     }
@@ -103,10 +242,13 @@ class CacheService extends BaseService {
       if (!await bookDir.exists()) return {};
 
       final files = await bookDir.list().toList();
-      return files
-          .whereType<File>()
-          .map((file) => file.path.split('/').last)
-          .toSet();
+      final validFiles = <String>{};
+      for (final file in files.whereType<File>()) {
+        if (await _validateCacheFile(file)) {
+          validFiles.add(file.path.split('/').last);
+        }
+      }
+      return validFiles;
     } catch (e) {
       return {};
     }
@@ -124,7 +266,7 @@ class CacheService extends BaseService {
       }
 
       // 获取章节内容
-      final content = await BookService.instance.getChapterContent(
+      final content = await readService(AppServices.bookService).getChapterContent(
         chapter,
         source,
         bookName: book.name,
@@ -140,6 +282,7 @@ class CacheService extends BaseService {
       final fileName = _getChapterFileName(chapter);
       final file = File('${bookDir.path}/$fileName');
       await file.writeAsString(content, encoding: utf8);
+      await _enforceCacheConstraints(force: true);
 
       return true;
     } catch (e) {
@@ -157,13 +300,34 @@ class CacheService extends BaseService {
 
     try {
       // #region agent log
-      try{final f=File('/Users/zhangmingxun/Desktop/legado_flutter/.cursor/debug.log');f.writeAsStringSync('${jsonEncode({"location":"cache_service.dart:159","message":"保存章节内容到缓存","data":{"chapterTitle":chapter.title,"chapterIndex":chapter.index,"contentLength":content.length,"contentPreview":content.length > 150 ? content.substring(0, 150) : content},"timestamp":DateTime.now().millisecondsSinceEpoch,"sessionId":"debug-session","hypothesisId":"E"})}\n',mode:FileMode.append);}catch(_){}
+      try {
+        final f = File(
+            '/Users/zhangmingxun/Desktop/legado_flutter/.cursor/debug.log');
+        f.writeAsStringSync(
+            '${jsonEncode({
+                  "location": "cache_service.dart:159",
+                  "message": "保存章节内容到缓存",
+                  "data": {
+                    "chapterTitle": chapter.title,
+                    "chapterIndex": chapter.index,
+                    "contentLength": content.length,
+                    "contentPreview": content.length > 150
+                        ? content.substring(0, 150)
+                        : content
+                  },
+                  "timestamp": DateTime.now().millisecondsSinceEpoch,
+                  "sessionId": "debug-session",
+                  "hypothesisId": "E"
+                })}\n',
+            mode: FileMode.append);
+      } catch (_) {}
       // #endregion
-      
+
       final bookDir = await _getBookCacheDir(book);
       final fileName = _getChapterFileName(chapter);
       final file = File('${bookDir.path}/$fileName');
       await file.writeAsString(content, encoding: utf8);
+      await _enforceCacheConstraints(force: true);
       return true;
     } catch (e) {
       AppLog.instance.put('保存章节内容失败: ${chapter.title}', error: e);
@@ -184,7 +348,7 @@ class CacheService extends BaseService {
 
     // 显示通知（如果启用）
     if (showNotification) {
-      await NotificationService.instance.showProgressNotification(
+      await readService(AppServices.notificationService).showProgressNotification(
         id: notificationId,
         title: '缓存书籍',
         content: '正在缓存: ${book.name}',
@@ -211,7 +375,7 @@ class CacheService extends BaseService {
         // 更新通知
         if (showNotification) {
           final progress = (i + 1) / chapters.length;
-          await NotificationService.instance.showProgressNotification(
+          await readService(AppServices.notificationService).showProgressNotification(
             id: notificationId,
             title: '缓存书籍',
             content: '正在缓存: ${book.name} (${i + 1}/${chapters.length})',
@@ -226,7 +390,7 @@ class CacheService extends BaseService {
 
       // 完成通知
       if (showNotification) {
-        await NotificationService.instance.showNotification(
+        await readService(AppServices.notificationService).showNotification(
           id: notificationId,
           title: '缓存完成',
           content: '${book.name} 缓存完成',
@@ -237,7 +401,7 @@ class CacheService extends BaseService {
     } catch (e) {
       // 错误通知
       if (showNotification) {
-        await NotificationService.instance.showNotification(
+        await readService(AppServices.notificationService).showNotification(
           id: notificationId,
           title: '缓存失败',
           content: '${book.name} 缓存失败: ${e.toString()}',
@@ -301,10 +465,31 @@ class CacheService extends BaseService {
       final fileName = _getChapterFileName(chapter);
       final file = File('${bookDir.path}/$fileName');
 
-      if (await file.exists()) {
+      if (await _validateCacheFile(file)) {
         final content = await file.readAsString(encoding: utf8);
         // #region agent log
-        try{final f=File('/Users/zhangmingxun/Desktop/legado_flutter/.cursor/debug.log');f.writeAsStringSync('${jsonEncode({"location":"cache_service.dart:302","message":"从缓存读取章节内容","data":{"chapterTitle":chapter.title,"chapterIndex":chapter.index,"fileName":fileName,"contentLength":content.length,"contentPreview":content.length > 150 ? content.substring(0, 150) : content},"timestamp":DateTime.now().millisecondsSinceEpoch,"sessionId":"debug-session","hypothesisId":"E"})}\n',mode:FileMode.append);}catch(_){}
+        try {
+          final f = File(
+              '/Users/zhangmingxun/Desktop/legado_flutter/.cursor/debug.log');
+          f.writeAsStringSync(
+              '${jsonEncode({
+                    "location": "cache_service.dart:302",
+                    "message": "从缓存读取章节内容",
+                    "data": {
+                      "chapterTitle": chapter.title,
+                      "chapterIndex": chapter.index,
+                      "fileName": fileName,
+                      "contentLength": content.length,
+                      "contentPreview": content.length > 150
+                          ? content.substring(0, 150)
+                          : content
+                    },
+                    "timestamp": DateTime.now().millisecondsSinceEpoch,
+                    "sessionId": "debug-session",
+                    "hypothesisId": "E"
+                  })}\n',
+              mode: FileMode.append);
+        } catch (_) {}
         // #endregion
         return content;
       }
@@ -313,4 +498,12 @@ class CacheService extends BaseService {
       return null;
     }
   }
+}
+
+class _CacheFileEntry {
+  _CacheFileEntry(this.file, this.modified, this.size);
+
+  final File file;
+  final DateTime modified;
+  final int size;
 }

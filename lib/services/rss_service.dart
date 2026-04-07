@@ -1,4 +1,5 @@
 import 'package:sqflite/sqflite.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../core/base/base_service.dart';
 import '../data/database/app_database.dart';
 import '../data/models/rss_source.dart';
@@ -461,7 +462,7 @@ class RssService extends BaseService {
   Future<int> refreshRssArticles(RssSource source, {String? sortName, String? sortUrl}) async {
     try {
       // 获取文章列表
-      final articles = await RssParserService.instance.getArticles(
+      final articles = await readService(AppServices.rssParserService).getArticles(
         source: source,
         sortName: sortName,
         sortUrl: sortUrl ?? source.sourceUrl,

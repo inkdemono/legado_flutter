@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
@@ -85,7 +86,7 @@ class _ReaderSettingsPageState extends ConsumerState<ReaderSettingsPage> {
     } else {
       // 关闭共用布局：只保存当前书籍的配置
       final updatedBook = widget.book.copyWith(readConfig: _config);
-      BookService.instance.saveBook(updatedBook).catchError((error) {});
+      readService(AppServices.bookService).saveBook(updatedBook).catchError((error) {});
     }
 
     // 通知父组件配置已改变
@@ -97,12 +98,12 @@ class _ReaderSettingsPageState extends ConsumerState<ReaderSettingsPage> {
   /// 更新所有书籍的布局配置（共用布局时）
   Future<void> _updateAllBooksLayout(ReadConfig layoutConfig) async {
     try {
-      final allBooks = await BookService.instance.getBookshelfBooks();
+      final allBooks = await readService(AppServices.bookService).getBookshelfBooks();
       for (final book in allBooks) {
         final currentConfig = book.readConfig ?? ReadConfig();
         final updatedConfig = currentConfig.applyLayoutConfig(layoutConfig);
         final updatedBook = book.copyWith(readConfig: updatedConfig);
-        await BookService.instance.saveBook(updatedBook);
+        await readService(AppServices.bookService).saveBook(updatedBook);
       }
     } catch (e) {}
   }
@@ -443,7 +444,7 @@ class _ReaderSettingsPageState extends ConsumerState<ReaderSettingsPage> {
                               // 关闭共用布局：只保存当前书籍的配置
                               final updatedBook =
                                   widget.book.copyWith(readConfig: _config);
-                              await BookService.instance.saveBook(updatedBook);
+                              await readService(AppServices.bookService).saveBook(updatedBook);
                             }
                             // 重新加载配置以应用更改
                             _loadConfig();
@@ -1538,7 +1539,7 @@ class _ReaderSettingsPageState extends ConsumerState<ReaderSettingsPage> {
   /// 构建颜色预设
   Widget _buildColorPresets() {
     // 从 ReadConfigService 动态加载配置列表
-    final configList = ReadConfigService.instance.getConfigList();
+    final configList = readService(AppServices.readConfigService).getConfigList();
 
     // 将 ReadConfig 转换为预设数据格式
     final presets = configList.asMap().entries.map((entry) {

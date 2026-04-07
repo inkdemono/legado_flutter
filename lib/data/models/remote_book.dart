@@ -1,5 +1,8 @@
+import 'package:equatable/equatable.dart';
+
 /// 远程书籍模型
-class RemoteBook {
+// ignore: must_be_immutable
+class RemoteBook with EquatableMixin {
   final String filename;
   final String path;
   final int size;
@@ -24,5 +27,18 @@ class RemoteBook {
     final ext = filename.toLowerCase().split('.').last;
     return ['txt', 'epub', 'pdf', 'mobi', 'azw', 'azw3', 'fb2', 'zip', 'rar', '7z'].contains(ext);
   }
-}
 
+  @override
+  List<Object?> get props => [
+        filename,
+        path,
+        size,
+        lastModify,
+        contentType,
+        isOnBookShelf,
+      ];
+
+  @override
+  String toString() =>
+      'RemoteBook(filename: $filename, path: $path, isDir: $isDir)';
+}

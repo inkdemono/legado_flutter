@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:id3/id3.dart';
 import 'package:flutter/foundation.dart';
 import '../../data/models/media/music_track.dart';
+import '../../utils/app_log.dart';
 
 /// 媒体元数据
 class MediaMetadata {
@@ -64,7 +65,9 @@ class Mp3MetadataParser {
         try {
           // base64 解码已经在 APIC 中完成
           coverArt = metadata['APIC']['base64'];
-        } catch (_) {}
+        } catch (e) {
+          AppLog.instance.putDebug('解析媒体封面失败', error: e);
+        }
       }
 
       return MediaMetadata(

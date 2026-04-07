@@ -1,14 +1,12 @@
 import 'dart:async';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../config/app_config.dart';
 import '../../../data/models/book.dart';
 import '../../../data/models/book_source.dart';
-import '../../../services/book/book_service.dart';
 import '../../../services/book/search_model.dart';
-import '../../../services/source/book_source_service.dart';
-import '../../../services/search_keyword_service.dart';
 import '../../../utils/search_scope.dart';
 import '../../../providers/book_provider.dart';
 import '../../widgets/book/book_card.dart';
@@ -164,12 +162,13 @@ class _SearchPageState extends ConsumerState<SearchPage>
     List<String> history;
     if (_historySortMode == 1) {
       // 按使用次数排序
-      final keywords =
-          await SearchKeywordService.instance.getKeywordsByUsage(limit: 20);
+      final keywords = await readService(AppServices.searchKeywordService)
+          .getKeywordsByUsage(limit: 20);
       history = keywords.map((k) => k.word).toList();
     } else {
       // 按时间排序（默认）
-      history = await SearchKeywordService.instance.getSearchHistory();
+      history = await readService(AppServices.searchKeywordService)
+          .getSearchHistory();
     }
 
     if (mounted) {
@@ -198,7 +197,8 @@ class _SearchPageState extends ConsumerState<SearchPage>
     final searchId = ++_searchTaskId;
 
     // 保存搜索历史
-    await SearchKeywordService.instance.saveSearchKeyword(normalizedKeyword);
+    await readService(AppServices.searchKeywordService)
+        .saveSearchKeyword(normalizedKeyword);
     if (mounted) {
       await _loadSearchHistory();
     }
@@ -213,13 +213,15 @@ class _SearchPageState extends ConsumerState<SearchPage>
         }
       }
 
-      sources ??= await BookSourceService.instance.getEnabledBookSources();
+      final resolvedSources = sources ??
+          await readService(AppServices.bookSourceService)
+              .getEnabledBookSources();
 
       // 使用SearchModel进行后台搜索（完全独立于UI生命周期）
       await _searchModel?.search(
         searchId: searchId,
         keyword: normalizedKeyword,
-        sources: sources,
+        sources: resolvedSources,
         precisionSearch: _precisionSearch,
       );
     } catch (e) {
@@ -352,21 +354,17 @@ class _SearchPageState extends ConsumerState<SearchPage>
       // 如果书籍不是本地书籍，需要先获取章节列表
       if (!book.isLocal) {
         try {
-          final chapters = await BookService.instance.getChapterList(book);
+          final chapters =
+              await readService(AppServices.bookService).getChapterList(book);
           if (chapters.isNotEmpty) {
-            await BookService.instance.saveChapters(chapters);
+            await readService(AppServices.bookService).saveChapters(chapters);
           }
         } catch (e) {
           // 章节列表获取失败不影响添加书籍
         }
       }
 
-      // 保存书籍
-      await BookService.instance.createBook(book);
-
-      // 刷新书架 Provider
-      ref.invalidate(refreshBookshelfProvider);
-      ref.invalidate(bookshelfBooksProvider);
+      await ref.read(bookshelfBooksProvider.notifier).addBook(book);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -951,7 +949,7 @@ class _SearchPageState extends ConsumerState<SearchPage>
                     ),
                     trailing: IconButton(
                       onPressed: () async {
-                        await SearchKeywordService.instance
+                        await readService(AppServices.searchKeywordService)
                             .deleteSearchHistory(keyword);
                         await _loadSearchHistory();
                       },
@@ -1374,7 +1372,7 @@ class _SearchPageState extends ConsumerState<SearchPage>
     );
 
     if (confirmed == true) {
-      await SearchKeywordService.instance.clearSearchHistory();
+      await readService(AppServices.searchKeywordService).clearSearchHistory();
       await _loadSearchHistory();
     }
   }

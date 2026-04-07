@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
@@ -188,7 +189,7 @@ class DownloadService extends BaseService {
       }
 
       // 显示下载通知
-      await NotificationService.instance.showProgressNotification(
+      await readService(AppServices.notificationService).showProgressNotification(
         id: _downloadInfos[task.id]?.notificationId ?? baseNotificationId,
         title: '下载文件',
         content: task.fileName,
@@ -200,7 +201,7 @@ class DownloadService extends BaseService {
       );
 
       // 使用 NetworkService 下载
-      await NetworkService.instance.download(
+      await readService(AppServices.networkService).download(
         task.url,
         task.savePath,
         cancelToken: task.cancelToken,
@@ -217,7 +218,7 @@ class DownloadService extends BaseService {
           );
           
           // 更新通知
-          NotificationService.instance.showProgressNotification(
+          readService(AppServices.notificationService).showProgressNotification(
             id: _downloadInfos[task.id]?.notificationId ?? baseNotificationId,
             title: '下载文件',
             content: task.fileName,
@@ -235,7 +236,7 @@ class DownloadService extends BaseService {
       _completedDownloads.add(task.id);
       
       // 显示完成通知（添加payload用于点击跳转）
-      await NotificationService.instance.showNotification(
+      await readService(AppServices.notificationService).showNotification(
         id: _downloadInfos[task.id]?.notificationId ?? baseNotificationId,
         title: '下载完成',
         content: task.fileName,
@@ -255,7 +256,7 @@ class DownloadService extends BaseService {
         task.errorMessage = e.toString();
         
         // 显示失败通知
-        await NotificationService.instance.showNotification(
+        await readService(AppServices.notificationService).showNotification(
           id: _downloadInfos[task.id]?.notificationId ?? baseNotificationId,
           title: '下载失败',
           content: '${task.fileName}: ${e.toString()}',

@@ -1,10 +1,12 @@
+import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 part 'music_track.g.dart';
 
 /// 音乐曲目模型
 @JsonSerializable()
-class MusicTrack {
+// ignore: must_be_immutable
+class MusicTrack with EquatableMixin {
   /// 唯一标识符
   final String id;
 
@@ -143,11 +145,5 @@ class MusicTrack {
   }
 
   @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is MusicTrack && other.id == id;
-  }
-
-  @override
-  int get hashCode => id.hashCode;
+  List<Object?> get props => [id];
 }

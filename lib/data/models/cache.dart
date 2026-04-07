@@ -1,6 +1,9 @@
+import 'package:equatable/equatable.dart';
+
 /// Cache 实体
 /// 参考项目：Cache.kt
-class Cache {
+// ignore: must_be_immutable
+class Cache with EquatableMixin {
   final String key;
   String? value;
   int deadline; // 过期时间（毫秒时间戳），0表示永不过期
@@ -26,5 +29,10 @@ class Cache {
       deadline: map['deadline'] as int? ?? 0,
     );
   }
-}
 
+  @override
+  List<Object?> get props => [key, value, deadline];
+
+  @override
+  String toString() => 'Cache(key: $key, deadline: $deadline)';
+}

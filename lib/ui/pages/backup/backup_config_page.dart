@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 
 import '../../../config/app_config.dart';
 import '../../../services/storage/webdav_service.dart';
@@ -81,13 +82,13 @@ class _BackupConfigPageState extends State<BackupConfigPage> {
     });
 
     try {
-      await WebDavService.instance.configure(
+      await readService(AppServices.webDavService).configure(
         url: _urlController.text.trim(),
         username: _accountController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
-      final isOk = await WebDavService.instance.check();
+      final isOk = await readService(AppServices.webDavService).check();
       if (!mounted) return;
       setState(() {
         _connectionStatus = isOk ? '连接成功' : '连接失败';
@@ -131,7 +132,7 @@ class _BackupConfigPageState extends State<BackupConfigPage> {
         _deviceNameController.text.trim(),
       );
 
-      await WebDavService.instance.configure(
+      await readService(AppServices.webDavService).configure(
         url: _urlController.text.trim(),
         username: _accountController.text.trim(),
         password: _passwordController.text.trim(),

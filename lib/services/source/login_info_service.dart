@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/base/base_service.dart';
+import '../../utils/app_log.dart';
 
 /// 登录信息服务
 /// 用于保存和获取书源的登录信息
@@ -13,13 +14,14 @@ class LoginInfoService extends BaseService {
   /// 保存登录信息
   /// [sourceUrl] 书源URL
   /// [loginData] 登录数据（键值对）
-  Future<void> saveLoginInfo(String sourceUrl, Map<String, String> loginData) async {
+  Future<void> saveLoginInfo(
+      String sourceUrl, Map<String, String> loginData) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final key = '$_loginInfoPrefix${Uri.parse(sourceUrl).host}';
       await prefs.setString(key, jsonEncode(loginData));
     } catch (e) {
-      // 忽略错误
+      AppLog.instance.put('保存书源登录信息失败: $sourceUrl', error: e);
     }
   }
 
@@ -36,7 +38,7 @@ class LoginInfoService extends BaseService {
         return loginInfo.map((k, v) => MapEntry(k, v.toString()));
       }
     } catch (e) {
-      // 忽略错误
+      AppLog.instance.put('读取书源登录信息失败: $sourceUrl', error: e);
     }
     return {};
   }
@@ -49,7 +51,7 @@ class LoginInfoService extends BaseService {
       final key = '$_loginInfoPrefix${Uri.parse(sourceUrl).host}';
       await prefs.remove(key);
     } catch (e) {
-      // 忽略错误
+      AppLog.instance.put('清除书源登录信息失败: $sourceUrl', error: e);
     }
   }
 
@@ -57,13 +59,13 @@ class LoginInfoService extends BaseService {
   Future<void> clearAllLoginInfo() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final keys = prefs.getKeys().where((key) => key.startsWith(_loginInfoPrefix));
+      final keys =
+          prefs.getKeys().where((key) => key.startsWith(_loginInfoPrefix));
       for (final key in keys) {
         await prefs.remove(key);
       }
     } catch (e) {
-      // 忽略错误
+      AppLog.instance.put('清除全部书源登录信息失败', error: e);
     }
   }
 }
-

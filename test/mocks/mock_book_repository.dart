@@ -20,6 +20,15 @@ class MockBookRepository implements BookRepository {
   int saveBookCallCount = 0;
   int deleteBookCallCount = 0;
   int updateReadProgressCallCount = 0;
+  int updateBookCallCount = 0;
+  int getBookInfoCallCount = 0;
+  int getChapterListCallCount = 0;
+  int getChapterContentCallCount = 0;
+  int checkBookUpdateCallCount = 0;
+  String? lastUpdatedBookUrl;
+  String? lastReadProgressBookUrl;
+  int? lastReadProgressChapterIndex;
+  int? lastReadProgressChapterPos;
 
   // 设置返回值的方法
   void setShelfBooks(List<BookEntity> books) => _shelfBooks = books;
@@ -64,6 +73,7 @@ class MockBookRepository implements BookRepository {
   @override
   Future<BookEntity> getBookInfo(
       BookEntity book, BookSourceEntity source) async {
+    getBookInfoCallCount++;
     return _bookInfo ?? book;
   }
 
@@ -72,6 +82,7 @@ class MockBookRepository implements BookRepository {
     BookEntity book,
     BookSourceEntity source,
   ) async {
+    getChapterListCallCount++;
     return _chapterList;
   }
 
@@ -80,6 +91,7 @@ class MockBookRepository implements BookRepository {
     ChapterEntity chapter,
     BookSourceEntity source,
   ) async {
+    getChapterContentCallCount++;
     return _chapterContent;
   }
 
@@ -97,6 +109,8 @@ class MockBookRepository implements BookRepository {
 
   @override
   Future<void> updateBook(BookEntity book) async {
+    updateBookCallCount++;
+    lastUpdatedBookUrl = book.bookUrl;
     final index = _shelfBooks.indexWhere((b) => b.bookUrl == book.bookUrl);
     if (index != -1) {
       _shelfBooks[index] = book;
@@ -120,10 +134,14 @@ class MockBookRepository implements BookRepository {
     int chapterPos,
   ) async {
     updateReadProgressCallCount++;
+    lastReadProgressBookUrl = bookUrl;
+    lastReadProgressChapterIndex = chapterIndex;
+    lastReadProgressChapterPos = chapterPos;
   }
 
   @override
   Future<int> checkBookUpdate(BookEntity book, BookSourceEntity source) async {
+    checkBookUpdateCallCount++;
     return _updateCount;
   }
 
@@ -139,5 +157,14 @@ class MockBookRepository implements BookRepository {
     saveBookCallCount = 0;
     deleteBookCallCount = 0;
     updateReadProgressCallCount = 0;
+    updateBookCallCount = 0;
+    getBookInfoCallCount = 0;
+    getChapterListCallCount = 0;
+    getChapterContentCallCount = 0;
+    checkBookUpdateCallCount = 0;
+    lastUpdatedBookUrl = null;
+    lastReadProgressBookUrl = null;
+    lastReadProgressChapterIndex = null;
+    lastReadProgressChapterPos = null;
   }
 }

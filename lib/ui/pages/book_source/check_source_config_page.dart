@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../../services/source/check_source_service.dart';
 import '../../../utils/app_log.dart';
 
@@ -41,7 +42,7 @@ class _CheckSourceConfigPageState extends State<CheckSourceConfigPage> {
     });
 
     try {
-      final checkService = CheckSourceService.instance;
+      final checkService = readService(AppServices.checkSourceService);
       await checkService.init();
 
       final config = checkService.config;
@@ -78,7 +79,7 @@ class _CheckSourceConfigPageState extends State<CheckSourceConfigPage> {
         return;
       }
 
-      final checkService = CheckSourceService.instance;
+      final checkService = readService(AppServices.checkSourceService);
       await checkService.init();
 
       final config = checkService.config;

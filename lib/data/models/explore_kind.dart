@@ -1,8 +1,10 @@
+import 'package:equatable/equatable.dart';
+
 import 'flex_child_style.dart';
 
 /// 发现分类模型
 /// 参考项目：ExploreKind.kt
-class ExploreKind {
+class ExploreKind with EquatableMixin {
   final String title;
   final String? url;
   final FlexChildStyle? style;
@@ -35,4 +37,10 @@ class ExploreKind {
       'style': style?.toJson(),
     };
   }
+
+  @override
+  List<Object?> get props => [title, url, style];
+
+  @override
+  String toString() => 'ExploreKind(title: $title, url: $url)';
 }

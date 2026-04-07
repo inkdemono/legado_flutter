@@ -7,17 +7,26 @@ class MockBookSourceRepository implements BookSourceRepository {
   List<BookSourceEntity> _allSources = [];
   BookSourceEntity? _sourceByUrl;
   List<String> _groups = [];
+  int _importFromJsonResult = 0;
+  String _exportToJsonResult = '[]';
+  List<BookSourceEntity> lastExportedSources = [];
+  String? lastImportedJson;
 
   // 调用计数器
   int getAllBookSourcesCallCount = 0;
   int saveBookSourceCallCount = 0;
   int deleteBookSourceCallCount = 0;
   int toggleBookSourceCallCount = 0;
+  int importFromJsonCallCount = 0;
+  int exportToJsonCallCount = 0;
+  int clearAllBookSourcesCallCount = 0;
 
   // 设置返回值的方法
   void setAllSources(List<BookSourceEntity> sources) => _allSources = sources;
   void setSourceByUrl(BookSourceEntity? source) => _sourceByUrl = source;
   void setGroups(List<String> groups) => _groups = groups;
+  void setImportFromJsonResult(int result) => _importFromJsonResult = result;
+  void setExportToJsonResult(String result) => _exportToJsonResult = result;
 
   @override
   Future<List<BookSourceEntity>> getAllBookSources(
@@ -41,11 +50,17 @@ class MockBookSourceRepository implements BookSourceRepository {
 
   @override
   Future<BookSourceEntity?> getBookSourceByUrl(String url) async {
-    return _sourceByUrl ??
-        _allSources.firstWhere(
-          (s) => s.bookSourceUrl == url,
-          orElse: () => _allSources.first,
-        );
+    if (_sourceByUrl != null) {
+      return _sourceByUrl;
+    }
+
+    for (final source in _allSources) {
+      if (source.bookSourceUrl == url) {
+        return source;
+      }
+    }
+
+    return null;
   }
 
   @override
@@ -136,17 +151,22 @@ class MockBookSourceRepository implements BookSourceRepository {
 
   @override
   Future<void> clearAllBookSources() async {
+    clearAllBookSourcesCallCount++;
     _allSources.clear();
   }
 
   @override
   Future<int> importFromJson(String jsonString) async {
-    return 0;
+    importFromJsonCallCount++;
+    lastImportedJson = jsonString;
+    return _importFromJsonResult;
   }
 
   @override
   Future<String> exportToJson(List<BookSourceEntity> bookSources) async {
-    return '[]';
+    exportToJsonCallCount++;
+    lastExportedSources = List<BookSourceEntity>.from(bookSources);
+    return _exportToJsonResult;
   }
 
   // 重置所有计数器
@@ -155,5 +175,10 @@ class MockBookSourceRepository implements BookSourceRepository {
     saveBookSourceCallCount = 0;
     deleteBookSourceCallCount = 0;
     toggleBookSourceCallCount = 0;
+    importFromJsonCallCount = 0;
+    exportToJsonCallCount = 0;
+    clearAllBookSourcesCallCount = 0;
+    lastExportedSources = [];
+    lastImportedJson = null;
   }
 }

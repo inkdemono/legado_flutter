@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../../../data/models/book_source.dart';
 import '../../../services/network/network_service.dart';
@@ -118,7 +119,7 @@ class _WebViewLoginWidgetState extends State<WebViewLoginWidget> {
       }
       
       // 保存到Cookie服务
-      await CookieService.instance.saveCookiesForSource(
+      await readService(AppServices.cookieService).saveCookiesForSource(
         widget.source.bookSourceUrl,
         cookies,
       );

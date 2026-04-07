@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../../../data/models/book.dart';
 import '../../../../data/models/book_chapter.dart';
 import '../../../../services/book/book_service.dart';
@@ -50,14 +51,14 @@ class _BookInfoChaptersState extends State<BookInfoChapters> {
 
     try {
       // 确保服务已初始化
-      if (!BookService.instance.isInitialized) {
-        await BookService.instance.init();
+      if (!readService(AppServices.bookService).isInitialized) {
+        await readService(AppServices.bookService).init();
       }
       
       // 如果书籍不在书架，使用不保存到数据库的方法
       final chapters = widget.isInBookshelf
-          ? await BookService.instance.getChapterList(widget.book)
-          : await BookService.instance.getChapterListWithoutSave(widget.book);
+          ? await readService(AppServices.bookService).getChapterList(widget.book)
+          : await readService(AppServices.bookService).getChapterListWithoutSave(widget.book);
       
       AppLog.instance.put('加载章节列表完成: 书籍=${widget.book.displayName}, 章节数=${chapters.length}');
       

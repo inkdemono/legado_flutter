@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../core/base/base_service.dart';
 import '../../data/models/book_source.dart';
 import '../../data/models/book.dart';
@@ -11,9 +12,11 @@ import '../explore_service.dart';
 /// 书源调试服务
 class BookSourceDebugService extends BaseService {
   static final BookSourceDebugService instance = BookSourceDebugService._init();
-  final BookService _bookService = BookService.instance;
-  final NetworkService _networkService = NetworkService.instance;
-  final ExploreService _exploreService = ExploreService.instance;
+  final IBookService _bookService = readService(AppServices.bookService);
+  final INetworkService _networkService =
+      readService(AppServices.networkService);
+  final ExploreService _exploreService =
+      readService(AppServices.exploreService);
 
   BookSourceDebugService._init();
 

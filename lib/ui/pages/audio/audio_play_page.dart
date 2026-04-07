@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../data/models/book.dart';
 import '../../../services/media/audio_play_service.dart' show AudioPlayService, PlayStatus;
@@ -20,7 +21,7 @@ class AudioPlayPage extends StatefulWidget {
 }
 
 class _AudioPlayPageState extends State<AudioPlayPage> {
-  final AudioPlayService _audioService = AudioPlayService.instance;
+  final AudioPlayService _audioService = readService(AppServices.audioPlayService);
   bool _isInitialized = false;
 
   @override

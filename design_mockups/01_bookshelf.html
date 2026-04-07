@@ -107,8 +107,9 @@
         }
 
         .filter-chip.active {
-            background: var(--primary-color);
-            color: white;
+            background: var(--ds-accent-soft, rgba(22,119,255,0.10));
+            color: var(--ds-accent, #1677ff);
+            font-weight: 600;
         }
 
         .book-grid {
@@ -158,7 +159,7 @@
             position: absolute;
             top: 6px;
             right: 6px;
-            background: #FF4D4F;
+            background: var(--ds-danger, #e34d59);
             color: white;
             font-size: 10px;
             padding: 2px 6px;
@@ -172,14 +173,15 @@
             right: 8px;
             bottom: 8px;
             height: 4px;
-            background: rgba(255,255,255,0.28);
+            /* 深色半透明轨道，在浅色和深色封面上均可见 */
+            background: rgba(0, 0, 0, 0.22);
             border-radius: 999px;
             overflow: hidden;
         }
 
         .progress-bar-fill {
             height: 100%;
-            background: var(--primary-color);
+            background: var(--ds-accent, #1677ff);
             border-radius: 999px;
         }
 
@@ -262,37 +264,7 @@
             cursor: pointer;
         }
 
-        /* Dark Mode Version */
-        .phone-frame.dark {
-            --bg-color: #121212;
-            --card-bg: #1e1e1e;
-            --text-primary: #E0E0E0;
-            --text-secondary: #A0A0A0;
-            --text-hint: #4e5969;
-            --divider: #1f2329;
-        }
-
-        .phone-frame.dark .status-bar,
-        .phone-frame.dark .app-bar,
-        .phone-frame.dark .filter-bar {
-            background: var(--card-bg);
-        }
-
-        .phone-frame.dark .bottom-nav {
-            background: rgba(30,30,30,0.95);
-        }
-
-        .phone-frame.dark .icon-btn {
-            background: #2A2A2A;
-        }
-
-        .phone-frame.dark .filter-chip {
-            background: #2A2A2A;
-        }
-
-        .phone-frame.dark .filter-chip.active {
-            background: var(--primary-color);
-        }
+        /* Dark Mode — 由 design_system.css [data-theme="dark"] 统一处理 */
 
         .label {
             text-align: center;
@@ -332,10 +304,10 @@
 
                     <div class="filter-bar">
                         <div class="filter-chip active">全部</div>
-                        <div class="filter-chip">玄幻</div>
-                        <div class="filter-chip">都市</div>
-                        <div class="filter-chip">科幻</div>
-                        <div class="filter-chip">历史</div>
+                        <div class="filter-chip">在读</div>
+                        <div class="filter-chip">待读</div>
+                        <div class="filter-chip">已完结</div>
+                        <div class="filter-chip">书单</div>
                     </div>
 
                     <div class="book-grid">
@@ -441,7 +413,7 @@
 
             <!-- Dark Mode -->
             <div>
-                <div class="phone-frame dark">
+                <div class="phone-frame" data-theme="dark">
                     <div class="status-bar">
                         <span style="color: #E0E0E0;">9:41</span>
                         <span style="color: #E0E0E0;">📶 🔋</span>
@@ -460,10 +432,10 @@
 
                     <div class="filter-bar">
                         <div class="filter-chip active">全部</div>
-                        <div class="filter-chip">玄幻</div>
-                        <div class="filter-chip">都市</div>
-                        <div class="filter-chip">科幻</div>
-                        <div class="filter-chip">历史</div>
+                        <div class="filter-chip">在读</div>
+                        <div class="filter-chip">待读</div>
+                        <div class="filter-chip">已完结</div>
+                        <div class="filter-chip">书单</div>
                     </div>
 
                     <div class="book-grid">

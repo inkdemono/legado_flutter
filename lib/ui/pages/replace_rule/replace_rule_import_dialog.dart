@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -126,7 +127,7 @@ class _ReplaceRuleImportDialogState extends State<ReplaceRuleImportDialog> {
 
     try {
       await Future.sync(
-          () => ReplaceRuleService.instance.importRules(rulesToImport));
+          () => readService(AppServices.replaceRuleService).importRules(rulesToImport));
       widget.onImportComplete();
       if (!mounted) return;
       navigator.pop();

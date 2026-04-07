@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/book.dart';
@@ -61,8 +62,8 @@ class _BookManagePageState extends ConsumerState<BookManagePage> {
 
     try {
       final books = _selectedGroupId != null
-          ? await BookService.instance.getBooksByGroup(_selectedGroupId!)
-          : await BookService.instance.getBookshelfBooks();
+          ? await readService(AppServices.bookService).getBooksByGroup(_selectedGroupId!)
+          : await readService(AppServices.bookService).getBookshelfBooks();
 
       final keyword = _searchController.text.trim();
       final existingUrls = books.map((book) => book.bookUrl).toSet();
@@ -239,90 +240,114 @@ class _BookManagePageState extends ConsumerState<BookManagePage> {
       );
     }
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-      children: [
-        _buildHeroCard(context),
-        if (hasSelection) ...[
-          const SizedBox(height: 16),
-          BookManageActionBar(
-            selectedCount: _selectedBooks.length,
-            totalCount: _books.length,
-            isAllSelected: _allVisibleSelected,
-            onToggleSelectAll: _toggleSelectAllVisible,
-            onClearSelection: _clearSelection,
-            onBatchAction: _handleBatchAction,
-          ),
-        ],
-        const SizedBox(height: 18),
-        _buildSectionLabel(
-          context,
-          title: _searchController.text.trim().isEmpty ? '书籍列表' : '搜索结果',
-          subtitle: _searchController.text.trim().isEmpty
-              ? '长按书卡进入多选，轻点可查看详情'
-              : '当前关键字：${_searchController.text.trim()}',
-        ),
-        const SizedBox(height: 10),
-        if (_filteredBooks.isEmpty)
-          HomeSectionCard(
-            margin: EdgeInsets.zero,
-            child: Column(
-              children: [
-                const SizedBox(height: 20),
-                Icon(
-                  Icons.menu_book_outlined,
-                  size: 52,
-                  color: HomePalette.tertiaryText(context),
-                ),
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate.fixed([
+              _buildHeroCard(context),
+              if (hasSelection) ...[
                 const SizedBox(height: 16),
-                Text(
-                  _searchController.text.trim().isNotEmpty
-                      ? '没有找到匹配的书籍'
-                      : '暂无书籍',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: HomePalette.primaryText(context),
-                  ),
+                BookManageActionBar(
+                  selectedCount: _selectedBooks.length,
+                  totalCount: _books.length,
+                  isAllSelected: _allVisibleSelected,
+                  onToggleSelectAll: _toggleSelectAllVisible,
+                  onClearSelection: _clearSelection,
+                  onBatchAction: _handleBatchAction,
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  _searchController.text.trim().isNotEmpty
-                      ? '换个关键词再试试'
-                      : '当前分组里还没有可管理的书籍',
-                  style: TextStyle(color: HomePalette.secondaryText(context)),
-                ),
-                const SizedBox(height: 20),
               ],
+              const SizedBox(height: 18),
+              _buildSectionLabel(
+                context,
+                title: _searchController.text.trim().isEmpty ? '书籍列表' : '搜索结果',
+                subtitle: _searchController.text.trim().isEmpty
+                    ? '长按书卡进入多选，轻点可查看详情'
+                    : '当前关键字：${_searchController.text.trim()}',
+              ),
+              const SizedBox(height: 10),
+            ]),
+          ),
+        ),
+        if (_filteredBooks.isEmpty)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            sliver: SliverToBoxAdapter(
+              child: HomeSectionCard(
+                margin: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    const SizedBox(height: 20),
+                    Icon(
+                      Icons.menu_book_outlined,
+                      size: 52,
+                      color: HomePalette.tertiaryText(context),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _searchController.text.trim().isNotEmpty
+                          ? '没有找到匹配的书籍'
+                          : '暂无书籍',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: HomePalette.primaryText(context),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _searchController.text.trim().isNotEmpty
+                          ? '换个关键词再试试'
+                          : '当前分组里还没有可管理的书籍',
+                      style: TextStyle(
+                        color: HomePalette.secondaryText(context),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
             ),
           )
         else
-          ..._filteredBooks.map(
-            (book) => BookManageItem(
-              book: book,
-              isSelected: _selectedBookUrls.contains(book.bookUrl),
-              onTap: () {
-                if (hasSelection) {
-                  _toggleSelection(book.bookUrl);
-                } else {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => BookInfoPage(
-                        key: ValueKey('book_info_${book.bookUrl}'),
-                        bookUrl: book.bookUrl,
-                      ),
-                    ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final book = _filteredBooks[index];
+                  return BookManageItem(
+                    book: book,
+                    isSelected: _selectedBookUrls.contains(book.bookUrl),
+                    onTap: () {
+                      if (hasSelection) {
+                        _toggleSelection(book.bookUrl);
+                      } else {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => BookInfoPage(
+                              key: ValueKey('book_info_${book.bookUrl}'),
+                              bookUrl: book.bookUrl,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    onLongPress: () => _toggleSelection(book.bookUrl),
+                    onDeleted: () async {
+                      _selectedBookUrls.remove(book.bookUrl);
+                      await _loadBooks();
+                    },
                   );
-                }
-              },
-              onLongPress: () => _toggleSelection(book.bookUrl),
-              onDeleted: () async {
-                _selectedBookUrls.remove(book.bookUrl);
-                await _loadBooks();
-              },
+                },
+                childCount: _filteredBooks.length,
+              ),
             ),
           ),
-        SizedBox(height: hasSelection ? 120 : 90),
+        SliverToBoxAdapter(
+          child: SizedBox(height: hasSelection ? 120 : 90),
+        ),
       ],
     );
   }
@@ -582,7 +607,7 @@ class _BookManagePageState extends ConsumerState<BookManagePage> {
 
     try {
       for (final book in books) {
-        await BookService.instance.deleteBook(book.bookUrl);
+        await readService(AppServices.bookService).deleteBook(book.bookUrl);
       }
 
       _clearSelection();
@@ -594,13 +619,13 @@ class _BookManagePageState extends ConsumerState<BookManagePage> {
   }
 
   Future<void> _batchMoveToGroup(List<Book> books) async {
-    final groups = await BookGroupService.instance.getAllGroups();
+    final groups = await readService(AppServices.bookGroupService).getAllGroups();
     final selectedGroup = await _pickGroup(groups, title: '选择分组');
     if (selectedGroup == null) return;
 
     try {
       for (final book in books) {
-        await BookService.instance.updateBookGroup(
+        await readService(AppServices.bookService).updateBookGroup(
           book.bookUrl,
           selectedGroup.groupId,
         );
@@ -615,13 +640,13 @@ class _BookManagePageState extends ConsumerState<BookManagePage> {
   }
 
   Future<void> _batchAddToGroup(List<Book> books) async {
-    final groups = await BookGroupService.instance.getAllGroups();
+    final groups = await readService(AppServices.bookGroupService).getAllGroups();
     final selectedGroup = await _pickGroup(groups, title: '添加到分组');
     if (selectedGroup == null) return;
 
     try {
       for (final book in books) {
-        await BookService.instance.updateBookGroup(
+        await readService(AppServices.bookService).updateBookGroup(
           book.bookUrl,
           selectedGroup.groupId,
         );
@@ -684,7 +709,7 @@ class _BookManagePageState extends ConsumerState<BookManagePage> {
 
     try {
       for (final book in books) {
-        await CacheService.instance.clearBookCache(book);
+        await readService(AppServices.cacheService).clearBookCache(book);
       }
 
       _clearSelection();
@@ -697,7 +722,7 @@ class _BookManagePageState extends ConsumerState<BookManagePage> {
   Future<void> _batchUpdateCanUpdate(List<Book> books, bool canUpdate) async {
     try {
       for (final book in books) {
-        await BookService.instance.updateBook(
+        await readService(AppServices.bookService).updateBook(
           book.copyWith(canUpdate: canUpdate),
         );
       }

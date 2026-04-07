@@ -15,7 +15,8 @@ class AppLogItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasError = log.error != null;
+    final hasError = log.level == LogLevel.error || log.error != null;
+    final duration = log.duration;
 
     return InkWell(
       onTap: onTap,
@@ -65,6 +66,36 @@ class AppLogItem extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          log.category.label,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ),
+                      if (duration != null)
+                        Text(
+                          '${duration.inMilliseconds}ms',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: duration.inMilliseconds >= 500
+                                ? Colors.orange[700]
+                                : Colors.grey[600],
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
                   // 消息
                   Text(
                     log.message,
@@ -103,4 +134,3 @@ class AppLogItem extends StatelessWidget {
     );
   }
 }
-

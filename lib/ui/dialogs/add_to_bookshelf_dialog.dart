@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/book.dart';
 import '../../data/models/book_source.dart';
@@ -54,7 +55,7 @@ class _AddToBookshelfDialogState extends ConsumerState<AddToBookshelfDialog> {
     try {
       // 检查书籍是否已在书架
       final existingBook =
-          await BookService.instance.getBookByUrl(widget.bookUrl);
+          await readService(AppServices.bookService).getBookByUrl(widget.bookUrl);
       if (existingBook != null) {
         setState(() {
           _errorMessage = '${existingBook.name} 已在书架';
@@ -83,16 +84,16 @@ class _AddToBookshelfDialogState extends ConsumerState<AddToBookshelfDialog> {
       if (uri != null && uri.hasQuery) {
         final origin = uri.queryParameters['origin'];
         if (origin != null && origin.isNotEmpty) {
-          source = await BookSourceService.instance.getBookSourceByUrl(origin);
+          source = await readService(AppServices.bookSourceService).getBookSourceByUrl(origin);
         }
       }
 
       // 2. 在所有启用的书源中匹配origin
-      source ??= await BookSourceService.instance.getBookSourceByUrl(baseUrl);
+      source ??= await readService(AppServices.bookSourceService).getBookSourceByUrl(baseUrl);
 
       // 3. 在所有启用的书源中使用bookUrlPattern匹配
       if (source == null) {
-        final allSources = await BookSourceService.instance
+        final allSources = await readService(AppServices.bookSourceService)
             .getAllBookSources(enabledOnly: true);
         for (final s in allSources) {
           if (s.bookUrlPattern != null && s.bookUrlPattern!.isNotEmpty) {
@@ -127,7 +128,7 @@ class _AddToBookshelfDialogState extends ConsumerState<AddToBookshelfDialog> {
       );
 
       // 获取书籍信息
-      final bookInfo = await BookService.instance.getBookInfo(book);
+      final bookInfo = await readService(AppServices.bookService).getBookInfo(book);
       if (bookInfo == null) {
         setState(() {
           _errorMessage = '获取书籍信息失败';

@@ -1,6 +1,8 @@
+import 'package:equatable/equatable.dart';
+
 /// 章节评论实体
 /// 参考项目：io.legado.app.data.entities.BookChapterReview
-class BookChapterReview {
+class BookChapterReview with EquatableMixin {
   /// 书籍ID
   final int bookId;
 
@@ -53,19 +55,10 @@ class BookChapterReview {
   }
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is BookChapterReview &&
-          runtimeType == other.runtimeType &&
-          bookId == other.bookId &&
-          chapterId == other.chapterId;
-
-  @override
-  int get hashCode => bookId.hashCode ^ chapterId.hashCode;
+  List<Object?> get props => [bookId, chapterId];
 
   @override
   String toString() {
     return 'BookChapterReview{bookId: $bookId, chapterId: $chapterId, summaryUrl: $summaryUrl}';
   }
 }
-

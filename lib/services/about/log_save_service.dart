@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -157,7 +158,7 @@ class LogSaveService extends BaseService {
         await crashDir.create(recursive: true);
       }
 
-      final crashLogFiles = await CrashLogService.instance.getCrashLogFiles();
+      final crashLogFiles = await readService(AppServices.crashLogService).getCrashLogFiles();
       if (crashLogFiles.isEmpty) {
         AppLog.instance.put('没有崩溃日志文件');
         return;

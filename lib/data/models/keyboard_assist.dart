@@ -1,6 +1,9 @@
+import 'package:equatable/equatable.dart';
+
 /// 键盘辅助数据模型
 /// 参考项目：io.legado.app.data.entities.KeyboardAssist
-class KeyboardAssist {
+// ignore: must_be_immutable
+class KeyboardAssist with EquatableMixin {
   /// 类型（主键的一部分）
   final int type;
 
@@ -56,12 +59,8 @@ class KeyboardAssist {
   }
 
   @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is KeyboardAssist && other.type == type && other.key == key;
-  }
+  List<Object?> get props => [type, key];
 
   @override
-  int get hashCode => type.hashCode ^ key.hashCode;
+  String toString() => 'KeyboardAssist(type: $type, key: $key, value: $value)';
 }
-

@@ -2,11 +2,15 @@
 /// 参考项目：io.legado.app.data.entities.DictRule
 library;
 
+import 'package:equatable/equatable.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
+
 import '../../services/network/network_service.dart';
 import '../../utils/parsers/rule_parser.dart';
 import '../../utils/app_log.dart';
 
-class DictRule {
+// ignore: must_be_immutable
+class DictRule with EquatableMixin {
   /// 规则名称（主键）
   final String name;
 
@@ -82,7 +86,7 @@ class DictRule {
 
       // 2. 发送网络请求
       // 参考项目：analyzeUrl.getStrResponseAwait().body
-      final response = await NetworkService.instance.get(url);
+      final response = await readService(AppServices.networkService).get(url);
       final body = await NetworkService.getResponseText(response);
 
       // 3. 如果没有显示规则，直接返回响应内容
@@ -106,4 +110,10 @@ class DictRule {
       return '查询失败: $e';
     }
   }
+
+  @override
+  List<Object?> get props => [name, urlRule, showRule, enabled, sortNumber];
+
+  @override
+  String toString() => 'DictRule(name: $name, enabled: $enabled)';
 }

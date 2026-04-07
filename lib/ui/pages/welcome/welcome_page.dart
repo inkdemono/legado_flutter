@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:async';
 import 'dart:ui' show PlatformDispatcher;
 import 'package:flutter/material.dart';
@@ -120,7 +121,7 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
     if (defaultToRead) {
       // 获取最后阅读的书籍（优化：使用超时，避免长时间阻塞）
       try {
-        final lastReadBook = await BookService.instance
+        final lastReadBook = await readService(AppServices.bookService)
             .getLastReadBook()
             .timeout(const Duration(seconds: 2), onTimeout: () => null);
         if (lastReadBook != null && mounted) {

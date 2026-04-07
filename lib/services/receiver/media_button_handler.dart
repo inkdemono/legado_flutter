@@ -1,4 +1,5 @@
 import '../../core/base/base_service.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../config/app_config.dart';
 import '../../core/constants/prefer_key.dart';
 import '../../utils/app_log.dart';
@@ -77,16 +78,16 @@ class MediaButtonHandler extends BaseService {
   Future<bool> _handleStop() async {
     try {
       // 停止TTS朗读
-      if (TtsService.instance.isSpeaking) {
-        await TtsService.instance.stop();
+      if (readService(AppServices.ttsService).isSpeaking) {
+        await readService(AppServices.ttsService).stop();
         AppLog.instance.put('通过媒体按钮停止TTS朗读');
         return true;
       }
 
       // 停止音频播放
-      if (AudioPlayService.instance.status == PlayStatus.playing ||
-          AudioPlayService.instance.status == PlayStatus.paused) {
-        await AudioPlayService.instance.stop();
+      if (readService(AppServices.audioPlayService).status == PlayStatus.playing ||
+          readService(AppServices.audioPlayService).status == PlayStatus.paused) {
+        await readService(AppServices.audioPlayService).stop();
         AppLog.instance.put('通过媒体按钮停止音频播放');
         return true;
       }
@@ -111,13 +112,13 @@ class MediaButtonHandler extends BaseService {
         return await ReaderController.instance.moveToPrevChapter();
       } else {
         // 控制朗读段落
-        if (TtsService.instance.isSpeaking) {
-          return await TtsService.instance.prevParagraph();
+        if (readService(AppServices.ttsService).isSpeaking) {
+          return await readService(AppServices.ttsService).prevParagraph();
         }
         // 如果没有TTS在运行，尝试控制音频播放的上一章
-        if (AudioPlayService.instance.status == PlayStatus.playing ||
-            AudioPlayService.instance.status == PlayStatus.paused) {
-          await AudioPlayService.instance.prevChapter();
+        if (readService(AppServices.audioPlayService).status == PlayStatus.playing ||
+            readService(AppServices.audioPlayService).status == PlayStatus.paused) {
+          await readService(AppServices.audioPlayService).prevChapter();
           return true;
         }
         return false;
@@ -141,13 +142,13 @@ class MediaButtonHandler extends BaseService {
         return await ReaderController.instance.moveToNextChapter();
       } else {
         // 控制朗读段落
-        if (TtsService.instance.isSpeaking) {
-          return await TtsService.instance.nextParagraph();
+        if (readService(AppServices.ttsService).isSpeaking) {
+          return await readService(AppServices.ttsService).nextParagraph();
         }
         // 如果没有TTS在运行，尝试控制音频播放的下一章
-        if (AudioPlayService.instance.status == PlayStatus.playing ||
-            AudioPlayService.instance.status == PlayStatus.paused) {
-          await AudioPlayService.instance.nextChapter();
+        if (readService(AppServices.audioPlayService).status == PlayStatus.playing ||
+            readService(AppServices.audioPlayService).status == PlayStatus.paused) {
+          await readService(AppServices.audioPlayService).nextChapter();
           return true;
         }
         return false;
@@ -162,24 +163,24 @@ class MediaButtonHandler extends BaseService {
   Future<bool> _handlePlayPause(bool isMediaKey) async {
     try {
       // 检查是否有TTS朗读服务在运行
-      if (TtsService.instance.isSpeaking) {
-        if (TtsService.instance.isPaused) {
+      if (readService(AppServices.ttsService).isSpeaking) {
+        if (readService(AppServices.ttsService).isPaused) {
           // 继续朗读
-          await TtsService.instance.resume();
+          await readService(AppServices.ttsService).resume();
           return true;
         } else {
           // 暂停朗读
-          await TtsService.instance.pause();
+          await readService(AppServices.ttsService).pause();
           return true;
         }
       }
 
       // 检查是否有音频播放服务在运行
-      if (AudioPlayService.instance.status == PlayStatus.playing) {
-        await AudioPlayService.instance.pause();
+      if (readService(AppServices.audioPlayService).status == PlayStatus.playing) {
+        await readService(AppServices.audioPlayService).pause();
         return true;
-      } else if (AudioPlayService.instance.status == PlayStatus.paused) {
-        await AudioPlayService.instance.play();
+      } else if (readService(AppServices.audioPlayService).status == PlayStatus.paused) {
+        await readService(AppServices.audioPlayService).play();
         return true;
       }
 
@@ -212,7 +213,7 @@ class MediaButtonHandler extends BaseService {
       }
 
       // 获取最后阅读的书籍
-      final lastBook = await BookService.instance.getLastReadBook();
+      final lastBook = await readService(AppServices.bookService).getLastReadBook();
       if (lastBook == null) {
         AppLog.instance.put('没有最后阅读的书籍');
         return;
@@ -220,7 +221,7 @@ class MediaButtonHandler extends BaseService {
 
       // 获取当前章节内容
       try {
-        final chapters = await BookService.instance.getChapterList(lastBook);
+        final chapters = await readService(AppServices.bookService).getChapterList(lastBook);
         if (chapters.isEmpty) {
           AppLog.instance.put('书籍没有章节');
           return;
@@ -234,17 +235,17 @@ class MediaButtonHandler extends BaseService {
         // 获取章节内容
         String? content;
         if (lastBook.isLocal) {
-          content = await LocalBookService.instance
+          content = await readService(AppServices.localBookService)
               .getChapterContent(chapter, lastBook);
         } else {
           // 获取书源
-          final source = await BookSourceService.instance
+          final source = await readService(AppServices.bookSourceService)
               .getBookSourceByUrl(lastBook.origin);
           if (source == null) {
             AppLog.instance.put('无法获取书源: ${lastBook.origin}');
             return;
           }
-          content = await BookService.instance.getChapterContent(
+          content = await readService(AppServices.bookService).getChapterContent(
             chapter,
             source,
             bookName: lastBook.name,
@@ -259,7 +260,7 @@ class MediaButtonHandler extends BaseService {
         }
 
         // 启动TTS朗读
-        await TtsService.instance.speak(content);
+        await readService(AppServices.ttsService).speak(content);
         AppLog.instance.put('通过媒体按钮启动朗读: ${lastBook.name} - ${chapter.title}');
       } catch (e) {
         AppLog.instance.put('启动朗读失败: $e', error: e);

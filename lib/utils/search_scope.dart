@@ -1,4 +1,5 @@
 import '../data/models/book_source.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../services/source/book_source_service.dart';
 import '../config/app_config.dart';
 
@@ -89,19 +90,19 @@ class SearchScope {
     
     if (_scope.isEmpty) {
       // 全部书源
-      final allSources = await BookSourceService.instance.getAllBookSources(enabledOnly: true);
+      final allSources = await readService(AppServices.bookSourceService).getAllBookSources(enabledOnly: true);
       list.addAll(allSources);
     } else if (_scope.contains('::')) {
       // 单个书源
       final url = _scope.substringAfter('::');
-      final source = await BookSourceService.instance.getBookSourceByUrl(url);
+      final source = await readService(AppServices.bookSourceService).getBookSourceByUrl(url);
       if (source != null && source.enabled) {
         list.add(source);
       }
     } else {
       // 分组
       final groups = _scope.split(',').where((g) => g.trim().isNotEmpty).toList();
-      final allSources = await BookSourceService.instance.getAllBookSources(enabledOnly: true);
+      final allSources = await readService(AppServices.bookSourceService).getAllBookSources(enabledOnly: true);
       
       for (final source in allSources) {
         final group = source.bookSourceGroup;

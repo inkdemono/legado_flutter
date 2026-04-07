@@ -1,6 +1,9 @@
+import 'package:equatable/equatable.dart';
+
 /// RSS阅读记录数据模型
 /// 参考项目：io.legado.app.data.entities.RssReadRecord
-class RssReadRecord {
+// ignore: must_be_immutable
+class RssReadRecord with EquatableMixin {
   /// 记录标识（主键，格式：origin_link）
   final String record;
 
@@ -58,12 +61,8 @@ class RssReadRecord {
   }
 
   @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is RssReadRecord && other.record == record;
-  }
+  List<Object?> get props => [record];
 
   @override
-  int get hashCode => record.hashCode;
+  String toString() => 'RssReadRecord(record: $record, read: $read)';
 }
-

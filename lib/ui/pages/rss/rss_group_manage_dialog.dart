@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../services/rss_service.dart';
 import '../../widgets/base/base_bottom_sheet_stateful.dart';
@@ -6,7 +7,7 @@ import 'rss_source_manage_page.dart';
 
 /// RSS源分组列表Provider
 final rssGroupListProvider = FutureProvider<List<String>>((ref) async {
-  return await RssService.instance.getAllGroups();
+  return await readService(AppServices.rssService).getAllGroups();
 });
 
 /// RSS源分组管理对话框
@@ -191,10 +192,10 @@ class _RssGroupManageDialogState extends BaseBottomSheetState<RssGroupManageDial
   Future<void> _updateGroupName(BuildContext context, String oldGroup, String newGroup) async {
     try {
       // 获取所有RSS源
-      final sources = await RssService.instance.getAllRssSources();
+      final sources = await readService(AppServices.rssService).getAllRssSources();
       for (final source in sources) {
         if (source.sourceGroup == oldGroup) {
-          await RssService.instance.addOrUpdateRssSource(
+          await readService(AppServices.rssService).addOrUpdateRssSource(
             source.copyWith(sourceGroup: newGroup),
           );
         }
@@ -217,10 +218,10 @@ class _RssGroupManageDialogState extends BaseBottomSheetState<RssGroupManageDial
   Future<void> _deleteGroupFromSources(BuildContext context, String group) async {
     try {
       // 获取所有RSS源
-      final sources = await RssService.instance.getAllRssSources();
+      final sources = await readService(AppServices.rssService).getAllRssSources();
       for (final source in sources) {
         if (source.sourceGroup == group) {
-          await RssService.instance.addOrUpdateRssSource(
+          await readService(AppServices.rssService).addOrUpdateRssSource(
             source.copyWith(sourceGroup: null),
           );
         }

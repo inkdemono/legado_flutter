@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../data/models/http_tts.dart';
@@ -209,7 +210,7 @@ class DefaultData {
 
           final existingSources = await startupPerformanceMonitor.trackAsync(
             'default_data.import_book_sources.load_existing_sources',
-            () => BookSourceService.instance.getAllBookSources(),
+            () => readService(AppServices.bookSourceService).getAllBookSources(),
           );
           if (existingSources.isNotEmpty) {
             await startupPerformanceMonitor.trackAsync(
@@ -226,7 +227,7 @@ class DefaultData {
           if (defaultSources.isNotEmpty) {
             final result = await startupPerformanceMonitor.trackAsync(
               'default_data.import_book_sources.write_sources',
-              () => BookSourceService.instance.importBookSources(defaultSources),
+              () => readService(AppServices.bookSourceService).importBookSources(defaultSources),
             );
             AppLog.instance.put(
               '导入默认书源: ${result['imported']} 个成功, ${result['blocked']} 个被过滤',
@@ -261,7 +262,7 @@ class DefaultData {
           try {
             await startupPerformanceMonitor.trackAsync(
               'default_data.up_version.keyboard_assists',
-              () => KeyboardAssistService.instance.importDefaultKeyboardAssists(),
+              () => readService(AppServices.keyboardAssistService).importDefaultKeyboardAssists(),
             );
           } catch (e) {
             AppLog.instance.put('导入默认键盘辅助失败', error: e);
@@ -270,7 +271,7 @@ class DefaultData {
           try {
             await startupPerformanceMonitor.trackAsync(
               'default_data.up_version.read_presets',
-              () => ReadConfigService.instance.importDefaultPresets(),
+              () => readService(AppServices.readConfigService).importDefaultPresets(),
             );
           } catch (e) {
             AppLog.instance.put('导入默认阅读配置预设失败', error: e);

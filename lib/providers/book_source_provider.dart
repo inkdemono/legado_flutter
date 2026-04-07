@@ -1,10 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/event/app_events.dart';
 import '../data/models/book_source.dart';
 import '../data/mappers/entity_mapper.dart';
+import 'event_bus_provider.dart';
 import 'repository_providers.dart';
 
 /// 书源列表Provider (使用Repository)
 final bookSourceListProvider = FutureProvider<List<BookSource>>((ref) async {
+  ref.listen(bookSourceEventProvider, (_, next) {
+    if (next.hasValue) {
+      ref.invalidateSelf();
+    }
+  });
   final repository = ref.read(bookSourceRepositoryProvider);
   final entities = await repository.getAllBookSources();
   return entities.map((e) => EntityMapper.bookSourceFromEntity(e)).toList();
@@ -13,6 +20,11 @@ final bookSourceListProvider = FutureProvider<List<BookSource>>((ref) async {
 /// 启用的书源列表Provider (使用Repository)
 final enabledBookSourceListProvider =
     FutureProvider<List<BookSource>>((ref) async {
+  ref.listen(bookSourceEventProvider, (_, next) {
+    if (next.hasValue) {
+      ref.invalidateSelf();
+    }
+  });
   final repository = ref.read(bookSourceRepositoryProvider);
   final entities = await repository.getEnabledBookSources();
   return entities.map((e) => EntityMapper.bookSourceFromEntity(e)).toList();
@@ -20,6 +32,11 @@ final enabledBookSourceListProvider =
 
 /// 书源分组列表Provider (使用Repository)
 final bookSourceGroupListProvider = FutureProvider<List<String>>((ref) async {
+  ref.listen(bookSourceEventProvider, (_, next) {
+    if (next.hasValue) {
+      ref.invalidateSelf();
+    }
+  });
   final repository = ref.read(bookSourceRepositoryProvider);
   return await repository.getAllGroups();
 });
@@ -50,6 +67,12 @@ class BookSourceOperations {
     final repository = ref.read(bookSourceRepositoryProvider);
     final entity = EntityMapper.bookSourceToEntity(bookSource);
     await repository.saveBookSource(entity);
+    ref.read(eventBusProvider).fire(
+          BookSourceChangedEvent(
+            reason: 'source_added',
+            sourceUrl: bookSource.bookSourceUrl,
+          ),
+        );
     ref.invalidate(refreshBookSourceListProvider);
   }
 
@@ -58,6 +81,12 @@ class BookSourceOperations {
     final repository = ref.read(bookSourceRepositoryProvider);
     final entity = EntityMapper.bookSourceToEntity(bookSource);
     await repository.updateBookSource(entity);
+    ref.read(eventBusProvider).fire(
+          BookSourceChangedEvent(
+            reason: 'source_updated',
+            sourceUrl: bookSource.bookSourceUrl,
+          ),
+        );
     ref.invalidate(refreshBookSourceListProvider);
   }
 
@@ -65,6 +94,12 @@ class BookSourceOperations {
   Future<void> deleteBookSource(String url, WidgetRef ref) async {
     final repository = ref.read(bookSourceRepositoryProvider);
     await repository.deleteBookSource(url);
+    ref.read(eventBusProvider).fire(
+          BookSourceChangedEvent(
+            reason: 'source_deleted',
+            sourceUrl: url,
+          ),
+        );
     ref.invalidate(refreshBookSourceListProvider);
   }
 
@@ -72,6 +107,12 @@ class BookSourceOperations {
   Future<void> setEnabled(String url, bool enabled, WidgetRef ref) async {
     final repository = ref.read(bookSourceRepositoryProvider);
     await repository.toggleBookSource(url, enabled);
+    ref.read(eventBusProvider).fire(
+          BookSourceChangedEvent(
+            reason: enabled ? 'source_enabled' : 'source_disabled',
+            sourceUrl: url,
+          ),
+        );
     ref.invalidate(refreshBookSourceListProvider);
   }
 
@@ -83,6 +124,9 @@ class BookSourceOperations {
     final entities =
         bookSources.map((s) => EntityMapper.bookSourceToEntity(s)).toList();
     await repository.saveBookSources(entities);
+    ref.read(eventBusProvider).fire(
+          const BookSourceChangedEvent(reason: 'source_imported'),
+        );
     ref.invalidate(refreshBookSourceListProvider);
     // 返回统计信息
     return {'success': bookSources.length, 'failed': 0, 'exists': 0};

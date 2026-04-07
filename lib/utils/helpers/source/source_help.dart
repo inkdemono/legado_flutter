@@ -1,4 +1,5 @@
 import '../../../data/models/interfaces/base_source.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../../data/models/book_source.dart';
 import '../../../data/models/rss_source.dart';
 import '../../../core/constants/app_status.dart';
@@ -22,7 +23,7 @@ class SourceHelp {
 
     // 先尝试从书源服务获取
     try {
-      final bookSource = await BookSourceService.instance.getBookSourceByUrl(key);
+      final bookSource = await readService(AppServices.bookSourceService).getBookSourceByUrl(key);
       if (bookSource != null) return bookSource as BaseSource;
     } catch (e) {
       // 忽略错误
@@ -30,7 +31,7 @@ class SourceHelp {
 
     // 再尝试从 RSS 服务获取
     try {
-      final rssSource = await RssService.instance.getRssSourceByUrl(key);
+      final rssSource = await readService(AppServices.rssService).getRssSourceByUrl(key);
       if (rssSource != null) return rssSource as BaseSource;
     } catch (e) {
       // 忽略错误
@@ -46,10 +47,10 @@ class SourceHelp {
 
     switch (type) {
       case AppStatus.sourceTypeBook:
-        final bookSource = await BookSourceService.instance.getBookSourceByUrl(key);
+        final bookSource = await readService(AppServices.bookSourceService).getBookSourceByUrl(key);
         return bookSource as BaseSource?;
       case AppStatus.sourceTypeRss:
-        final rssSource = await RssService.instance.getRssSourceByUrl(key);
+        final rssSource = await readService(AppServices.rssService).getRssSourceByUrl(key);
         return rssSource as BaseSource?;
       default:
         return null;
@@ -74,7 +75,7 @@ class SourceHelp {
   static Future<void> _deleteBookSourceInternal(String key) async {
     try {
       // 删除书源
-      await BookSourceService.instance.deleteBookSource(key);
+      await readService(AppServices.bookSourceService).deleteBookSource(key);
       
       // 清除源变量缓存
       await BookHelp.clearCacheForSource(key);
@@ -115,7 +116,7 @@ class SourceHelp {
   static Future<void> _deleteRssSourceInternal(String key) async {
     try {
       // 删除 RSS 源
-      await RssService.instance.deleteRssSource(key);
+      await readService(AppServices.rssService).deleteRssSource(key);
       
       // 清除源变量缓存
       await BookHelp.clearCacheForSource(key);
@@ -156,10 +157,10 @@ class SourceHelp {
   static Future<void> enableSource(String key, int type, bool enable) async {
     switch (type) {
       case AppStatus.sourceTypeBook:
-        await BookSourceService.instance.setBookSourceEnabled(key, enable);
+        await readService(AppServices.bookSourceService).setBookSourceEnabled(key, enable);
         break;
       case AppStatus.sourceTypeRss:
-        await RssService.instance.updateRssSourceEnabled(key, enable);
+        await readService(AppServices.rssService).updateRssSourceEnabled(key, enable);
         break;
     }
   }
@@ -178,7 +179,7 @@ class SourceHelp {
     int insertedCount = 0;
     for (final source in filtered['filtered'] ?? []) {
       try {
-        await BookSourceService.instance.addBookSource(source);
+        await readService(AppServices.bookSourceService).addBookSource(source);
         insertedCount++;
       } catch (e) {
         AppLog.instance.put('插入书源失败: ${source.bookSourceName}', error: e);
@@ -207,7 +208,7 @@ class SourceHelp {
     int insertedCount = 0;
     for (final source in filtered['filtered'] ?? []) {
       try {
-        await RssService.instance.addOrUpdateRssSource(source);
+        await readService(AppServices.rssService).addOrUpdateRssSource(source);
         insertedCount++;
       } catch (e) {
         AppLog.instance.put('插入RSS源失败: ${source.sourceName}', error: e);
@@ -241,7 +242,7 @@ class SourceHelp {
 
       if (maxOrder > 99999 || minOrder < -99999 || hasDuplicate) {
         // 需要调整排序序号
-        final sources = await BookSourceService.instance.getAllBookSources();
+        final sources = await readService(AppServices.bookSourceService).getAllBookSources();
         await db.transaction((txn) async {
           for (int i = 0; i < sources.length; i++) {
             await txn.update(

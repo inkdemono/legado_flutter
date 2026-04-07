@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/book.dart';
@@ -117,7 +118,7 @@ class _MangaReaderPageState extends ConsumerState<MangaReaderPage>
 
       if (readTime > 0) {
         // 增加阅读时长
-        await ReadRecordService.instance.addReadTime(
+        await readService(AppServices.readRecordService).addReadTime(
           widget.book.name,
           readTime,
         );
@@ -137,7 +138,7 @@ class _MangaReaderPageState extends ConsumerState<MangaReaderPage>
     }
 
     try {
-      await ReadRecordService.instance.updateLastRead(widget.book.name);
+      await readService(AppServices.readRecordService).updateLastRead(widget.book.name);
     } catch (e) {
       AppLog.instance.put('更新最后阅读时间失败: $e', error: e);
     }
@@ -169,7 +170,7 @@ class _MangaReaderPageState extends ConsumerState<MangaReaderPage>
 
   Future<void> _loadChapters() async {
     try {
-      final chapters = await BookService.instance.getChapterList(widget.book);
+      final chapters = await readService(AppServices.bookService).getChapterList(widget.book);
       if (mounted) {
         setState(() {
           _chapters = chapters;
@@ -216,7 +217,7 @@ class _MangaReaderPageState extends ConsumerState<MangaReaderPage>
       }
 
       final images =
-          await MangaService.instance.getChapterImages(chapter, widget.book);
+          await readService(AppServices.mangaService).getChapterImages(chapter, widget.book);
 
       if (mounted) {
         setState(() {
@@ -384,7 +385,7 @@ class _MangaReaderPageState extends ConsumerState<MangaReaderPage>
   void _updateReadingProgress() {
     if (_currentChapterIndex < _chapters.length) {
       final chapter = _chapters[_currentChapterIndex];
-      BookService.instance.updateReadingProgress(
+      readService(AppServices.bookService).updateReadingProgress(
         widget.book.bookUrl,
         _currentChapterIndex,
         _currentImageIndex,
@@ -1116,8 +1117,8 @@ class _MangaReaderPageState extends ConsumerState<MangaReaderPage>
         onSourceChanged: (source, newBook, chapters) async {
           // 更新书籍信息
           try {
-            await BookService.instance.updateBook(newBook);
-            await BookService.instance.saveChapters(chapters);
+            await readService(AppServices.bookService).updateBook(newBook);
+            await readService(AppServices.bookService).saveChapters(chapters);
 
             // 重新加载章节
             setState(() {

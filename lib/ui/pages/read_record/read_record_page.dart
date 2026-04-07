@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/read_record.dart';
@@ -47,7 +48,7 @@ class _ReadRecordPageState extends ConsumerState<ReadRecordPage> {
 
   Future<void> _loadAllTime() async {
     try {
-      final allTime = await ReadRecordService.instance.getAllTime();
+      final allTime = await readService(AppServices.readRecordService).getAllTime();
       if (!mounted) return;
       setState(() {
         _allTime = allTime;
@@ -65,8 +66,8 @@ class _ReadRecordPageState extends ConsumerState<ReadRecordPage> {
 
     try {
       final records = keyword.isNotEmpty
-          ? await ReadRecordService.instance.search(keyword)
-          : await ReadRecordService.instance.getAllShow();
+          ? await readService(AppServices.readRecordService).search(keyword)
+          : await readService(AppServices.readRecordService).getAllShow();
 
       records.sort((a, b) {
         switch (_sortMode) {
@@ -115,7 +116,7 @@ class _ReadRecordPageState extends ConsumerState<ReadRecordPage> {
     if (confirmed != true) return;
 
     try {
-      await ReadRecordService.instance.clear();
+      await readService(AppServices.readRecordService).clear();
       await _loadAllTime();
       await _loadRecords();
       _showMessage('已清除所有阅读记录');
@@ -126,7 +127,7 @@ class _ReadRecordPageState extends ConsumerState<ReadRecordPage> {
 
   Future<void> _openRecord(ReadRecordShow record) async {
     try {
-      final books = await BookService.instance.getBookshelfBooks();
+      final books = await readService(AppServices.bookService).getBookshelfBooks();
       if (books.isEmpty) {
         _showMessage('当前书架为空，无法跳转');
         return;

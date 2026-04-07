@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,10 +13,126 @@ import 'replace_rule_edit_dialog.dart';
 import 'replace_rule_import_dialog.dart';
 import 'group_manage_dialog.dart';
 
-/// 替换规则列表Provider
-final replaceRuleListProvider = FutureProvider<List<ReplaceRule>>((ref) async {
-  return await ReplaceRuleService.instance.getAllRules();
-});
+/// 替换规则列表 Notifier
+///
+/// 将原 FutureProvider 升级为 AsyncNotifier，CRUD 操作直接更新内存列表，
+/// 彻底消除每次增删改后的全量 DB 重查，避免列表闪烁。
+/// 仅在导入、分组变更等批量操作后调用 [reload] 重新读库。
+class ReplaceRuleNotifier extends AsyncNotifier<List<ReplaceRule>> {
+  ReplaceRuleService get _svc => readService(AppServices.replaceRuleService);
+
+  @override
+  Future<List<ReplaceRule>> build() => _svc.getAllRules();
+
+  /// 新增或更新规则（存在同 id 则替换，否则追加到末尾）
+  Future<void> addOrUpdate(ReplaceRule rule) async {
+    await _svc.addOrUpdateRule(rule);
+    final current = state.requireValue;
+    final idx = current.indexWhere((r) => r.id == rule.id);
+    state = AsyncValue.data(
+      idx >= 0
+          ? [...current.sublist(0, idx), rule, ...current.sublist(idx + 1)]
+          : [...current, rule],
+    );
+  }
+
+  /// 切换启用状态
+  Future<void> toggleEnabled(ReplaceRule rule, bool enabled) async {
+    await _svc.updateRule(rule.copyWith(enabled: enabled));
+    state = AsyncValue.data(
+      state.requireValue
+          .map((r) => r.id == rule.id ? r.copyWith(enabled: enabled) : r)
+          .toList(),
+    );
+  }
+
+  /// 删除单条规则
+  Future<void> delete(int id) async {
+    await _svc.deleteRuleById(id);
+    state = AsyncValue.data(
+      state.requireValue.where((r) => r.id != id).toList(),
+    );
+  }
+
+  /// 批量删除
+  Future<void> deleteMany(List<int> ids) async {
+    await _svc.deleteRulesByIds(ids);
+    final idSet = ids.toSet();
+    state = AsyncValue.data(
+      state.requireValue.where((r) => !idSet.contains(r.id)).toList(),
+    );
+  }
+
+  /// 批量启用/禁用
+  Future<void> batchSetEnabled(List<int> ids, bool enabled) async {
+    await _svc.batchSetEnabledByIds(ids, enabled);
+    final idSet = ids.toSet();
+    state = AsyncValue.data(
+      state.requireValue
+          .map((r) => idSet.contains(r.id) ? r.copyWith(enabled: enabled) : r)
+          .toList(),
+    );
+  }
+
+  /// 将单条规则移到列表顶部（本地重排，不触发 DB 查询）
+  Future<void> moveToTop(ReplaceRule rule) async {
+    await _svc.moveToTop(rule);
+    final current = state.requireValue;
+    state = AsyncValue.data([rule, ...current.where((r) => r.id != rule.id)]);
+  }
+
+  /// 将单条规则移到列表底部
+  Future<void> moveToBottom(ReplaceRule rule) async {
+    await _svc.moveToBottom(rule);
+    final current = state.requireValue;
+    state = AsyncValue.data([...current.where((r) => r.id != rule.id), rule]);
+  }
+
+  /// 批量置顶
+  Future<void> batchMoveToTop(List<int> ids) async {
+    await _svc.batchMoveToTop(ids);
+    final idSet = ids.toSet();
+    final current = state.requireValue;
+    state = AsyncValue.data([
+      ...current.where((r) => idSet.contains(r.id)),
+      ...current.where((r) => !idSet.contains(r.id)),
+    ]);
+  }
+
+  /// 批量置底
+  Future<void> batchMoveToBottom(List<int> ids) async {
+    await _svc.batchMoveToBottom(ids);
+    final idSet = ids.toSet();
+    final current = state.requireValue;
+    state = AsyncValue.data([
+      ...current.where((r) => !idSet.contains(r.id)),
+      ...current.where((r) => idSet.contains(r.id)),
+    ]);
+  }
+
+  /// 拖拽重排（乐观更新，失败时回滚）
+  Future<void> reorder(List<ReplaceRule> rules) async {
+    state = AsyncValue.data(rules);
+    try {
+      await _svc.updateOrder(rules);
+    } catch (e) {
+      ref.invalidateSelf();
+      rethrow;
+    }
+  }
+
+  /// 全量重新加载（仅在导入、分组变更等批量操作后调用）
+  Future<void> reload({bool showLoading = false}) async {
+    if (showLoading || !state.hasValue) {
+      state = const AsyncValue.loading();
+    }
+    state = await AsyncValue.guard(_svc.getAllRules);
+  }
+}
+
+final replaceRuleNotifierProvider =
+    AsyncNotifierProvider<ReplaceRuleNotifier, List<ReplaceRule>>(
+        ReplaceRuleNotifier.new);
 
 /// 替换规则管理页面
 class ReplaceRuleManagePage extends ConsumerStatefulWidget {
@@ -47,7 +164,8 @@ class _ReplaceRuleManagePageState extends ConsumerState<ReplaceRuleManagePage> {
   }
 
   Future<void> _loadGroups() async {
-    final groups = await ReplaceRuleService.instance.getAllGroups();
+    final groups =
+        await readService(AppServices.replaceRuleService).getAllGroups();
     setState(() {
       _groups = groups;
     });
@@ -60,7 +178,7 @@ class _ReplaceRuleManagePageState extends ConsumerState<ReplaceRuleManagePage> {
       builder: (context) => GroupManageDialog(
         onGroupChanged: () {
           _loadGroups();
-          ref.invalidate(replaceRuleListProvider);
+          ref.read(replaceRuleNotifierProvider.notifier).reload();
         },
       ),
     );
@@ -98,7 +216,7 @@ class _ReplaceRuleManagePageState extends ConsumerState<ReplaceRuleManagePage> {
 
   @override
   Widget build(BuildContext context) {
-    final rulesAsync = ref.watch(replaceRuleListProvider);
+    final rulesAsync = ref.watch(replaceRuleNotifierProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -395,7 +513,9 @@ class _ReplaceRuleManagePageState extends ConsumerState<ReplaceRuleManagePage> {
 
                 return RefreshIndicator(
                   onRefresh: () async {
-                    ref.invalidate(replaceRuleListProvider);
+                    await ref
+                        .read(replaceRuleNotifierProvider.notifier)
+                        .reload();
                   },
                   child: _isBatchMode
                       ? ListView.builder(
@@ -526,7 +646,9 @@ class _ReplaceRuleManagePageState extends ConsumerState<ReplaceRuleManagePage> {
                       const SizedBox(height: 16),
                       FilledButton.tonal(
                         onPressed: () {
-                          ref.invalidate(replaceRuleListProvider);
+                          ref
+                              .read(replaceRuleNotifierProvider.notifier)
+                              .reload(showLoading: true);
                         },
                         child: const Text('重试'),
                       ),
@@ -607,8 +729,9 @@ class _ReplaceRuleManagePageState extends ConsumerState<ReplaceRuleManagePage> {
       context: context,
       builder: (context) => ReplaceRuleEditDialog(
         onSave: (rule) async {
-          await ReplaceRuleService.instance.addOrUpdateRule(rule);
-          ref.invalidate(replaceRuleListProvider);
+          await ref
+              .read(replaceRuleNotifierProvider.notifier)
+              .addOrUpdate(rule);
         },
       ),
     );
@@ -621,8 +744,9 @@ class _ReplaceRuleManagePageState extends ConsumerState<ReplaceRuleManagePage> {
       builder: (context) => ReplaceRuleEditDialog(
         rule: rule,
         onSave: (updatedRule) async {
-          await ReplaceRuleService.instance.addOrUpdateRule(updatedRule);
-          ref.invalidate(replaceRuleListProvider);
+          await ref
+              .read(replaceRuleNotifierProvider.notifier)
+              .addOrUpdate(updatedRule);
         },
       ),
     );
@@ -631,8 +755,7 @@ class _ReplaceRuleManagePageState extends ConsumerState<ReplaceRuleManagePage> {
   // 置顶规则
   Future<void> _moveToTop(ReplaceRule rule) async {
     try {
-      await ReplaceRuleService.instance.moveToTop(rule);
-      ref.invalidate(replaceRuleListProvider);
+      await ref.read(replaceRuleNotifierProvider.notifier).moveToTop(rule);
       _showMessage('已置顶');
     } catch (e) {
       _showMessage('操作失败: $e');
@@ -642,20 +765,19 @@ class _ReplaceRuleManagePageState extends ConsumerState<ReplaceRuleManagePage> {
   // 置底规则
   Future<void> _moveToBottom(ReplaceRule rule) async {
     try {
-      await ReplaceRuleService.instance.moveToBottom(rule);
-      ref.invalidate(replaceRuleListProvider);
+      await ref.read(replaceRuleNotifierProvider.notifier).moveToBottom(rule);
       _showMessage('已置底');
     } catch (e) {
       _showMessage('操作失败: $e');
     }
   }
 
-  // 切换启用状态
+  // 切换启用状态（本地状态直接更新，零 DB 查询）
   void _toggleEnabled(ReplaceRule rule, bool enabled) async {
     try {
-      await ReplaceRuleService.instance
-          .updateRule(rule.copyWith(enabled: enabled));
-      ref.invalidate(replaceRuleListProvider);
+      await ref
+          .read(replaceRuleNotifierProvider.notifier)
+          .toggleEnabled(rule, enabled);
     } catch (e) {
       _showMessage('操作失败: $e');
     }
@@ -684,8 +806,9 @@ class _ReplaceRuleManagePageState extends ConsumerState<ReplaceRuleManagePage> {
             onPressed: () async {
               Navigator.pop(dialogContext);
               try {
-                await ReplaceRuleService.instance.deleteRuleById(rule.id);
-                ref.invalidate(replaceRuleListProvider);
+                await ref
+                    .read(replaceRuleNotifierProvider.notifier)
+                    .delete(rule.id);
                 _showMessage('已删除');
               } catch (e) {
                 _showMessage('删除失败: $e');
@@ -703,13 +826,14 @@ class _ReplaceRuleManagePageState extends ConsumerState<ReplaceRuleManagePage> {
     if (_selectedIds.isEmpty) return;
 
     try {
-      await ReplaceRuleService.instance.batchMoveToTop(_selectedIds.toList());
       final count = _selectedIds.length;
+      await ref
+          .read(replaceRuleNotifierProvider.notifier)
+          .batchMoveToTop(_selectedIds.toList());
       setState(() {
         _selectedIds.clear();
         _isBatchMode = false;
       });
-      ref.invalidate(replaceRuleListProvider);
       _showMessage('已置顶 $count 项');
     } catch (e) {
       _showMessage('操作失败: $e');
@@ -721,14 +845,14 @@ class _ReplaceRuleManagePageState extends ConsumerState<ReplaceRuleManagePage> {
     if (_selectedIds.isEmpty) return;
 
     try {
-      await ReplaceRuleService.instance
-          .batchMoveToBottom(_selectedIds.toList());
       final count = _selectedIds.length;
+      await ref
+          .read(replaceRuleNotifierProvider.notifier)
+          .batchMoveToBottom(_selectedIds.toList());
       setState(() {
         _selectedIds.clear();
         _isBatchMode = false;
       });
-      ref.invalidate(replaceRuleListProvider);
       _showMessage('已置底 $count 项');
     } catch (e) {
       _showMessage('操作失败: $e');
@@ -740,16 +864,14 @@ class _ReplaceRuleManagePageState extends ConsumerState<ReplaceRuleManagePage> {
     if (_selectedIds.isEmpty) return;
 
     try {
-      await ReplaceRuleService.instance.batchSetEnabledByIds(
-        _selectedIds.toList(),
-        enabled,
-      );
       final count = _selectedIds.length;
+      await ref
+          .read(replaceRuleNotifierProvider.notifier)
+          .batchSetEnabled(_selectedIds.toList(), enabled);
       setState(() {
         _selectedIds.clear();
         _isBatchMode = false;
       });
-      ref.invalidate(replaceRuleListProvider);
       _showMessage('已${enabled ? '启用' : '禁用'} $count 项');
     } catch (e) {
       _showMessage('操作失败: $e');
@@ -774,14 +896,14 @@ class _ReplaceRuleManagePageState extends ConsumerState<ReplaceRuleManagePage> {
             onPressed: () async {
               Navigator.pop(dialogContext);
               try {
-                await ReplaceRuleService.instance
-                    .deleteRulesByIds(_selectedIds.toList());
                 final count = _selectedIds.length;
+                await ref
+                    .read(replaceRuleNotifierProvider.notifier)
+                    .deleteMany(_selectedIds.toList());
                 setState(() {
                   _selectedIds.clear();
                   _isBatchMode = false;
                 });
-                ref.invalidate(replaceRuleListProvider);
                 _showMessage('已删除 $count 项');
               } catch (e) {
                 _showMessage('删除失败: $e');
@@ -804,8 +926,9 @@ class _ReplaceRuleManagePageState extends ConsumerState<ReplaceRuleManagePage> {
     reorderedRules.insert(newIndex, rule);
 
     try {
-      await ReplaceRuleService.instance.updateOrder(reorderedRules);
-      ref.invalidate(replaceRuleListProvider);
+      await ref
+          .read(replaceRuleNotifierProvider.notifier)
+          .reorder(reorderedRules);
     } catch (e) {
       _showMessage('排序失败: $e');
     }
@@ -883,7 +1006,8 @@ class _ReplaceRuleManagePageState extends ConsumerState<ReplaceRuleManagePage> {
                         });
 
                         try {
-                          final response = await NetworkService.instance.get(
+                          final response =
+                              await readService(AppServices.networkService).get(
                             content,
                             retryCount: 1,
                           );
@@ -929,8 +1053,9 @@ class _ReplaceRuleManagePageState extends ConsumerState<ReplaceRuleManagePage> {
             onPressed: () async {
               Navigator.pop(dialogContext);
               try {
-                await ReplaceRuleService.instance.importDefaultRules();
-                ref.invalidate(replaceRuleListProvider);
+                await readService(AppServices.replaceRuleService)
+                    .importDefaultRules();
+                await ref.read(replaceRuleNotifierProvider.notifier).reload();
                 _showMessage('导入成功');
               } catch (e) {
                 _showMessage('导入失败: $e');
@@ -946,7 +1071,8 @@ class _ReplaceRuleManagePageState extends ConsumerState<ReplaceRuleManagePage> {
   // 导出规则
   Future<void> _exportRules() async {
     try {
-      final rules = await ReplaceRuleService.instance.getAllRules();
+      final rules =
+          await readService(AppServices.replaceRuleService).getAllRules();
 
       if (rules.isEmpty) {
         _showMessage('没有可导出的规则');
@@ -979,7 +1105,7 @@ class _ReplaceRuleManagePageState extends ConsumerState<ReplaceRuleManagePage> {
       builder: (context) => ReplaceRuleImportDialog(
         content: content,
         onImportComplete: () {
-          ref.invalidate(replaceRuleListProvider);
+          ref.read(replaceRuleNotifierProvider.notifier).reload();
         },
       ),
     );

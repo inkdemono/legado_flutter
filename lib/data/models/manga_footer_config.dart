@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:equatable/equatable.dart';
+
 /// 页脚对齐方式
 class MangaFooterAlignment {
   static const int left = 0;
@@ -8,7 +10,8 @@ class MangaFooterAlignment {
 
 /// 漫画页脚配置
 /// 参考项目：MangaFooterConfig.kt
-class MangaFooterConfig {
+// ignore: must_be_immutable
+class MangaFooterConfig with EquatableMixin {
   bool hideChapterLabel; // 隐藏章节标签
   bool hideChapter; // 隐藏章节号
   bool hidePageNumberLabel; // 隐藏页码标签
@@ -78,5 +81,21 @@ class MangaFooterConfig {
       return MangaFooterConfig();
     }
   }
-}
 
+  @override
+  List<Object?> get props => [
+        hideChapterLabel,
+        hideChapter,
+        hidePageNumberLabel,
+        hidePageNumber,
+        hideProgressRatioLabel,
+        hideProgressRatio,
+        footerOrientation,
+        hideFooter,
+        hideChapterName,
+      ];
+
+  @override
+  String toString() =>
+      'MangaFooterConfig(orientation: $footerOrientation, hideFooter: $hideFooter)';
+}

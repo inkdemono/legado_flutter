@@ -1,4 +1,5 @@
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:async';
 import '../../utils/app_log.dart';
 import 'base_read_aloud_service.dart';
@@ -26,77 +27,52 @@ class TtsService extends BaseReadAloudService {
 
   @override
   Future<void> onInit() async {
-    return await execute(
-      action: () async {
-        // 设置语言
-        await _flutterTts.setLanguage("zh-CN");
+    await _flutterTts.setLanguage("zh-CN");
 
-        // 设置回调
-        _flutterTts.setStartHandler(() {
-          // 取消清理任务
-          _clearTtsTimer?.cancel();
+    _flutterTts.setStartHandler(() {
+      _clearTtsTimer?.cancel();
 
-          // 初始化已朗读字符数（参考项目：TTSUtteranceListener.onStart）
-          final startPos =
-              getParagraphStartPosition(currentParagraphIndexInternal);
-          setReadAloudNumber(startPos);
-          // 发送初始进度
-          upTtsProgress(startPos + 1);
+      final startPos = getParagraphStartPosition(currentParagraphIndexInternal);
+      setReadAloudNumber(startPos);
+      upTtsProgress(startPos + 1);
 
-          onStart?.call();
+      onStart?.call();
+    });
+
+    _flutterTts.setCompletionHandler(() {
+      if (paragraphs.isNotEmpty &&
+          currentParagraphIndexInternal >= 0 &&
+          currentParagraphIndexInternal < paragraphs.length - 1) {
+        final currentParagraph = paragraphs[currentParagraphIndexInternal];
+        setReadAloudNumber(
+            readAloudNumberInternal + currentParagraph.length + 1);
+
+        setCurrentParagraphIndex(currentParagraphIndexInternal + 1);
+      } else {
+        upTtsProgress(0);
+        _clearTtsTimer?.cancel();
+        _clearTtsTimer = Timer(const Duration(minutes: 1), () {
+          clearTts();
         });
+        onComplete?.call();
+      }
+    });
 
-        _flutterTts.setCompletionHandler(() {
-          // 更新当前段落索引（一段朗读完成，移动到下一段）
-          // 参考项目：TTSUtteranceListener.onDone -> nextParagraph
-          if (paragraphs.isNotEmpty &&
-              currentParagraphIndexInternal >= 0 &&
-              currentParagraphIndexInternal < paragraphs.length - 1) {
-            // 更新已朗读字符数
-            final currentParagraph = paragraphs[currentParagraphIndexInternal];
-            setReadAloudNumber(
-                readAloudNumberInternal + currentParagraph.length + 1);
+    _flutterTts.setErrorHandler((msg) {
+      AppLog.instance.put('TTS错误: $msg');
+      onError?.call(msg);
+    });
 
-            setCurrentParagraphIndex(currentParagraphIndexInternal + 1);
-            // 注意：flutter_tts会自动处理队列中的下一段，这里只是更新索引
-            // 如果队列中还有段落，isRunning会保持true
-          } else {
-            // 所有段落朗读完成
-            // 重置进度
-            upTtsProgress(0);
-            // 一分钟没有朗读释放资源
-            _clearTtsTimer?.cancel();
-            _clearTtsTimer = Timer(const Duration(minutes: 1), () {
-              clearTts();
-            });
-            onComplete?.call();
-          }
-        });
+    _flutterTts.setProgressHandler(
+        (String text, int startOffset, int endOffset, String word) {
+      final chapterPosition = readAloudNumberInternal + startOffset;
+      upTtsProgress(chapterPosition);
+      onProgress?.call(startOffset, endOffset);
+    });
 
-        _flutterTts.setErrorHandler((msg) {
-          AppLog.instance.put('TTS错误: $msg');
-          onError?.call(msg);
-        });
-
-        _flutterTts.setProgressHandler(
-            (String text, int startOffset, int endOffset, String word) {
-          // 参考项目：TTSUtteranceListener.onRangeStart
-          // 计算在整章中的位置
-          final chapterPosition = readAloudNumberInternal + startOffset;
-          upTtsProgress(chapterPosition);
-
-          // 保留原有的段落内进度回调
-          onProgress?.call(startOffset, endOffset);
-        });
-
-        // 设置默认参数
-        await _flutterTts.setSpeechRate(_speechRate);
-        await _flutterTts.setVolume(_volume);
-        await _flutterTts.setPitch(_pitch);
-      },
-      operationName: '初始化TTS服务',
-      logError: true,
-    );
+    await _flutterTts.setSpeechRate(_speechRate);
+    await _flutterTts.setVolume(_volume);
+    await _flutterTts.setPitch(_pitch);
   }
 
   /// 朗读文本（便捷方法）
@@ -149,7 +125,7 @@ class TtsService extends BaseReadAloudService {
 
     try {
       // 显示朗读通知
-      await NotificationService.instance.showNotification(
+      await readService(AppServices.notificationService).showNotification(
         id: _notificationId,
         title: 'TTS朗读',
         content: '正在朗读...',
@@ -179,7 +155,7 @@ class TtsService extends BaseReadAloudService {
     } catch (e) {
       AppLog.instance.put('TTS播放失败', error: e);
       onError?.call(e.toString());
-      await NotificationService.instance.cancelNotification(_notificationId);
+      await readService(AppServices.notificationService).cancelNotification(_notificationId);
     }
   }
 
@@ -190,7 +166,7 @@ class TtsService extends BaseReadAloudService {
       _pausedText = null;
 
       // 取消朗读通知
-      await NotificationService.instance.cancelNotification(_notificationId);
+      await readService(AppServices.notificationService).cancelNotification(_notificationId);
     } catch (e) {
       onError?.call(e.toString());
     }
@@ -211,7 +187,7 @@ class TtsService extends BaseReadAloudService {
       }
 
       // 更新通知为暂停状态
-      await NotificationService.instance.showNotification(
+      await readService(AppServices.notificationService).showNotification(
         id: _notificationId,
         title: 'TTS朗读',
         content: '已暂停',

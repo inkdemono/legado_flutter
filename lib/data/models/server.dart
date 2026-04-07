@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:equatable/equatable.dart';
+
 /// 服务器类型
 enum ServerType {
   webdav,
@@ -7,7 +9,8 @@ enum ServerType {
 
 /// 服务器数据模型
 /// 参考项目：io.legado.app.data.entities.Server
-class Server {
+// ignore: must_be_immutable
+class Server with EquatableMixin {
   /// 服务器ID（主键）
   final int id;
 
@@ -77,17 +80,14 @@ class Server {
   }
 
   @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is Server && other.id == id;
-  }
+  List<Object?> get props => [id];
 
   @override
-  int get hashCode => id.hashCode;
+  String toString() => 'Server(id: $id, name: $name, type: $type)';
 }
 
 /// WebDAV配置
-class WebDavConfig {
+class WebDavConfig with EquatableMixin {
   final String url;
   final String username;
   final String password;
@@ -113,5 +113,10 @@ class WebDavConfig {
       'password': password,
     };
   }
-}
 
+  @override
+  List<Object?> get props => [url, username, password];
+
+  @override
+  String toString() => 'WebDavConfig(url: $url, username: $username)';
+}

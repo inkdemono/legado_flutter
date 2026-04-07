@@ -247,6 +247,136 @@ class ChapterLayoutProvider {
     return textChapter;
   }
 
+  /// 异步分段排版，避免超长章节一次性占满 UI 线程。
+  Future<TextChapter> layoutChapterAsync({
+    required BookChapter chapter,
+    required String content,
+    required int chapterIndex,
+    required int chaptersSize,
+    int yieldEveryParagraphs = 8,
+  }) async {
+    final textChapter = TextChapter(
+      chapter: chapter,
+      displayTitle: chapter.title,
+      chapterIndex: chapterIndex,
+      chaptersSize: chaptersSize,
+    );
+
+    if (visibleWidth <= 0 || visibleHeight <= 0) {
+      final page = TextPage(
+        text: content,
+        title: chapter.title,
+        chapterPosition: 0,
+      );
+      textChapter.addPage(page);
+      textChapter.markCompleted();
+      return textChapter;
+    }
+
+    if (content.trim().isEmpty) {
+      final page = TextPage(
+        text: '本章节内容为空',
+        title: chapter.title,
+        chapterPosition: 0,
+        isMsgPage: true,
+      );
+      textChapter.addPage(page);
+      textChapter.markCompleted();
+      return textChapter;
+    }
+
+    final contentTextHeight = getTextHeight(contentStyle);
+    final titleTextHeight = getTextHeight(titleStyle);
+    const pageInfoHeight = 35.0;
+    final maxHeight = visibleHeight - pageInfoHeight;
+
+    double durY = 0;
+    final stringBuilder = StringBuilder();
+    var currentPage = TextPage(title: chapter.title);
+    int chapterPosition = 0;
+
+    if (_titleMode != 2 && chapter.title.isNotEmpty) {
+      durY += _titleTopSpacing;
+      final titleLines = _getTextLines(chapter.title, titleStyle, visibleWidth);
+      for (final line in titleLines) {
+        if (durY + titleTextHeight > maxHeight && stringBuilder.isNotEmpty) {
+          currentPage.text = stringBuilder.toString();
+          currentPage.chapterPosition =
+              chapterPosition - currentPage.text.length;
+          currentPage.height = durY;
+          textChapter.addPage(currentPage);
+          currentPage = TextPage(title: chapter.title);
+          stringBuilder.clear();
+          durY = 0;
+        }
+
+        stringBuilder.append(line);
+        durY += titleTextHeight;
+      }
+      stringBuilder.append('\n');
+      chapterPosition += chapter.title.length + 1;
+      durY += _titleBottomSpacing;
+    }
+
+    final paragraphs = content.split('\n');
+    bool isFirstParagraph = true;
+    int processedParagraphs = 0;
+
+    for (final paragraph in paragraphs) {
+      final trimmedParagraph = paragraph.trim();
+      if (trimmedParagraph.isEmpty) {
+        continue;
+      }
+
+      if (isFirstParagraph && trimmedParagraph == chapter.title.trim()) {
+        isFirstParagraph = false;
+        continue;
+      }
+      isFirstParagraph = false;
+
+      final indentedParagraph = _paragraphIndent + trimmedParagraph;
+      final lines =
+          _getTextLines(indentedParagraph, contentStyle, visibleWidth);
+
+      for (final line in lines) {
+        if (durY + contentTextHeight > maxHeight && stringBuilder.isNotEmpty) {
+          currentPage.text = stringBuilder.toString();
+          currentPage.chapterPosition =
+              chapterPosition - currentPage.text.length;
+          currentPage.height = durY;
+          textChapter.addPage(currentPage);
+          currentPage = TextPage(title: chapter.title);
+          stringBuilder.clear();
+          durY = 0;
+        }
+
+        stringBuilder.append(line);
+        chapterPosition += line.length;
+        durY += contentTextHeight;
+      }
+
+      stringBuilder.append('\n');
+      chapterPosition += 1;
+      durY += _paragraphSpacing;
+      processedParagraphs++;
+
+      if (processedParagraphs % yieldEveryParagraphs == 0) {
+        await Future<void>.delayed(Duration.zero);
+      }
+    }
+
+    if (stringBuilder.isNotEmpty) {
+      currentPage.text = stringBuilder.toString();
+      currentPage.chapterPosition = chapterPosition - currentPage.text.length;
+      currentPage.height = durY;
+      textChapter.addPage(currentPage);
+    }
+
+    textChapter.setContent(content);
+    textChapter.markCompleted();
+    return textChapter;
+  }
+
   /// 将文本拆分成行（参考项目：StaticLayout）
   /// 使用 Flutter 的 TextPainter 实现类似 Android StaticLayout 的功能
   List<String> _getTextLines(String text, TextStyle style, double maxWidth) {

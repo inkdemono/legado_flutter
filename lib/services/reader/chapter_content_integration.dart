@@ -1,4 +1,5 @@
 import '../../data/models/book.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../data/models/book_chapter.dart';
 import '../../data/models/book_source.dart';
 import '../book/book_service.dart';
@@ -37,7 +38,7 @@ class ChapterContentIntegration {
     try {
       // 1. 先检查文件缓存
       final cachedContent =
-          await ChapterContentService.instance.getChapterContent(book, chapter);
+          await readService(AppServices.chapterContentService).getChapterContent(book, chapter);
 
       if (cachedContent != null && cachedContent.isNotEmpty) {
         AppLog.instance
@@ -46,7 +47,7 @@ class ChapterContentIntegration {
       }
 
       // 2. 从书源获取内容
-      final content = await BookService.instance.getChapterContent(
+      final content = await readService(AppServices.bookService).getChapterContent(
         chapter,
         source,
         bookName: book.name,
@@ -58,7 +59,7 @@ class ChapterContentIntegration {
       }
 
       // 3. 保存到文件
-      final localPath = await ChapterContentService.instance
+      final localPath = await readService(AppServices.chapterContentService)
           .saveChapterContent(book, chapter, content);
 
       if (localPath == null) {
@@ -97,7 +98,7 @@ class ChapterContentIntegration {
     try {
       // 优先从文件读取
       if (chapter.localPath != null && chapter.localPath!.isNotEmpty) {
-        final content = await ChapterContentService.instance
+        final content = await readService(AppServices.chapterContentService)
             .getChapterContent(book, chapter);
 
         if (content != null) {
@@ -110,12 +111,12 @@ class ChapterContentIntegration {
 
       // 尝试从文件系统读取(即使没有localPath)
       final fileContent =
-          await ChapterContentService.instance.getChapterContent(book, chapter);
+          await readService(AppServices.chapterContentService).getChapterContent(book, chapter);
 
       if (fileContent != null && fileContent.isNotEmpty) {
         // 找到文件但数据库没有localPath,更新数据库
         final localPath =
-            ChapterContentService.instance.getChapterLocalPath(book, chapter);
+            readService(AppServices.chapterContentService).getChapterLocalPath(book, chapter);
         await _updateChapterLocalPath(chapter, localPath);
 
         return fileContent;
@@ -142,7 +143,7 @@ class ChapterContentIntegration {
 
       // TODO: 更新数据库
       // 需要在BookService中添加 updateChapterLocalPath 方法
-      // await BookService.instance.updateChapterLocalPath(
+      // await readService(AppServices.bookService).updateChapterLocalPath(
       //   chapter.bookUrl,
       //   chapter.url,
       //   localPath,
@@ -167,19 +168,19 @@ class ChapterContentIntegration {
     for (final chapter in chapters) {
       try {
         // 检查是否已经迁移
-        if (await ChapterContentService.instance
+        if (await readService(AppServices.chapterContentService)
             .hasChapterContent(book, chapter)) {
           results[chapter.url] = true;
           continue;
         }
 
         // 从旧缓存读取内容 (假设存在getCachedChapterContent方法)
-        // final oldContent = await CacheService.instance
+        // final oldContent = await readService(AppServices.cacheService)
         //     .getCachedChapterContent(book, chapter);
 
         // if (oldContent != null && oldContent.isNotEmpty) {
         //   // 保存到新存储
-        //   final localPath = await ChapterContentService.instance
+        //   final localPath = await readService(AppServices.chapterContentService)
         //       .saveChapterContent(book, chapter, oldContent);
 
         //   if (localPath != null) {
@@ -216,7 +217,7 @@ class ChapterContentIntegration {
     try {
       // 1. 清理文件
       final fileCleared =
-          await ChapterContentService.instance.clearBookContents(book);
+          await readService(AppServices.chapterContentService).clearBookContents(book);
 
       if (!fileCleared) {
         return false;
@@ -246,10 +247,10 @@ class ChapterContentIntegration {
     List<BookChapter> chapters,
   ) async {
     final cachedCount =
-        await ChapterContentService.instance.getBookCachedCount(book, chapters);
+        await readService(AppServices.chapterContentService).getBookCachedCount(book, chapters);
 
     final totalSize =
-        await ChapterContentService.instance.getBookContentSize(book);
+        await readService(AppServices.chapterContentService).getBookContentSize(book);
 
     return CacheStats(
       totalChapters: chapters.length,
@@ -320,7 +321,7 @@ class CacheStats {
 ///   
 ///   // 3. 保存到文件
 ///   if (book != null && content != null) {
-///     final localPath = await ChapterContentService.instance
+///     final localPath = await readService(AppServices.chapterContentService)
 ///         .saveChapterContent(book, chapter, content);
 ///     
 ///     if (localPath != null) {

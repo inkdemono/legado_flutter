@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -81,7 +82,7 @@ class _ExploreShowPageState extends ConsumerState<ExploreShowPage> {
     });
 
     try {
-      final books = await ExploreService.instance.exploreBooks(
+      final books = await readService(AppServices.exploreService).exploreBooks(
         widget.bookSource,
         widget.exploreUrl,
         page: _page,

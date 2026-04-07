@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -826,7 +827,7 @@ class _CustomColorDialogState extends ConsumerState<CustomColorDialog> {
 
       // 调用ReadConfigService删除配置
       final success =
-          await ReadConfigService.instance.deleteConfig(widget.configIndex!);
+          await readService(AppServices.readConfigService).deleteConfig(widget.configIndex!);
 
       if (mounted) {
         if (success) {
@@ -869,7 +870,7 @@ class _CustomColorDialogState extends ConsumerState<CustomColorDialog> {
   /// 保存配置
   void _saveConfig() {
     final updatedBook = widget.book.copyWith(readConfig: _config);
-    BookService.instance.saveBook(updatedBook).catchError((error) {});
+    readService(AppServices.bookService).saveBook(updatedBook).catchError((error) {});
 
     if (widget.onConfigChanged != null) {
       widget.onConfigChanged!(_config);

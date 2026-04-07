@@ -3,44 +3,174 @@
 part of 'reader_page.dart';
 
 /// 阅读器核心业务逻辑（最终修复版 - 确保编译与加载）
-extension ReaderLogicMethods on _ReaderPageState {
+extension _ReaderLogicMethods on _ReaderPageState {
   /// 加载章节列表
   Future<void> _loadChapters() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      final chapters = await BookService.instance.getChapterList(widget.book);
+      final chapters = await readService(AppServices.bookService)
+          .getChapterList(widget.book);
       if (!mounted) return;
       setState(() {
         _chapters = chapters;
         _isLoading = false;
       });
-      await _loadContent(_currentChapterIndex, resetPageOffset: true);
+      await _loadContent(_currentChapterIndex, resetPageOffset: false);
+      _scheduleBatchPreload(_currentChapterIndex);
     } catch (e) {
       AppLog.instance.put('加载章节列表失败', error: e);
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  List<int> _buildPreloadOrder(int centerIndex) {
+    final order = <int>[];
+    final maxOffset = math.max(
+      _ReaderPageState._preloadAheadCount,
+      _ReaderPageState._preloadBehindCount,
+    );
+
+    for (var offset = 1; offset <= maxOffset; offset++) {
+      final nextIndex = centerIndex + offset;
+      if (offset <= _ReaderPageState._preloadAheadCount &&
+          nextIndex < _chapters.length) {
+        order.add(nextIndex);
+      }
+
+      final prevIndex = centerIndex - offset;
+      if (offset <= _ReaderPageState._preloadBehindCount && prevIndex >= 0) {
+        order.add(prevIndex);
+      }
+    }
+
+    return order;
+  }
+
+  void _syncVisibleChaptersFromCache() {
+    _curTextChapter = _chapterCache[_currentChapterIndex];
+    _prevTextChapter = _chapterCache[_currentChapterIndex - 1];
+  }
+
+  void _touchChapterCache(int index) {
+    final cached = _chapterCache.remove(index);
+    if (cached != null) {
+      _chapterCache[index] = cached;
+    }
+  }
+
+  void _cacheChapterLayout(
+    int index,
+    String processedContent,
+    TextChapter textChapter,
+  ) {
+    final previous = _chapterCache.remove(index);
+    if (previous != null && !identical(previous, textChapter)) {
+      previous.dispose();
+    }
+
+    _chapterCache[index] = textChapter;
+    _chapterContents[index] = processedContent;
+    _chapterPages[index] = textChapter.pages.map((page) => page.text).toList();
+    _touchChapterCache(index);
+    _trimChapterCache(index);
+  }
+
+  void _removeChapterCache(int index) {
+    final removed = _chapterCache.remove(index);
+    removed?.dispose();
+    _chapterContents.remove(index);
+    _chapterPages.remove(index);
+    _chapterScrollControllers.remove(index)?.dispose();
+  }
+
+  void _trimChapterCache(int centerIndex) {
+    final keepIndices = <int>{centerIndex, ..._buildPreloadOrder(centerIndex)};
+
+    final staleIndices = _chapterCache.keys
+        .where((index) => !keepIndices.contains(index))
+        .toList(growable: false);
+    for (final index in staleIndices) {
+      _removeChapterCache(index);
+    }
+
+    while (_chapterCache.length > _ReaderPageState._chapterCacheLimit) {
+      final firstKey = _chapterCache.keys.first;
+      if (keepIndices.contains(firstKey) ||
+          _loadingChapters.contains(firstKey)) {
+        break;
+      }
+      _removeChapterCache(firstKey);
+    }
+  }
+
+  void _scheduleBatchPreload(int centerIndex) {
+    final generation = ++_preloadGeneration;
+    final order = _buildPreloadOrder(centerIndex);
+
+    unawaited(
+      Future.microtask(() async {
+        for (var i = 0;
+            i < order.length;
+            i += _ReaderPageState._preloadBatchSize) {
+          if (!mounted || generation != _preloadGeneration) return;
+
+          final batch = order
+              .skip(i)
+              .take(_ReaderPageState._preloadBatchSize)
+              .where(
+                (index) =>
+                    !_chapterCache.containsKey(index) &&
+                    !_loadingChapters.contains(index),
+              )
+              .toList(growable: false);
+
+          if (batch.isEmpty) {
+            continue;
+          }
+
+          await Future.wait(
+            batch.map((index) => _loadContent(index)),
+          );
+          _trimChapterCache(centerIndex);
+          await Future<void>.delayed(Duration.zero);
+        }
+      }),
+    );
+  }
+
   /// 加载章节内容
   Future<void> _loadContent(int index, {bool resetPageOffset = false}) async {
     if (index < 0 || index >= _chapters.length) return;
+
+    if (_chapterCache.containsKey(index)) {
+      _touchChapterCache(index);
+      if (!mounted) return;
+      setState(() {
+        _syncVisibleChaptersFromCache();
+        if (index == _currentChapterIndex && resetPageOffset) {
+          _currentPageIndex = 0;
+        }
+      });
+      return;
+    }
+
     if (_loadingChapters.contains(index)) return;
 
     final chapter = _chapters[index];
     _loadingChapters.add(index);
 
     try {
-      String? content = await CacheService.instance
+      String? content = await readService(AppServices.cacheService)
           .getCachedChapterContent(widget.book, chapter);
 
       if (content == null || content.isEmpty) {
         if (_bookSource == null) {
-          _bookSource = await BookSourceService.instance
+          _bookSource = await readService(AppServices.bookSourceService)
               .getBookSourceByUrl(widget.book.origin);
         }
         if (_bookSource != null) {
-          content = await BookService.instance
+          content = await readService(AppServices.bookService)
               .getChapterContent(chapter, _bookSource!, book: widget.book);
         }
       }
@@ -68,7 +198,7 @@ extension ReaderLogicMethods on _ReaderPageState {
     // 获取屏幕尺寸进行分页
     final screenSize = MediaQuery.of(context).size;
     final layoutProvider = ChapterLayoutProvider();
-    
+
     // 更新分页配置
     layoutProvider.updateConfig(
       viewWidth: screenSize.width,
@@ -87,9 +217,8 @@ extension ReaderLogicMethods on _ReaderPageState {
       paragraphIndent: _readConfig.paragraphIndent,
       paragraphSpacing: _readConfig.paragraphSpacing.toInt(),
     );
-    
-    // 使用 ChapterLayoutProvider 进行正确的分页
-    final textChapter = layoutProvider.layoutChapter(
+
+    final textChapter = await layoutProvider.layoutChapterAsync(
       chapter: _chapters[index],
       content: processed,
       chapterIndex: index,
@@ -99,17 +228,27 @@ extension ReaderLogicMethods on _ReaderPageState {
     if (!mounted) return;
 
     setState(() {
-      if (index == _currentChapterIndex) {
-        _curTextChapter = textChapter;
-        if (resetPageOffset) _currentPageIndex = 0;
-      } else if (index == _currentChapterIndex + 1) {
-        _nextTextChapter = textChapter;
-      } else if (index == _currentChapterIndex - 1) {
-        _prevTextChapter = textChapter;
+      _cacheChapterLayout(index, processed, textChapter);
+      _syncVisibleChaptersFromCache();
+      if (index == _currentChapterIndex && resetPageOffset) {
+        _currentPageIndex = 0;
       }
     });
 
-    _updateProgress();
+    if (index == _currentChapterIndex) {
+      if (_readConfig.pageMode != AppStatus.pageModeScroll) {
+        final maxPageIndex = math.max(0, textChapter.pages.length - 1);
+        final targetPageIndex =
+            resetPageOffset ? 0 : _currentPageIndex.clamp(0, maxPageIndex);
+        _currentPageIndex = targetPageIndex;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_pageController.hasClients && mounted) {
+            _pageController.jumpToPage(targetPageIndex);
+          }
+        });
+      }
+      _updateProgress();
+    }
   }
 
   /// 保存进度
@@ -117,7 +256,26 @@ extension ReaderLogicMethods on _ReaderPageState {
     widget.book.durChapterIndex = _currentChapterIndex;
     widget.book.durChapterPos = _currentPageIndex;
     widget.book.durChapterTime = DateTime.now().millisecondsSinceEpoch;
-    BookService.instance.updateBook(widget.book);
+    readService(AppServices.bookService).updateBook(widget.book);
+  }
+
+  Future<void> _rebuildVisibleLayouts({bool resetPageOffset = false}) async {
+    _preloadGeneration++;
+    final cachedIndices = _chapterCache.keys.toList(growable: false);
+    for (final index in cachedIndices) {
+      _removeChapterCache(index);
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _syncVisibleChaptersFromCache();
+      if (resetPageOffset) {
+        _currentPageIndex = 0;
+      }
+    });
+
+    await _loadContent(_currentChapterIndex, resetPageOffset: resetPageOffset);
+    _scheduleBatchPreload(_currentChapterIndex);
   }
 
   /// 是否有下一章
@@ -131,34 +289,13 @@ extension ReaderLogicMethods on _ReaderPageState {
     if (index == _currentChapterIndex) return;
     if (index < 0 || index >= _chapters.length) return;
 
-    // 检查是否是相邻章节跳转
-    final isAdjacentNext = index == _currentChapterIndex + 1;
-    final isAdjacentPrev = index == _currentChapterIndex - 1;
-
     setState(() {
-      if (isAdjacentNext && _nextTextChapter != null) {
-        // 跳转到下一章，且下一章已预加载
-        _prevTextChapter = _curTextChapter;
-        _curTextChapter = _nextTextChapter;
-        _nextTextChapter = null;
-      } else if (isAdjacentPrev && _prevTextChapter != null) {
-        // 跳转到上一章，且上一章已预加载
-        _nextTextChapter = _curTextChapter;
-        _curTextChapter = _prevTextChapter;
-        _prevTextChapter = null;
-      } else {
-        // 跳转到非相邻章节，清空所有缓存
-        _prevTextChapter = null;
-        _curTextChapter = null;
-        _nextTextChapter = null;
-      }
       _currentChapterIndex = index;
-      // 如果指定了目标页面索引，使用指定值；否则默认为第一页
       _currentPageIndex = targetPageIndex ?? 0;
+      _touchChapterCache(index);
+      _syncVisibleChaptersFromCache();
     });
 
-    // 在翻页模式下，在下一帧重置 PageController 到目标页面
-    // 使用 addPostFrameCallback 确保 PageView 完全重建后再跳转
     if (_readConfig.pageMode != AppStatus.pageModeScroll) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_pageController.hasClients && mounted) {
@@ -167,16 +304,13 @@ extension ReaderLogicMethods on _ReaderPageState {
       });
     }
 
-    // 始终加载目标章节内容（如果当前章节为空或章节索引不匹配）
     if (_curTextChapter == null || _curTextChapter!.chapterIndex != index) {
-      _loadContent(index, resetPageOffset: true);
+      _loadContent(index, resetPageOffset: targetPageIndex == null);
     } else {
       _updateProgress();
     }
-    
-    // 预加载相邻章节
-    _loadContent(index + 1);
-    _loadContent(index - 1);
+
+    _scheduleBatchPreload(index);
   }
 
   /// 滚动模式下的翻页处理
@@ -279,6 +413,7 @@ extension ReaderLogicMethods on _ReaderPageState {
             setState(() {
               _readConfig = config;
             });
+            unawaited(_rebuildVisibleLayouts());
           }
         },
       ),
@@ -334,23 +469,23 @@ extension ReaderLogicMethods on _ReaderPageState {
   }
 
   void _refreshChapter() async {
-    if (_currentChapterIndex < 0 || _currentChapterIndex >= _chapters.length)
+    if (_currentChapterIndex < 0 || _currentChapterIndex >= _chapters.length) {
       return;
+    }
 
     setState(() => _showMenu = false);
 
     // 清除缓存
-    _chapterContents.remove(_currentChapterIndex);
-    _chapterPages.remove(_currentChapterIndex);
-    _curTextChapter = null;
+    _removeChapterCache(_currentChapterIndex);
+    _syncVisibleChaptersFromCache();
 
     // 重新加载
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('正在刷新章节...')),
     );
 
-    // 重新加载当前章节
-    _onChapterChanged(_currentChapterIndex);
+    await _loadContent(_currentChapterIndex, resetPageOffset: false);
+    _scheduleBatchPreload(_currentChapterIndex);
 
     if (mounted) {
       setState(() {});
@@ -383,6 +518,6 @@ extension ReaderLogicMethods on _ReaderPageState {
 
     // 保存配置
     final updatedBook = widget.book.copyWith(readConfig: _readConfig);
-    BookService.instance.saveBook(updatedBook);
+    readService(AppServices.bookService).saveBook(updatedBook);
   }
 }

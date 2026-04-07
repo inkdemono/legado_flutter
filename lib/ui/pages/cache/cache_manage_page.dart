@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/book.dart';
@@ -41,18 +42,18 @@ class _CacheManagePageState extends ConsumerState<CacheManagePage> {
 
     try {
       final books = _selectedGroupId != null
-          ? await BookService.instance.getBooksByGroup(_selectedGroupId!)
-          : await BookService.instance.getBookshelfBooks();
+          ? await readService(AppServices.bookService).getBooksByGroup(_selectedGroupId!)
+          : await readService(AppServices.bookService).getBookshelfBooks();
 
       final filteredBooks = books.where((book) => !book.isLocal).toList();
 
       final cacheInfoMap = <String, CacheInfo>{};
       for (final book in filteredBooks) {
-        final chapters = await BookService.instance.getChapterList(book);
+        final chapters = await readService(AppServices.bookService).getChapterList(book);
         final cachedFiles =
-            await CacheService.instance.getCachedChapterFiles(book);
+            await readService(AppServices.cacheService).getCachedChapterFiles(book);
         final cachedCount =
-            await CacheService.instance.getCachedChapterCount(book, chapters);
+            await readService(AppServices.cacheService).getCachedChapterCount(book, chapters);
 
         cacheInfoMap[book.bookUrl] = CacheInfo(
           totalChapters: chapters.length,
@@ -102,7 +103,7 @@ class _CacheManagePageState extends ConsumerState<CacheManagePage> {
     });
 
     try {
-      await CacheService.instance.clearAllCache();
+      await readService(AppServices.cacheService).clearAllCache();
       await _loadBooks();
       _showMessage('已清除所有缓存');
     } catch (e) {

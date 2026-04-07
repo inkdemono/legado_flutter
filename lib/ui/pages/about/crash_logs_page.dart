@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -30,7 +31,7 @@ class _CrashLogsPageState extends State<CrashLogsPage> {
     });
 
     try {
-      final files = await CrashLogService.instance.getCrashLogFiles();
+      final files = await readService(AppServices.crashLogService).getCrashLogFiles();
       if (mounted) {
         setState(() {
           _crashLogFiles = files;
@@ -50,7 +51,7 @@ class _CrashLogsPageState extends State<CrashLogsPage> {
   }
 
   Future<void> _showCrashLogDetail(File file) async {
-    final content = await CrashLogService.instance.readCrashLogFile(file);
+    final content = await readService(AppServices.crashLogService).readCrashLogFile(file);
     if (content == null || !mounted) return;
 
     showDialog(
@@ -121,7 +122,7 @@ class _CrashLogsPageState extends State<CrashLogsPage> {
 
     if (confirmed != true) return;
 
-    final success = await CrashLogService.instance.clearAllCrashLogs();
+    final success = await readService(AppServices.crashLogService).clearAllCrashLogs();
     if (mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -157,7 +158,7 @@ class _CrashLogsPageState extends State<CrashLogsPage> {
 
     if (confirmed != true) return;
 
-    final success = await CrashLogService.instance.deleteCrashLogFile(file);
+    final success = await readService(AppServices.crashLogService).deleteCrashLogFile(file);
     if (mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(

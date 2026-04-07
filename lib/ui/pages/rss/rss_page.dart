@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../data/models/rss_article.dart';
@@ -15,7 +16,7 @@ import '../../widgets/home/home_shell.dart';
 /// RSS源列表Provider（仅启用的）
 final enabledRssSourceListProvider =
     FutureProvider<List<RssSource>>((ref) async {
-  final service = RssService.instance;
+  final service = readService(AppServices.rssService);
   return await service.getEnabledRssSources();
 });
 
@@ -315,7 +316,7 @@ class RssPage extends ConsumerWidget {
                             Switch(
                               value: source.enabled,
                               onChanged: (enabled) async {
-                                await RssService.instance
+                                await readService(AppServices.rssService)
                                     .updateRssSourceEnabled(
                                   source.sourceUrl,
                                   enabled,

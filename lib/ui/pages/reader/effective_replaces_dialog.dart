@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../../data/models/replace_rule.dart';
 import '../../widgets/base/base_bottom_sheet_stateful.dart';
 import '../../../config/app_config.dart';
@@ -170,7 +171,7 @@ class _EffectiveReplacesDialogState extends BaseBottomSheetState<EffectiveReplac
 
     if (result != null) {
       // 更新规则（使用updateRule方法）
-      await ReplaceRuleService.instance.updateRule(result);
+      await readService(AppServices.replaceRuleService).updateRule(result);
       setState(() {
         // 更新列表中的规则
         final index = _rules.indexWhere((r) => r.id == rule.id);

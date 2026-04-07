@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/book.dart';
 import '../../../data/models/book_group.dart';
-import '../../../services/book/book_service.dart';
-import '../../../services/reader/cache_service.dart';
 import '../../../providers/book_provider.dart';
 import '../../widgets/base/base_bottom_sheet_consumer.dart';
 
@@ -244,7 +243,9 @@ class _BookshelfManageDialogState
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
-                      ref.invalidate(booksByGroupProvider(widget.groupId));
+                      ref
+                          .read(bookshelfBooksProvider.notifier)
+                          .reload(showLoading: true);
                     },
                     child: const Text('重试'),
                   ),
@@ -288,8 +289,9 @@ class _BookshelfManageDialogState
             onPressed: () async {
               Navigator.pop(context);
               try {
-                await BookService.instance.deleteBook(book.bookUrl);
-                ref.invalidate(booksByGroupProvider(widget.groupId));
+                await ref
+                    .read(bookshelfBooksProvider.notifier)
+                    .removeBook(book.bookUrl);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('已删除')),
@@ -328,18 +330,19 @@ class _BookshelfManageDialogState
             onPressed: () async {
               Navigator.pop(context);
               try {
+                final count = _selectedBookUrls.length;
                 for (final bookUrl in _selectedBookUrls) {
-                  await BookService.instance.deleteBook(bookUrl);
+                  await ref
+                      .read(bookshelfBooksProvider.notifier)
+                      .removeBook(bookUrl);
                 }
                 setState(() {
                   _selectedBookUrls.clear();
                   _isSelectMode = false;
                 });
-                ref.invalidate(booksByGroupProvider(widget.groupId));
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content: Text('已删除 ${_selectedBookUrls.length} 本书籍')),
+                    SnackBar(content: Text('已删除 $count 本书籍')),
                   );
                 }
               } catch (e) {
@@ -387,9 +390,9 @@ class _BookshelfManageDialogState
     if (selectedGroup == null) return;
 
     try {
-      await BookService.instance
+      await ref
+          .read(bookshelfBooksProvider.notifier)
           .updateBookGroup(book.bookUrl, selectedGroup.groupId);
-      ref.invalidate(booksByGroupProvider(widget.groupId));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('已移动到"${selectedGroup.groupName}"')),
@@ -437,15 +440,13 @@ class _BookshelfManageDialogState
 
     try {
       final count = _selectedBookUrls.length;
-      for (final bookUrl in _selectedBookUrls) {
-        await BookService.instance
-            .updateBookGroup(bookUrl, selectedGroup.groupId);
-      }
+      await ref
+          .read(bookshelfBooksProvider.notifier)
+          .updateBookGroups(_selectedBookUrls.toList(), selectedGroup.groupId);
       setState(() {
         _selectedBookUrls.clear();
         _isSelectMode = false;
       });
-      ref.invalidate(booksByGroupProvider(widget.groupId));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -498,7 +499,8 @@ class _BookshelfManageDialogState
   /// 清除书籍缓存
   Future<void> _clearBookCache(List<Book> books) async {
     try {
-      final results = await CacheService.instance.clearBooksCache(books);
+      final results =
+          await readService(AppServices.cacheService).clearBooksCache(books);
       final successCount = results.values.where((v) => v == true).length;
 
       if (mounted) {

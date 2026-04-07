@@ -1,6 +1,9 @@
+import 'package:equatable/equatable.dart';
+
 /// 搜索关键词数据模型
 /// 参考项目：io.legado.app.data.entities.SearchKeyword
-class SearchKeyword {
+// ignore: must_be_immutable
+class SearchKeyword with EquatableMixin {
   /// 搜索关键词（主键）
   final String word;
 
@@ -48,12 +51,8 @@ class SearchKeyword {
   }
 
   @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is SearchKeyword && other.word == word;
-  }
+  List<Object?> get props => [word];
 
   @override
-  int get hashCode => word.hashCode;
+  String toString() => 'SearchKeyword(word: $word, usage: $usage)';
 }
-

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
@@ -16,22 +17,15 @@ class CrashLogService extends BaseService {
 
   @override
   Future<void> onInit() async {
-    return await execute(
-      action: () async {
-        if (kIsWeb) {
-          // Web平台不支持文件系统
-          return;
-        }
+    if (kIsWeb) {
+      return;
+    }
 
-        final appDocDir = await getApplicationDocumentsDirectory();
-        _crashDir = Directory('${appDocDir.path}/crash');
-        if (!await _crashDir!.exists()) {
-          await _crashDir!.create(recursive: true);
-        }
-      },
-      operationName: '初始化崩溃日志服务',
-      logError: true,
-    );
+    final appDocDir = await getApplicationDocumentsDirectory();
+    _crashDir = Directory('${appDocDir.path}/crash');
+    if (!await _crashDir!.exists()) {
+      await _crashDir!.create(recursive: true);
+    }
   }
 
   /// 保存崩溃日志
@@ -45,7 +39,7 @@ class CrashLogService extends BaseService {
     final errorObj = Exception(error);
     final stack = StackTrace.fromString(stackTrace);
     await CrashHandler.saveCrashInfoToFile(errorObj, stack);
-    
+
     // 同时保存到原有目录（兼容性）
     return await execute(
       action: () async {
@@ -78,8 +72,10 @@ class CrashLogService extends BaseService {
         await file.writeAsString(buffer.toString());
         // 标记发生过崩溃，下次启动时提示用户（参考项目：CrashHandler -> LocalConfig.appCrash）
         try {
-          await LocalConfigService.instance.setAppCrash(true);
-        } catch (_) {}
+          await readService(AppServices.localConfigService).setAppCrash(true);
+        } catch (e) {
+          debugPrint('CrashLogService: 标记应用崩溃状态失败: $e');
+        }
       },
       operationName: '保存崩溃日志',
       logError: false, // 崩溃日志保存失败不记录，避免循环
@@ -157,4 +153,3 @@ class CrashLogService extends BaseService {
     }
   }
 }
-

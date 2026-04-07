@@ -1,8 +1,10 @@
+import 'package:equatable/equatable.dart';
 import 'package:legado_flutter/data/models/book.dart';
 
 /// 搜索结果书籍数据模型
 /// 参考项目：io.legado.app.data.entities.SearchBook
-class SearchBook {
+// ignore: must_be_immutable
+class SearchBook with EquatableMixin {
   /// 书籍URL（主键）
   final String bookUrl;
 
@@ -147,12 +149,8 @@ class SearchBook {
   }
 
   @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is SearchBook && other.bookUrl == bookUrl;
-  }
+  List<Object?> get props => [bookUrl];
 
   @override
-  int get hashCode => bookUrl.hashCode;
+  String toString() => 'SearchBook(name: $name, url: $bookUrl)';
 }
-

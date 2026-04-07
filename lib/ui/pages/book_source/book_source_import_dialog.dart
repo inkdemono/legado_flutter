@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/material.dart';
 import '../../../data/models/book_source.dart';
 import '../../../services/source/book_source_service.dart';
@@ -153,7 +154,7 @@ class _BookSourceImportDialogState
 
     try {
       final result =
-          await BookSourceService.instance.importBookSources(selectedSources);
+          await readService(AppServices.bookSourceService).importBookSources(selectedSources);
       final imported = result['imported'] ?? 0;
       final blocked = result['blocked'] ?? 0;
 

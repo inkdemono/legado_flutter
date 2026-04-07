@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
 import '../../../data/models/theme_config.dart';
@@ -106,16 +107,16 @@ class _ThemeEditPageState extends State<ThemeEditPage> {
         bottomBackground: _colorToString(_bottomBackgroundColor),
       );
 
-      final configs = await ThemeService.instance.loadConfigs();
+      final configs = await readService(AppServices.themeService).loadConfigs();
       if (widget.config != null &&
           widget.config!.themeName != config.themeName) {
         final oldIndex = configs.indexWhere((item) => item == widget.config);
         if (oldIndex >= 0) {
-          await ThemeService.instance.deleteConfig(oldIndex);
+          await readService(AppServices.themeService).deleteConfig(oldIndex);
         }
       }
 
-      await ThemeService.instance.addConfig(config);
+      await readService(AppServices.themeService).addConfig(config);
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e) {

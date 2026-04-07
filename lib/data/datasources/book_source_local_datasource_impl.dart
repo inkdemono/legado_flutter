@@ -1,14 +1,15 @@
 import '../models/book_source.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../services/source/book_source_service.dart';
 import 'book_source_local_datasource.dart';
 
 /// BookSourceLocalDataSource 的实现类
 /// 封装现有的 BookSourceService,使其符合 DataSource 接口
 class BookSourceLocalDataSourceImpl implements BookSourceLocalDataSource {
-  final BookSourceService _service;
+  final IBookSourceService _service;
 
-  BookSourceLocalDataSourceImpl({BookSourceService? service})
-      : _service = service ?? BookSourceService.instance;
+  BookSourceLocalDataSourceImpl({IBookSourceService? service})
+      : _service = service ?? readService(AppServices.bookSourceService);
 
   @override
   Future<List<BookSource>> getAllBookSources({bool enabledOnly = false}) async {

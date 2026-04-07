@@ -1,10 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/media/video_item.dart';
+import '../helpers/async_value_extension.dart';
+import '../helpers/listenable_stream.dart';
+import '../service_registry.dart';
 import '../../services/media/video/video_player_service.dart';
 
 /// 视频播放服务 Provider
 final videoPlayerServiceProvider = Provider<VideoPlayerService>((ref) {
-  return VideoPlayerService.instance;
+  return ref.watch(AppServices.videoPlayerService);
 });
 
 /// 当前播放状态 Provider
@@ -13,20 +16,27 @@ final videoPlayStatusProvider =
   return VideoPlayStatusNotifier();
 });
 
+final _videoPlayStatusStreamProvider = StreamProvider<VideoPlayStatus>((ref) {
+  final service = ref.watch(videoPlayerServiceProvider);
+  return streamFromListenables(
+    ref,
+    listenables: [service.statusNotifier],
+    read: () => service.statusNotifier.value,
+  );
+});
+
 class VideoPlayStatusNotifier extends Notifier<VideoPlayStatus> {
   @override
   VideoPlayStatus build() {
     final service = ref.watch(videoPlayerServiceProvider);
-    service.statusNotifier.addListener(_onStatusChanged);
-    ref.onDispose(() {
-      service.statusNotifier.removeListener(_onStatusChanged);
+    ref.listen(_videoPlayStatusStreamProvider, (_, next) {
+      final status = next.valueOrNull;
+      if (status != null) {
+        state = status;
+      }
     });
-    return service.status;
-  }
-
-  void _onStatusChanged() {
-    final service = ref.read(videoPlayerServiceProvider);
-    state = service.status;
+    return ref.watch(_videoPlayStatusStreamProvider).valueOrNull ??
+        service.status;
   }
 }
 
@@ -36,20 +46,24 @@ final currentVideoProvider =
   return CurrentVideoNotifier();
 });
 
+final _currentVideoStreamProvider = StreamProvider<VideoItem?>((ref) {
+  final service = ref.watch(videoPlayerServiceProvider);
+  return streamFromListenables(
+    ref,
+    listenables: [service.currentVideoNotifier],
+    read: () => service.currentVideoNotifier.value,
+  );
+});
+
 class CurrentVideoNotifier extends Notifier<VideoItem?> {
   @override
   VideoItem? build() {
     final service = ref.watch(videoPlayerServiceProvider);
-    service.currentVideoNotifier.addListener(_onVideoChanged);
-    ref.onDispose(() {
-      service.currentVideoNotifier.removeListener(_onVideoChanged);
+    ref.listen(_currentVideoStreamProvider, (_, next) {
+      state = next.valueOrNull;
     });
-    return service.currentVideo;
-  }
-
-  void _onVideoChanged() {
-    final service = ref.read(videoPlayerServiceProvider);
-    state = service.currentVideo;
+    return ref.watch(_currentVideoStreamProvider).valueOrNull ??
+        service.currentVideo;
   }
 }
 
@@ -59,28 +73,33 @@ final videoProgressProvider =
   return VideoProgressNotifier();
 });
 
+final _videoProgressStreamProvider = StreamProvider<VideoProgress>((ref) {
+  final service = ref.watch(videoPlayerServiceProvider);
+  return streamFromListenables(
+    ref,
+    listenables: [service.positionNotifier, service.durationNotifier],
+    read: () => VideoProgress(
+      position: service.positionNotifier.value,
+      duration: service.durationNotifier.value,
+    ),
+  );
+});
+
 class VideoProgressNotifier extends Notifier<VideoProgress> {
   @override
   VideoProgress build() {
     final service = ref.watch(videoPlayerServiceProvider);
-    service.positionNotifier.addListener(_updateProgress);
-    service.durationNotifier.addListener(_updateProgress);
-    ref.onDispose(() {
-      service.positionNotifier.removeListener(_updateProgress);
-      service.durationNotifier.removeListener(_updateProgress);
+    ref.listen(_videoProgressStreamProvider, (_, next) {
+      final progress = next.valueOrNull;
+      if (progress != null) {
+        state = progress;
+      }
     });
-    return VideoProgress(
-      position: service.positionNotifier.value,
-      duration: service.durationNotifier.value,
-    );
-  }
-
-  void _updateProgress() {
-    final service = ref.read(videoPlayerServiceProvider);
-    state = VideoProgress(
-      position: service.positionNotifier.value,
-      duration: service.durationNotifier.value,
-    );
+    return ref.watch(_videoProgressStreamProvider).valueOrNull ??
+        VideoProgress(
+          position: service.positionNotifier.value,
+          duration: service.durationNotifier.value,
+        );
   }
 
   /// 跳转
@@ -128,20 +147,26 @@ final videoSpeedProvider = NotifierProvider<VideoSpeedNotifier, double>(() {
   return VideoSpeedNotifier();
 });
 
+final _videoSpeedStreamProvider = StreamProvider<double>((ref) {
+  final service = ref.watch(videoPlayerServiceProvider);
+  return streamFromListenables(
+    ref,
+    listenables: [service.speedNotifier],
+    read: () => service.speedNotifier.value,
+  );
+});
+
 class VideoSpeedNotifier extends Notifier<double> {
   @override
   double build() {
     final service = ref.watch(videoPlayerServiceProvider);
-    service.speedNotifier.addListener(_onSpeedChanged);
-    ref.onDispose(() {
-      service.speedNotifier.removeListener(_onSpeedChanged);
+    ref.listen(_videoSpeedStreamProvider, (_, next) {
+      final speed = next.valueOrNull;
+      if (speed != null) {
+        state = speed;
+      }
     });
-    return service.speed;
-  }
-
-  void _onSpeedChanged() {
-    final service = ref.read(videoPlayerServiceProvider);
-    state = service.speed;
+    return ref.watch(_videoSpeedStreamProvider).valueOrNull ?? service.speed;
   }
 
   /// 设置播放速度
@@ -164,20 +189,26 @@ final videoVolumeProvider = NotifierProvider<VideoVolumeNotifier, double>(() {
   return VideoVolumeNotifier();
 });
 
+final _videoVolumeStreamProvider = StreamProvider<double>((ref) {
+  final service = ref.watch(videoPlayerServiceProvider);
+  return streamFromListenables(
+    ref,
+    listenables: [service.volumeNotifier],
+    read: () => service.volumeNotifier.value,
+  );
+});
+
 class VideoVolumeNotifier extends Notifier<double> {
   @override
   double build() {
     final service = ref.watch(videoPlayerServiceProvider);
-    service.volumeNotifier.addListener(_onVolumeChanged);
-    ref.onDispose(() {
-      service.volumeNotifier.removeListener(_onVolumeChanged);
+    ref.listen(_videoVolumeStreamProvider, (_, next) {
+      final volume = next.valueOrNull;
+      if (volume != null) {
+        state = volume;
+      }
     });
-    return service.volume;
-  }
-
-  void _onVolumeChanged() {
-    final service = ref.read(videoPlayerServiceProvider);
-    state = service.volume;
+    return ref.watch(_videoVolumeStreamProvider).valueOrNull ?? service.volume;
   }
 
   /// 设置音量
@@ -188,24 +219,32 @@ class VideoVolumeNotifier extends Notifier<double> {
 }
 
 /// 全屏状态 Provider
-final videoFullscreenProvider = NotifierProvider<VideoFullscreenNotifier, bool>(() {
+final videoFullscreenProvider =
+    NotifierProvider<VideoFullscreenNotifier, bool>(() {
   return VideoFullscreenNotifier();
+});
+
+final _videoFullscreenStreamProvider = StreamProvider<bool>((ref) {
+  final service = ref.watch(videoPlayerServiceProvider);
+  return streamFromListenables(
+    ref,
+    listenables: [service.fullscreenNotifier],
+    read: () => service.fullscreenNotifier.value,
+  );
 });
 
 class VideoFullscreenNotifier extends Notifier<bool> {
   @override
   bool build() {
     final service = ref.watch(videoPlayerServiceProvider);
-    service.fullscreenNotifier.addListener(_onFullscreenChanged);
-    ref.onDispose(() {
-      service.fullscreenNotifier.removeListener(_onFullscreenChanged);
+    ref.listen(_videoFullscreenStreamProvider, (_, next) {
+      final fullscreen = next.valueOrNull;
+      if (fullscreen != null) {
+        state = fullscreen;
+      }
     });
-    return service.isFullscreen;
-  }
-
-  void _onFullscreenChanged() {
-    final service = ref.read(videoPlayerServiceProvider);
-    state = service.isFullscreen;
+    return ref.watch(_videoFullscreenStreamProvider).valueOrNull ??
+        service.isFullscreen;
   }
 
   /// 切换全屏
@@ -224,28 +263,46 @@ class VideoFullscreenNotifier extends Notifier<bool> {
 /// 缓冲状态 Provider
 final videoBufferingProvider = Provider<bool>((ref) {
   final service = ref.watch(videoPlayerServiceProvider);
-  return service.bufferingNotifier.value;
+  final bufferingAsync = ref.watch(_videoBufferingStreamProvider);
+  return bufferingAsync.valueOrNull ?? service.bufferingNotifier.value;
+});
+
+final _videoBufferingStreamProvider = StreamProvider<bool>((ref) {
+  final service = ref.watch(videoPlayerServiceProvider);
+  return streamFromListenables(
+    ref,
+    listenables: [service.bufferingNotifier],
+    read: () => service.bufferingNotifier.value,
+  );
 });
 
 /// 控制层锁定状态 Provider
-final videoControlLockProvider = NotifierProvider<VideoControlLockNotifier, bool>(() {
+final videoControlLockProvider =
+    NotifierProvider<VideoControlLockNotifier, bool>(() {
   return VideoControlLockNotifier();
+});
+
+final _videoControlLockStreamProvider = StreamProvider<bool>((ref) {
+  final service = ref.watch(videoPlayerServiceProvider);
+  return streamFromListenables(
+    ref,
+    listenables: [service.controlLockNotifier],
+    read: () => service.controlLockNotifier.value,
+  );
 });
 
 class VideoControlLockNotifier extends Notifier<bool> {
   @override
   bool build() {
     final service = ref.watch(videoPlayerServiceProvider);
-    service.controlLockNotifier.addListener(_onLockChanged);
-    ref.onDispose(() {
-      service.controlLockNotifier.removeListener(_onLockChanged);
+    ref.listen(_videoControlLockStreamProvider, (_, next) {
+      final isLocked = next.valueOrNull;
+      if (isLocked != null) {
+        state = isLocked;
+      }
     });
-    return service.isControlLocked;
-  }
-
-  void _onLockChanged() {
-    final service = ref.read(videoPlayerServiceProvider);
-    state = service.isControlLocked;
+    return ref.watch(_videoControlLockStreamProvider).valueOrNull ??
+        service.isControlLocked;
   }
 
   void toggle() {
@@ -255,8 +312,7 @@ class VideoControlLockNotifier extends Notifier<bool> {
 }
 
 /// 播放控制 Provider
-final videoControlProvider =
-    NotifierProvider<VideoControlNotifier, void>(() {
+final videoControlProvider = NotifierProvider<VideoControlNotifier, void>(() {
   return VideoControlNotifier();
 });
 
@@ -297,7 +353,8 @@ class VideoControlNotifier extends Notifier<void> {
   }
 
   /// 快进
-  Future<void> forward([Duration duration = const Duration(seconds: 10)]) async {
+  Future<void> forward(
+      [Duration duration = const Duration(seconds: 10)]) async {
     await _service.forward(duration);
   }
 

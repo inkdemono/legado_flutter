@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/book_source.dart';
 import '../../../services/source/book_source_service.dart';
@@ -37,7 +38,7 @@ class _BookSourceDebugPageState extends ConsumerState<BookSourceDebugPage> {
 
   Future<void> _loadSource() async {
     try {
-      final source = await BookSourceService.instance.getBookSourceByUrl(widget.sourceUrl);
+      final source = await readService(AppServices.bookSourceService).getBookSourceByUrl(widget.sourceUrl);
       setState(() {
         _source = source;
       });
@@ -225,7 +226,7 @@ class _BookSourceDebugPageState extends ConsumerState<BookSourceDebugPage> {
   }
 
   Future<void> _startDebug(String key) async {
-    final debugService = BookSourceDebugService.instance;
+    final debugService = readService(AppServices.bookSourceDebugService);
     debugService.clear();
     
     // 设置回调

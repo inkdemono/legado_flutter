@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -112,7 +113,7 @@ class _RssSourceImportDialogState extends BaseBottomSheetState<RssSourceImportDi
       // 判断是URL还是JSON
       if (text.startsWith('http://') || text.startsWith('https://')) {
         // 从URL获取
-        final response = await NetworkService.instance.get(text);
+        final response = await readService(AppServices.networkService).get(text);
         final jsonText = await NetworkService.getResponseText(response);
         sources = _parseSources(jsonText);
       } else {
@@ -131,7 +132,7 @@ class _RssSourceImportDialogState extends BaseBottomSheetState<RssSourceImportDi
       // 保存RSS源
       int successCount = 0;
       for (final source in sources) {
-        final success = await RssService.instance.addOrUpdateRssSource(source);
+        final success = await readService(AppServices.rssService).addOrUpdateRssSource(source);
         if (success) successCount++;
       }
 
@@ -180,7 +181,7 @@ class _RssSourceImportDialogState extends BaseBottomSheetState<RssSourceImportDi
       // 保存RSS源
       int successCount = 0;
       for (final source in sources) {
-        final success = await RssService.instance.addOrUpdateRssSource(source);
+        final success = await readService(AppServices.rssService).addOrUpdateRssSource(source);
         if (success) successCount++;
       }
 

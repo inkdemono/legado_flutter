@@ -1,10 +1,12 @@
+import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 part 'music_playlist.g.dart';
 
 /// 播放列表模型
 @JsonSerializable()
-class MusicPlaylist {
+// ignore: must_be_immutable
+class MusicPlaylist with EquatableMixin {
   /// 播放列表 ID
   final String id;
 
@@ -97,13 +99,7 @@ class MusicPlaylist {
   }
 
   @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is MusicPlaylist && other.id == id;
-  }
-
-  @override
-  int get hashCode => id.hashCode;
+  List<Object?> get props => [id];
 }
 
 /// 预定义的系统播放列表

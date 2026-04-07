@@ -1,15 +1,18 @@
 import 'dart:async';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/event/app_events.dart';
 import '../config/app_config.dart';
 import '../utils/app_log.dart';
 import '../services/local_config_service.dart';
 import '../services/storage/webdav_service.dart';
-import '../services/book/book_service.dart';
+import '../providers/book_provider.dart';
 import '../providers/book_update_count_provider.dart';
+import '../providers/event_bus_provider.dart';
 import '../ui/pages/about/markdown_viewer_page.dart';
 import '../ui/pages/about/crash_logs_page.dart';
 import '../utils/startup_performance_monitor.dart';
@@ -27,6 +30,9 @@ class StartupFlowService {
   ) async {
     await startupPerformanceMonitor.trackAsync('startup_flow.total', () async {
       try {
+        await readService(AppServices.localConfigService).init();
+        if (!isMounted()) return;
+
         final privacyOk = await startupPerformanceMonitor.trackAsync(
           'startup_flow.privacy_policy',
           () => _checkPrivacyPolicy(context, isMounted),
@@ -84,7 +90,7 @@ class StartupFlowService {
     BuildContext context,
     bool Function() isMounted,
   ) async {
-    final localConfig = LocalConfigService.instance;
+    final localConfig = readService(AppServices.localConfigService);
     if (localConfig.privacyPolicyOk) return true;
 
     final result = await showDialog<bool>(
@@ -112,6 +118,7 @@ class StartupFlowService {
           TextButton(
             onPressed: () async {
               await localConfig.setPrivacyPolicyOk(true);
+              if (!ctx.mounted) return;
               Navigator.of(ctx).pop(true);
             },
             child: const Text('同意'),
@@ -127,43 +134,9 @@ class StartupFlowService {
     BuildContext context,
     bool Function() isMounted,
   ) async {
-    final localConfig = LocalConfigService.instance;
-    if (localConfig.password != null) return;
-    if (!isMounted()) return;
-
-    final controller = TextEditingController();
-    try {
-      final result = await showDialog<String>(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          title: const Text('设置本地密码'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(
-              hintText: 'password',
-              labelText: '本地密码',
-            ),
-            obscureText: true,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(''),
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(controller.text),
-              child: const Text('确定'),
-            ),
-          ],
-        ),
-      );
-      if (result != null) {
-        await localConfig.setPassword(result.isEmpty ? null : result);
-      }
-    } finally {
-      controller.dispose();
-    }
+    // 不再在每次启动时强制弹出本地密码设置。
+    // 本地密码改为在相关功能入口中按需由用户手动设置。
+    return;
   }
 
   /// 参考项目：MainActivity.upVersion()
@@ -171,13 +144,14 @@ class StartupFlowService {
     BuildContext context,
     bool Function() isMounted,
   ) async {
-    final localConfig = LocalConfigService.instance;
+    final localConfig = readService(AppServices.localConfigService);
     final packageInfo = await PackageInfo.fromPlatform();
     final currentVersionCode = int.tryParse(packageInfo.buildNumber) ?? 0;
     final savedVersionCode = localConfig.versionCode;
 
     if (currentVersionCode == savedVersionCode) return;
     await localConfig.setVersionCode(currentVersionCode);
+    if (!context.mounted) return;
     if (!isMounted()) return;
 
     if (localConfig.isFirstOpenApp) {
@@ -207,9 +181,10 @@ class StartupFlowService {
     BuildContext context,
     bool Function() isMounted,
   ) async {
-    final localConfig = LocalConfigService.instance;
+    final localConfig = readService(AppServices.localConfigService);
     if (!localConfig.appCrash || kDebugMode) return;
     await localConfig.setAppCrash(false);
+    if (!context.mounted) return;
     if (!isMounted()) return;
     final open = await showDialog<bool>(
       context: context,
@@ -230,6 +205,7 @@ class StartupFlowService {
         ],
       ),
     );
+    if (!context.mounted) return;
     if (open == true && isMounted()) {
       await Navigator.of(context).push(
         MaterialPageRoute(
@@ -247,20 +223,21 @@ class StartupFlowService {
     if (!AppConfig.getAutoCheckNewBackup()) return;
 
     try {
-      final webDavService = WebDavService.instance;
+      final webDavService = readService(AppServices.webDavService);
       await webDavService.loadConfig();
       if (!webDavService.isConfigured) return;
 
       final lastBackupFile = await webDavService.getLastBackup();
       if (lastBackupFile == null) return;
 
-      final localConfig = LocalConfigService.instance;
+      final localConfig = readService(AppServices.localConfigService);
       final lastBackupTime = localConfig.lastBackup;
       final cloudTime = lastBackupFile.lastModified.millisecondsSinceEpoch;
 
       if (cloudTime - lastBackupTime <= 60 * 1000) return;
 
       await localConfig.setLastBackup(cloudTime);
+      if (!context.mounted) return;
       if (!isMounted()) return;
 
       final result = await showDialog<bool>(
@@ -280,6 +257,7 @@ class StartupFlowService {
           ],
         ),
       );
+      if (!context.mounted) return;
       if (result == true && isMounted()) {
         // TODO: 导航到备份恢复页面
       }
@@ -298,17 +276,21 @@ class StartupFlowService {
     if (!isMounted()) return;
 
     try {
-      final allBooks = await BookService.instance.getBookshelfBooks();
+      final bookService = ref.read(bookServiceProvider);
+      final allBooks = await bookService.getBookshelfBooks();
       final booksToUpdate =
           allBooks.where((book) => !book.isLocal && book.canUpdate).toList();
       if (booksToUpdate.isEmpty) return;
 
-      final results = await BookService.instance.updateChapterLists(booksToUpdate);
+      final results = await bookService.updateChapterLists(booksToUpdate);
       final successCount = results.values.where((v) => v == true).length;
       final failCount = results.length - successCount;
       AppLog.instance.put(
         '自动更新书籍目录完成: 成功 $successCount 本，失败 $failCount 本',
       );
+      ref.read(eventBusProvider).fire(
+            const BookCollectionChangedEvent(reason: 'auto_refresh_books'),
+          );
 
       if (isMounted()) {
         WidgetsBinding.instance.addPostFrameCallback((_) {

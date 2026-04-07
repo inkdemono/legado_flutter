@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
@@ -129,7 +130,7 @@ class _ChangeCoverDialogState extends BaseBottomSheetState<ChangeCoverDialog> {
         customCoverUrl: coverUrl,
       );
 
-      await BookService.instance.updateBook(updatedBook);
+      await readService(AppServices.bookService).updateBook(updatedBook);
 
       if (mounted) {
         widget.onCoverChanged?.call(coverUrl ?? '');
@@ -203,7 +204,7 @@ class _ChangeCoverDialogState extends BaseBottomSheetState<ChangeCoverDialog> {
     });
 
     try {
-      final results = await CoverSearchService.instance.searchCover(
+      final results = await readService(AppServices.coverSearchService).searchCover(
         widget.book.name,
         widget.book.author,
       );

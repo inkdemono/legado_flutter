@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:legado_flutter/providers/service_registry.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -699,7 +700,7 @@ class _OtherSettingsPageState extends State<OtherSettingsPage> {
     if (confirmed != true) return;
 
     try {
-      final success = await CacheService.instance.clearAllCache();
+      final success = await readService(AppServices.cacheService).clearAllCache();
       if (success) {
         _showMessage('缓存已清除');
         setState(() {});
@@ -714,7 +715,7 @@ class _OtherSettingsPageState extends State<OtherSettingsPage> {
 
   Future<Map<String, dynamic>> _getCacheInfo() async {
     try {
-      final cacheDir = await CacheService.instance.getCacheDir();
+      final cacheDir = await readService(AppServices.cacheService).getCacheDir();
       if (!await cacheDir.exists()) {
         return {'totalSize': 0, 'fileCount': 0};
       }

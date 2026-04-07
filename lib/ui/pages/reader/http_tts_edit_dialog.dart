@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../../data/models/http_tts.dart';
 import '../../../services/http_tts_service.dart';
 import '../../widgets/base/base_bottom_sheet_stateful.dart';
@@ -274,7 +275,7 @@ class _HttpTtsEditDialogState extends BaseBottomSheetState<HttpTtsEditDialog> {
         enabledCookieJar: _enabledCookieJar,
       );
 
-      final success = await HttpTTSService.instance.saveHttpTTS(httpTTS);
+      final success = await readService(AppServices.httpTTSService).saveHttpTTS(httpTTS);
       if (success && mounted) {
         Navigator.pop(context, httpTTS);
       } else if (mounted) {

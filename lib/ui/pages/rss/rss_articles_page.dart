@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/rss_article.dart';
@@ -13,7 +14,7 @@ import 'rss_read_record_dialog.dart';
 /// RSS文章列表Provider
 final rssArticlesProvider =
     FutureProvider.family<List<RssArticle>, String?>((ref, origin) async {
-  final service = RssService.instance;
+  final service = readService(AppServices.rssService);
   return await service.getRssArticles(origin: origin, limit: 100);
 });
 
@@ -50,7 +51,7 @@ class _RssArticlesPageState extends ConsumerState<RssArticlesPage> {
     }
 
     try {
-      final count = await RssService.instance.refreshRssArticles(widget.source);
+      final count = await readService(AppServices.rssService).refreshRssArticles(widget.source);
       ref.invalidate(rssArticlesProvider(widget.source.sourceUrl));
 
       if (!mounted) return;

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import '../core/base/base_service.dart';
@@ -116,7 +117,7 @@ class DirectLinkUploadService extends BaseService {
       }
 
       // 发送上传请求
-      final response = await NetworkService.instance.post(
+      final response = await readService(AppServices.networkService).post(
         url,
         data: requestBody,
         headers: headers,

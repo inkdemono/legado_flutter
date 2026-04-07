@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../../services/replace_rule_service.dart';
 import '../../widgets/base/base_bottom_sheet_stateful.dart';
 
@@ -34,7 +35,7 @@ class _GroupManageDialogState extends BaseBottomSheetState<GroupManageDialog> {
     });
 
     try {
-      final groups = await ReplaceRuleService.instance.getAllGroups();
+      final groups = await readService(AppServices.replaceRuleService).getAllGroups();
       setState(() {
         _groups = groups;
         _isLoading = false;
@@ -142,7 +143,7 @@ class _GroupManageDialogState extends BaseBottomSheetState<GroupManageDialog> {
 
       try {
         // 更新分组名称
-        await ReplaceRuleService.instance
+        await readService(AppServices.replaceRuleService)
             .updateGroupName(oldGroup, result.trim());
 
         setState(() {
@@ -192,7 +193,7 @@ class _GroupManageDialogState extends BaseBottomSheetState<GroupManageDialog> {
     if (confirmed == true) {
       try {
         // 删除分组（将该分组下所有规则的分组设为null）
-        await ReplaceRuleService.instance.deleteGroup(group);
+        await readService(AppServices.replaceRuleService).deleteGroup(group);
 
         setState(() {
           _groups.remove(group);

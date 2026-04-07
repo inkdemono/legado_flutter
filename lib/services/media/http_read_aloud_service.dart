@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:convert';
 import 'package:just_audio/just_audio.dart';
 import 'base_read_aloud_service.dart';
@@ -26,7 +27,7 @@ class HttpReadAloudService extends BaseReadAloudService {
   /// 设置HTTP TTS配置
   Future<void> setHttpTTS(HttpTTS httpTTS) async {
     _currentHttpTTS = httpTTS;
-    await HttpTTSService.instance.updateLastUpdateTime(httpTTS.id);
+    await readService(AppServices.httpTTSService).updateLastUpdateTime(httpTTS.id);
   }
 
   /// 获取当前HTTP TTS配置
@@ -66,7 +67,7 @@ class HttpReadAloudService extends BaseReadAloudService {
 
     try {
       // 显示朗读通知
-      await NotificationService.instance.showNotification(
+      await readService(AppServices.notificationService).showNotification(
         id: _notificationId,
         title: 'HTTP朗读',
         content: '正在播放...',
@@ -81,7 +82,7 @@ class HttpReadAloudService extends BaseReadAloudService {
       if (_audioUrls.isEmpty) {
         AppLog.instance.put('音频URL列表为空');
         onError?.call('音频URL列表为空');
-        await NotificationService.instance.cancelNotification(_notificationId);
+        await readService(AppServices.notificationService).cancelNotification(_notificationId);
         return;
       }
 
@@ -92,7 +93,7 @@ class HttpReadAloudService extends BaseReadAloudService {
     } catch (e) {
       AppLog.instance.put('开始播放失败', error: e);
       onError?.call(e.toString());
-      await NotificationService.instance.cancelNotification(_notificationId);
+      await readService(AppServices.notificationService).cancelNotification(_notificationId);
     }
   }
 
@@ -103,7 +104,7 @@ class HttpReadAloudService extends BaseReadAloudService {
     _currentAudioIndex = -1;
 
     // 取消朗读通知
-    await NotificationService.instance.cancelNotification(_notificationId);
+    await readService(AppServices.notificationService).cancelNotification(_notificationId);
   }
 
   @override
@@ -111,7 +112,7 @@ class HttpReadAloudService extends BaseReadAloudService {
     await _player.pause();
 
     // 更新通知为暂停状态
-    await NotificationService.instance.showNotification(
+    await readService(AppServices.notificationService).showNotification(
       id: _notificationId,
       title: 'HTTP朗读',
       content: '已暂停',
@@ -126,7 +127,7 @@ class HttpReadAloudService extends BaseReadAloudService {
     await _player.play();
 
     // 更新通知为播放状态
-    await NotificationService.instance.showNotification(
+    await readService(AppServices.notificationService).showNotification(
       id: _notificationId,
       title: 'HTTP朗读',
       content: '正在播放...',
@@ -217,7 +218,7 @@ class HttpReadAloudService extends BaseReadAloudService {
       }
 
       // 发送HTTP请求
-      final response = await NetworkService.instance.post(
+      final response = await readService(AppServices.networkService).post(
         url,
         data: body,
         headers: headers,

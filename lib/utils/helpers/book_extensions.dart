@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import '../../data/models/book.dart';
@@ -124,20 +125,29 @@ extension BookExtensions on Book {
   }
 
   /// 更新类型（从书源类型转换为书籍类型）
+  ///
+  /// 书源类型（bookSourceType）是简单整数枚举 0/1/2/3，
+  /// 书籍类型（Book.type）是位标志（8/32/64/128…），两套体系不同。
+  /// 必须用直接相等比较（==），而非位运算（&），否则 type=3（文件）
+  /// 会因 3&2==2、3&1==1 被误判为图片或音频。
   void upType() {
     if (type < 8) {
-      // 根据书源类型设置书籍类型
-      if (isType(AppStatus.sourceTypeImage)) {
+      // 根据书源类型（简单枚举）直接映射到书籍位标志类型
+      if (type == AppStatus.sourceTypeImage) {
+        // bookSourceType=2 → 图片/漫画
         type = AppStatus.bookTypeImage;
-      } else if (isType(AppStatus.sourceTypeAudio)) {
+      } else if (type == AppStatus.sourceTypeAudio) {
+        // bookSourceType=1 → 音频
         type = AppStatus.bookTypeAudio;
-      } else if (isType(AppStatus.sourceTypeFile)) {
+      } else if (type == AppStatus.sourceTypeFile) {
+        // bookSourceType=3 → Web 文件
         type = AppStatus.bookTypeWebFile;
       } else {
+        // bookSourceType=0（默认）→ 文本
         type = AppStatus.bookTypeText;
       }
 
-      // 如果是本地书籍，添加本地类型标志
+      // 如果是本地书籍，叠加本地类型位标志
       if (origin == BookType.localTag || origin.startsWith(BookType.webDavTag)) {
         type = type | AppStatus.bookTypeLocal;
       }
@@ -176,7 +186,7 @@ extension BookExtensions on Book {
         
         // 如果是本地压缩包，从默认书籍目录获取
         if (parts[0] == 'local_book') {
-          final booksDir = await FileManageService.instance.getBooksDirectory();
+          final booksDir = await readService(AppServices.fileManageService).getBooksDirectory();
           final archiveFile = File('${booksDir.path}/$archivePath');
           if (await archiveFile.exists()) {
             return Uri.file(archiveFile.path);
@@ -240,7 +250,7 @@ extension BookExtensions on Book {
   Future<void> sync(Book oldBook) async {
     try {
       // 从数据库获取当前书籍信息
-      final curBook = await BookService.instance.getBookByUrl(oldBook.bookUrl);
+      final curBook = await readService(AppServices.bookService).getBookByUrl(oldBook.bookUrl);
       if (curBook == null) return;
 
       // 同步阅读进度
@@ -261,7 +271,7 @@ extension BookExtensions on Book {
   /// 参考项目：Book.update
   Future<void> update() async {
     try {
-      await BookService.instance.updateBook(this);
+      await readService(AppServices.bookService).updateBook(this);
     } catch (e) {
       AppLog.instance.put('更新书籍失败: $name', error: e);
     }
@@ -336,7 +346,7 @@ extension BookExtensions on Book {
   /// 获取书源
   /// 参考项目：Book.getBookSource
   Future<BookSource?> getBookSource() async {
-    return await BookSourceService.instance.getBookSourceByUrl(origin);
+    return await readService(AppServices.bookSourceService).getBookSourceByUrl(origin);
   }
 
   /// 是否本地修改

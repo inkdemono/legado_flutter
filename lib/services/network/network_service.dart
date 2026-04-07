@@ -8,10 +8,12 @@ import 'package:cookie_jar/cookie_jar.dart';
 // 使用自定义 SafeCookieManager 替代 dio_cookie_manager
 import 'package:charset_converter/charset_converter.dart';
 import '../../core/base/base_service.dart';
+import '../../core/constants/app_constants.dart';
 import '../../utils/encoding_detect.dart';
 import '../../utils/utf8_bom_utils.dart';
 import '../../utils/network_utils.dart';
 import '../../utils/file_utils.dart';
+import '../../utils/app_log.dart';
 
 /// 安全的 CookieManager 包装器，捕获 Cookie 加载/保存错误
 class SafeCookieManager extends Interceptor {
@@ -101,7 +103,38 @@ class NetworkError {
   String toString() => message;
 }
 
-class NetworkService extends BaseService {
+abstract class INetworkService {
+  Dio get dio;
+
+  Future<Response> get(
+    String url, {
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+    CancelToken? cancelToken,
+    int retryCount = 0,
+    Map<String, String>? headers,
+  });
+
+  Future<Response> post(
+    String url, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+    CancelToken? cancelToken,
+    int retryCount = 0,
+    Map<String, String>? headers,
+  });
+
+  Future<Response> download(
+    String urlPath,
+    String savePath, {
+    ProgressCallback? onReceiveProgress,
+    CancelToken? cancelToken,
+    Map<String, String>? headers,
+  });
+}
+
+class NetworkService extends BaseService implements INetworkService {
   static final NetworkService instance = NetworkService._init();
   late Dio _dio;
   late CookieJar _cookieJar;
@@ -110,49 +143,45 @@ class NetworkService extends BaseService {
 
   @override
   Future<void> onInit() async {
-    return await execute(
-      action: () async {
-        final initStopwatch = Stopwatch()..start();
+    final initStopwatch = Stopwatch()..start();
 
-        if (kIsWeb) {
-          _cookieJar = CookieJar();
-        } else {
-          final appDocPath = await FileUtils.getDocumentsPath();
-          initStopwatch.reset();
+    if (kIsWeb) {
+      _cookieJar = CookieJar();
+    } else {
+      final appDocPath = await FileUtils.getDocumentsPath();
+      initStopwatch.reset();
 
-          final cookiePath = FileUtils.getPath(appDocPath, ['cookies']);
+      final cookiePath = FileUtils.getPath(appDocPath, ['cookies']);
 
-          // 确保 cookies 目录存在
-          bool usePersistentStorage = true;
-          try {
-            final cookieDir = Directory(cookiePath);
-            if (!await cookieDir.exists()) {
-              await cookieDir.create(recursive: true);
-            }
-          } catch (e) {
-            usePersistentStorage = false;
-          }
-
-          if (usePersistentStorage) {
-            try {
-              _cookieJar = PersistCookieJar(
-                storage: FileStorage(cookiePath),
-              );
-            } catch (e) {
-              _cookieJar = CookieJar();
-            }
-          } else {
-            // 如果创建目录失败，回退到内存存储
-            _cookieJar = CookieJar();
-          }
-          initStopwatch.reset();
+      bool usePersistentStorage = true;
+      try {
+        final cookieDir = Directory(cookiePath);
+        if (!await cookieDir.exists()) {
+          await cookieDir.create(recursive: true);
         }
+      } catch (e) {
+        usePersistentStorage = false;
+      }
+
+      if (usePersistentStorage) {
+        try {
+          _cookieJar = PersistCookieJar(
+            storage: FileStorage(cookiePath),
+          );
+        } catch (e) {
+          _cookieJar = CookieJar();
+        }
+      } else {
+        _cookieJar = CookieJar();
+      }
+      initStopwatch.reset();
+    }
 
     _dio = Dio(
       BaseOptions(
-        connectTimeout: const Duration(seconds: 15), // 参考项目使用15秒
-        receiveTimeout: const Duration(seconds: 60), // 参考项目使用60秒
-        sendTimeout: const Duration(seconds: 15), // 参考项目使用15秒
+        connectTimeout: _defaultConnectTimeout,
+        receiveTimeout: _defaultReceiveTimeout,
+        sendTimeout: _defaultConnectTimeout,
         headers: {
           'User-Agent':
               'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -189,29 +218,28 @@ class NetworkService extends BaseService {
     }
     initStopwatch.reset();
 
-        try {
-          // 使用安全的 CookieManager 包装器，捕获 Cookie 加载错误
-          _dio.interceptors.add(SafeCookieManager(_cookieJar));
-        } catch (e) {
-          // Silently continue without cookie persistence if the interceptor fails.
-        }
+    try {
+      _dio.interceptors.add(SafeCookieManager(_cookieJar));
+    } catch (e) {
+      AppLog.instance.put('Cookie 持久化拦截器初始化失败，回退为无持久化模式', error: e);
+    }
 
-        // 错误拦截器
-        _dio.interceptors.add(InterceptorsWrapper(
-          onError: (error, handler) {
-            final networkError = _handleError(error);
-            handler.reject(DioException(
-              requestOptions: error.requestOptions,
-              error: networkError,
-              type: error.type,
-            ));
-          },
+    _dio.interceptors.add(InterceptorsWrapper(
+      onError: (error, handler) {
+        final networkError = _handleError(error);
+        handler.reject(DioException(
+          requestOptions: error.requestOptions,
+          error: networkError,
+          type: error.type,
         ));
       },
-      operationName: '初始化网络服务',
-      logError: true,
-    );
+    ));
   }
+
+  static const Duration _defaultConnectTimeout =
+      Duration(seconds: AppConstants.defaultTimeout);
+  static const Duration _defaultReceiveTimeout =
+      Duration(seconds: AppConstants.defaultTimeout * 2);
 
   /// 处理错误
   NetworkError _handleError(DioException error) {
@@ -266,7 +294,7 @@ class NetworkService extends BaseService {
     Map<String, String>? headers,
   }) async {
     await init();
-    
+
     // 检查网络状态（参考项目：NetworkUtils.isAvailable）
     final isAvailable = await NetworkUtils.isAvailable();
     if (!isAvailable) {
@@ -276,7 +304,7 @@ class NetworkService extends BaseService {
       );
     }
 
-    final requestOptions = options ?? Options();
+    final requestOptions = _buildRequestOptions(options);
     if (headers != null) {
       requestOptions.headers = {
         ...?requestOptions.headers,
@@ -294,14 +322,14 @@ class NetworkService extends BaseService {
     // 禁用 Dio 的缓存
     requestOptions.extra ??= {};
     requestOptions.extra!['noCache'] = true;
-    
+
     // 设置响应类型为字节，以便手动处理编码
     requestOptions.responseType = ResponseType.bytes;
 
     int attempts = 0;
+    final maxAttempts = retryCount.clamp(0, AppConstants.maxRetryCount);
     while (true) {
       try {
-
         final response = await _dio.get(
           url,
           queryParameters: queryParameters,
@@ -315,7 +343,7 @@ class NetworkService extends BaseService {
         return response;
       } on DioException catch (e) {
         attempts++;
-        if (attempts > retryCount) {
+        if (attempts > maxAttempts) {
           throw _handleError(e);
         }
         // 等待后重试
@@ -335,7 +363,7 @@ class NetworkService extends BaseService {
     Map<String, String>? headers,
   }) async {
     await init();
-    
+
     // 检查网络状态（参考项目：NetworkUtils.isAvailable）
     final isAvailable = await NetworkUtils.isAvailable();
     if (!isAvailable) {
@@ -345,18 +373,19 @@ class NetworkService extends BaseService {
       );
     }
 
-    final requestOptions = options ?? Options();
+    final requestOptions = _buildRequestOptions(options);
     if (headers != null) {
       requestOptions.headers = {
         ...?requestOptions.headers,
         ...headers,
       };
     }
-    
+
     // 设置响应类型为字节，以便手动处理编码
     requestOptions.responseType = ResponseType.bytes;
 
     int attempts = 0;
+    final maxAttempts = retryCount.clamp(0, AppConstants.maxRetryCount);
     while (true) {
       try {
         return await _dio.post(
@@ -368,12 +397,20 @@ class NetworkService extends BaseService {
         );
       } on DioException catch (e) {
         attempts++;
-        if (attempts > retryCount) {
+        if (attempts > maxAttempts) {
           throw _handleError(e);
         }
         await Future.delayed(Duration(milliseconds: 500 * attempts));
       }
     }
+  }
+
+  Options _buildRequestOptions(Options? options) {
+    final requestOptions = options?.copyWith() ?? Options();
+    requestOptions.connectTimeout ??= _defaultConnectTimeout;
+    requestOptions.receiveTimeout ??= _defaultReceiveTimeout;
+    requestOptions.sendTimeout ??= _defaultConnectTimeout;
+    return requestOptions;
   }
 
   /// 下载文件
@@ -484,10 +521,10 @@ class NetworkService extends BaseService {
   /// 获取响应文本（自动处理编码）
   static Future<String> getResponseText(Response response) async {
     final data = response.data;
-    
+
     // 获取原始字节数据
     List<int> bytes;
-    
+
     if (data is String) {
       // 如果已经是 String，可能是 Dio 已经解码了
       // 尝试将字符串转换回字节（使用UTF-8），但这可能不准确
@@ -503,12 +540,12 @@ class NetworkService extends BaseService {
     }
 
     bytes = _decompressResponseBytes(bytes, response.headers);
-    
+
     // 参考项目：Utf8BomUtils.removeUTF8BOM(bytes())
     // 移除 UTF-8 BOM 标记
     final bytesList = Uint8List.fromList(bytes);
     final responseBytes = Utf8BomUtils.removeUTF8BOMBytes(bytesList);
-    
+
     // 首先尝试从响应头获取编码
     final contentType = response.headers.value('content-type');
     String? charset;
@@ -635,8 +672,8 @@ class NetworkService extends BaseService {
         // 其他未知编码，尝试使用charset_converter
         try {
           if (!kIsWeb) {
-            final decoded = await CharsetConverter.decode(
-                normalizedCharset, responseBytes);
+            final decoded =
+                await CharsetConverter.decode(normalizedCharset, responseBytes);
             return decoded;
           }
         } catch (e) {
@@ -688,5 +725,4 @@ class NetworkService extends BaseService {
     final flg = bytes[1];
     return cmf == 0x78 && ((cmf << 8) + flg) % 31 == 0;
   }
-
 }

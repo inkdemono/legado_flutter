@@ -167,18 +167,21 @@
         }
 
         .detail-content {
-            background: var(--card-bg);
+            /* 背景用 muted 色，section 的 margin-bottom 间隙就能露出底色实现视觉分隔 */
+            background: var(--bg-color);
             height: calc(100% - 280px - 72px - 80px);
             overflow-y: auto;
         }
 
         .section {
             padding: 16px;
-            border-bottom: 8px solid var(--bg-color);
+            /* 用 margin-bottom 替代 border-bottom 着色隔断，暗色模式下不会漏出亮色分割线 */
+            margin-bottom: 8px;
+            background: var(--card-bg);
         }
 
         .section:last-child {
-            border-bottom: none;
+            margin-bottom: 0;
         }
 
         .section-header {
@@ -251,47 +254,59 @@
 
         .btn-primary {
             flex: 2;
-            height: 44px;
-            background: var(--primary-color);
+            height: 48px;
+            background: linear-gradient(135deg, var(--ds-accent, #1677ff), #4096ff);
             color: white;
             border: none;
-            border-radius: 22px;
+            border-radius: var(--ds-radius-sm, 14px);
             font-size: 16px;
-            font-weight: 500;
+            font-weight: 700;
             cursor: pointer;
+            letter-spacing: -0.01em;
         }
 
         .btn-secondary {
             flex: 1;
-            height: 44px;
+            height: 48px;
             background: transparent;
-            color: var(--primary-color);
-            border: 1px solid var(--primary-color);
-            border-radius: 22px;
+            color: var(--ds-accent, #1677ff);
+            border: 1px solid var(--ds-accent, #1677ff);
+            border-radius: var(--ds-radius-sm, 14px);
             font-size: 14px;
+            font-weight: 600;
             cursor: pointer;
         }
 
-        /* Dark Mode */
-        .phone-frame.dark {
-            --bg-color: #121212;
-            --card-bg: #1e1e1e;
-            --text-primary: #E0E0E0;
-            --text-secondary: #A0A0A0;
-            --text-hint: #4e5969;
-            --divider: #1f2329;
-        }
-
-        .phone-frame.dark .quick-action-icon {
-            background: #2A2A2A;
-        }
-
-        .phone-frame.dark .section {
-            border-bottom-color: #1A1A1A;
-        }
-
+        /* Dark Mode — 由 design_system.css [data-theme="dark"] 统一处理 */
         .phone-frame.dark .detail-overlay {
-            background: linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.8));
+            background: linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.85));
+        }
+
+        [data-theme="dark"] .detail-overlay {
+            background: linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.85));
+        }
+
+        [data-theme="dark"] .chapter-title {
+            color: var(--ds-text-primary, #e6edf3);
+        }
+
+        [data-theme="dark"] .chapter-current {
+            color: var(--ds-accent, #1677ff);
+        }
+
+        [data-theme="dark"] .chapter-item {
+            border-bottom-color: rgba(48, 54, 61, 0.92);
+        }
+
+        [data-theme="dark"] .bottom-actions {
+            background: rgba(22, 27, 34, 0.97);
+            border-top-color: rgba(48, 54, 61, 0.92);
+        }
+
+        [data-theme="dark"] .btn-secondary {
+            border-color: var(--ds-accent, #1677ff);
+            color: var(--ds-accent, #1677ff);
+            background: transparent;
         }
 
         .label {
@@ -433,7 +448,7 @@
 
             <!-- Dark Mode -->
             <div>
-                <div class="phone-frame dark">
+                <div class="phone-frame" data-theme="dark">
                     <div class="detail-header">
                         <div class="detail-bg"></div>
                         <div class="detail-overlay"></div>

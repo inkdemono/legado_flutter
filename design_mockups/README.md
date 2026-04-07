@@ -2,7 +2,7 @@
 
 ## 当前覆盖情况
 
-`design_mockups` 目前已有 67 份设计稿，已经覆盖以下核心模块：
+`design_mockups` 目前已有 76 份设计稿，已经覆盖以下核心模块：
 
 - 主导航：书架、发现、媒体、我的
 - 阅读主链路：书籍详情、阅读页、书签、阅读记录
@@ -11,10 +11,13 @@
 - RSS：文章列表、阅读页、收藏、排序、源管理、导入、分组
 - 媒体：音乐库、音乐播放、视频库、视频播放及若干控制弹层
 - 书架管理：分组管理、批量操作、书籍编辑、换源、换封面、远程书籍
+- **搜索**：全局搜索（热搜/骨架/结果/无结果/进度，68）
+- **书源工作流**：编辑（69）、校验（70）、调试（71）、登录（72）
+- **阅读器辅助**：目录与书签（73）、阅读设置（74）、文内搜索（75）、漫画阅读器（76）
 
 ## 还没有设计的功能界面
 
-按当前 `lib/ui/pages` 的实际页面对照，以下功能界面还没有对应设计稿。这里按“功能组”统计，共 13 组，约 19 个独立页面。
+按当前 `lib/ui/pages` 的实际页面对照，以下功能界面还没有对应设计稿。这里按”功能组”统计，共 7 组，约 10 个独立页面。
 
 ### P0：应优先补齐
 
@@ -23,33 +26,13 @@
    - `lib/ui/pages/welcome/welcome_config_page.dart`
    - 原因：这是应用启动入口，也是品牌感知最强的页面，目前没有视觉规范承接。
 
-2. 全局搜索
-   - `lib/ui/pages/search/search_page.dart`
-   - 原因：搜索是找书主流程，涉及历史记录、搜索范围、实时结果和中断反馈。
-
-3. RSS 订阅主页
+2. RSS 订阅主页
    - `lib/ui/pages/rss/rss_page.dart`
    - 原因：当前只设计了 RSS 子页面，没有订阅首页的源列表、空状态和快捷入口。
 
-4. 书源管理主页面
+3. 书源管理主页面
    - `lib/ui/pages/book_source/book_source_manage_page.dart`
    - 原因：已有 `07_book_source.html` 更像规则能力入口，不足以覆盖批量模式、排序、导入导出和校验流程。
-
-5. 书源编辑与验证流程
-   - `lib/ui/pages/book_source/book_source_edit_page.dart`
-   - `lib/ui/pages/book_source/check_source_page.dart`
-   - `lib/ui/pages/book_source/check_source_config_page.dart`
-   - `lib/ui/pages/book_source/check_source_result_page.dart`
-   - `lib/ui/pages/book_source/source_login_page.dart`
-   - `lib/ui/pages/book_source/book_source_debug_page.dart`
-   - 原因：这是规则用户的高频专业流程，信息密度高，现有稿件没有覆盖复杂表单、调试结果和登录验证。
-
-6. 阅读器辅助页
-   - `lib/ui/pages/reader/chapter_list_page.dart`
-   - `lib/ui/pages/reader/reader_settings_page.dart`
-   - `lib/ui/pages/reader/search_content_page.dart`
-   - `lib/ui/pages/reader/manga_reader_page.dart`
-   - 原因：`03_reader.html` 只覆盖阅读主视图，没有目录、设置、文内搜索和漫画阅读分支。
 
 ### P1：建议第二批补齐
 

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,10 +13,85 @@ import 'txt_toc_rule_edit_dialog.dart';
 import 'txt_toc_rule_feedback.dart';
 import 'txt_toc_rule_import_dialog.dart';
 
-/// TXT目录规则列表Provider
-final txtTocRuleListProvider = FutureProvider<List<TxtTocRule>>((ref) async {
-  return await TxtTocRuleService.instance.getAllRules();
-});
+class TxtTocRuleNotifier extends AsyncNotifier<List<TxtTocRule>> {
+  TxtTocRuleService get _svc => readService(AppServices.txtTocRuleService);
+
+  @override
+  Future<List<TxtTocRule>> build() => _svc.getAllRules();
+
+  Future<void> reload({bool showLoading = false}) async {
+    if (showLoading || !state.hasValue) {
+      state = const AsyncValue.loading();
+    }
+    state = await AsyncValue.guard(_svc.getAllRules);
+  }
+
+  Future<void> addOrUpdate(TxtTocRule rule) async {
+    final current = state.requireValue;
+    final existingIndex = current.indexWhere((item) => item.id == rule.id);
+    if (existingIndex >= 0) {
+      await _svc.updateRule(rule);
+      state = AsyncValue.data(
+        current.map((item) => item.id == rule.id ? rule : item).toList(),
+      );
+      return;
+    }
+
+    await _svc.addRule(rule);
+    state = AsyncValue.data([...current, rule]);
+  }
+
+  Future<void> toggleEnabled(TxtTocRule rule, bool enabled) async {
+    await _svc.updateRule(rule.copyWith(enable: enabled));
+    state = AsyncValue.data(
+      state.requireValue
+          .map((item) =>
+              item.id == rule.id ? item.copyWith(enable: enabled) : item)
+          .toList(),
+    );
+  }
+
+  Future<void> delete(int id) async {
+    await _svc.deleteRule(id);
+    state = AsyncValue.data(
+      state.requireValue.where((item) => item.id != id).toList(),
+    );
+  }
+
+  Future<void> deleteMany(List<int> ids) async {
+    await _svc.deleteRules(ids);
+    final idSet = ids.toSet();
+    state = AsyncValue.data(
+      state.requireValue.where((item) => !idSet.contains(item.id)).toList(),
+    );
+  }
+
+  Future<void> batchSetEnabled(List<int> ids, bool enabled) async {
+    await _svc.batchSetEnabled(ids, enabled);
+    final idSet = ids.toSet();
+    state = AsyncValue.data(
+      state.requireValue
+          .map((item) =>
+              idSet.contains(item.id) ? item.copyWith(enable: enabled) : item)
+          .toList(),
+    );
+  }
+
+  Future<void> reorder(List<TxtTocRule> rules) async {
+    state = AsyncValue.data(rules);
+    try {
+      await _svc.updateOrder(rules);
+    } catch (e) {
+      ref.invalidateSelf();
+      rethrow;
+    }
+  }
+}
+
+final txtTocRuleNotifierProvider =
+    AsyncNotifierProvider<TxtTocRuleNotifier, List<TxtTocRule>>(
+  TxtTocRuleNotifier.new,
+);
 
 /// TXT目录规则管理页面
 class TxtTocRuleManagePage extends ConsumerStatefulWidget {
@@ -40,7 +116,7 @@ class _TxtTocRuleManagePageState extends ConsumerState<TxtTocRuleManagePage> {
 
   @override
   Widget build(BuildContext context) {
-    final rulesAsync = ref.watch(txtTocRuleListProvider);
+    final rulesAsync = ref.watch(txtTocRuleNotifierProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -264,7 +340,9 @@ class _TxtTocRuleManagePageState extends ConsumerState<TxtTocRuleManagePage> {
 
                 return RefreshIndicator(
                   onRefresh: () async {
-                    ref.invalidate(txtTocRuleListProvider);
+                    await ref
+                        .read(txtTocRuleNotifierProvider.notifier)
+                        .reload();
                   },
                   child: _isBatchMode
                       ? ListView.builder(
@@ -356,7 +434,9 @@ class _TxtTocRuleManagePageState extends ConsumerState<TxtTocRuleManagePage> {
                       const SizedBox(height: 16),
                       FilledButton.tonal(
                         onPressed: () {
-                          ref.invalidate(txtTocRuleListProvider);
+                          ref
+                              .read(txtTocRuleNotifierProvider.notifier)
+                              .reload(showLoading: true);
                         },
                         child: const Text('重试'),
                       ),
@@ -436,8 +516,7 @@ class _TxtTocRuleManagePageState extends ConsumerState<TxtTocRuleManagePage> {
       context: context,
       builder: (context) => TxtTocRuleEditDialog(
         onSave: (rule) async {
-          await TxtTocRuleService.instance.addRule(rule);
-          ref.invalidate(txtTocRuleListProvider);
+          await ref.read(txtTocRuleNotifierProvider.notifier).addOrUpdate(rule);
         },
       ),
     );
@@ -449,8 +528,9 @@ class _TxtTocRuleManagePageState extends ConsumerState<TxtTocRuleManagePage> {
       builder: (context) => TxtTocRuleEditDialog(
         rule: rule,
         onSave: (updatedRule) async {
-          await TxtTocRuleService.instance.updateRule(updatedRule);
-          ref.invalidate(txtTocRuleListProvider);
+          await ref
+              .read(txtTocRuleNotifierProvider.notifier)
+              .addOrUpdate(updatedRule);
         },
       ),
     );
@@ -458,9 +538,9 @@ class _TxtTocRuleManagePageState extends ConsumerState<TxtTocRuleManagePage> {
 
   void _toggleEnabled(TxtTocRule rule, bool enabled) async {
     try {
-      await TxtTocRuleService.instance
-          .updateRule(rule.copyWith(enable: enabled));
-      ref.invalidate(txtTocRuleListProvider);
+      await ref
+          .read(txtTocRuleNotifierProvider.notifier)
+          .toggleEnabled(rule, enabled);
     } catch (e) {
       _showMessage('操作失败: $e');
     }
@@ -677,8 +757,9 @@ class _TxtTocRuleManagePageState extends ConsumerState<TxtTocRuleManagePage> {
             });
 
             try {
-              await TxtTocRuleService.instance.deleteRule(rule.id);
-              ref.invalidate(txtTocRuleListProvider);
+              await ref
+                  .read(txtTocRuleNotifierProvider.notifier)
+                  .delete(rule.id);
               if (!mounted) return;
               navigator.pop();
               _showMessage('已删除', type: TxtTocRuleFeedbackType.success);
@@ -823,15 +904,13 @@ class _TxtTocRuleManagePageState extends ConsumerState<TxtTocRuleManagePage> {
     final selectedCount = _selectedIds.length;
 
     try {
-      await TxtTocRuleService.instance.batchSetEnabled(
-        _selectedIds.toList(),
-        enabled,
-      );
+      await ref
+          .read(txtTocRuleNotifierProvider.notifier)
+          .batchSetEnabled(_selectedIds.toList(), enabled);
       setState(() {
         _selectedIds.clear();
         _isBatchMode = false;
       });
-      ref.invalidate(txtTocRuleListProvider);
       _showMessage('已${enabled ? '启用' : '禁用'} $selectedCount 项',
           type: TxtTocRuleFeedbackType.success);
     } catch (e) {
@@ -855,13 +934,13 @@ class _TxtTocRuleManagePageState extends ConsumerState<TxtTocRuleManagePage> {
             });
 
             try {
-              await TxtTocRuleService.instance
-                  .deleteRules(_selectedIds.toList());
+              await ref
+                  .read(txtTocRuleNotifierProvider.notifier)
+                  .deleteMany(_selectedIds.toList());
               setState(() {
                 _selectedIds.clear();
                 _isBatchMode = false;
               });
-              ref.invalidate(txtTocRuleListProvider);
               if (!mounted) return;
               navigator.pop();
               _showMessage('已删除', type: TxtTocRuleFeedbackType.success);
@@ -1010,8 +1089,9 @@ class _TxtTocRuleManagePageState extends ConsumerState<TxtTocRuleManagePage> {
     reorderedRules.insert(newIndex, rule);
 
     try {
-      await TxtTocRuleService.instance.updateOrder(reorderedRules);
-      ref.invalidate(txtTocRuleListProvider);
+      await ref
+          .read(txtTocRuleNotifierProvider.notifier)
+          .reorder(reorderedRules);
     } catch (e) {
       _showMessage('排序失败: $e', type: TxtTocRuleFeedbackType.error);
     }
@@ -1060,7 +1140,8 @@ class _TxtTocRuleManagePageState extends ConsumerState<TxtTocRuleManagePage> {
               });
 
               try {
-                final response = await NetworkService.instance.get(
+                final response =
+                    await readService(AppServices.networkService).get(
                   content,
                   retryCount: 1,
                 );
@@ -1235,8 +1316,9 @@ class _TxtTocRuleManagePageState extends ConsumerState<TxtTocRuleManagePage> {
             });
 
             try {
-              await TxtTocRuleService.instance.importDefaultRules();
-              ref.invalidate(txtTocRuleListProvider);
+              await readService(AppServices.txtTocRuleService)
+                  .importDefaultRules();
+              await ref.read(txtTocRuleNotifierProvider.notifier).reload();
               if (!mounted) return;
               navigator.pop();
               _showMessage('导入成功', type: TxtTocRuleFeedbackType.success);
@@ -1365,7 +1447,8 @@ class _TxtTocRuleManagePageState extends ConsumerState<TxtTocRuleManagePage> {
 
   Future<void> _exportRules() async {
     try {
-      final rules = await TxtTocRuleService.instance.getAllRules();
+      final rules =
+          await readService(AppServices.txtTocRuleService).getAllRules();
 
       if (rules.isEmpty) {
         _showMessage('没有可导出的规则', type: TxtTocRuleFeedbackType.warning);
@@ -1397,7 +1480,7 @@ class _TxtTocRuleManagePageState extends ConsumerState<TxtTocRuleManagePage> {
       builder: (context) => TxtTocRuleImportDialog(
         content: content,
         onImportComplete: () {
-          ref.invalidate(txtTocRuleListProvider);
+          ref.read(txtTocRuleNotifierProvider.notifier).reload();
         },
       ),
     );

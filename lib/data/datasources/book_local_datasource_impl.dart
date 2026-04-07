@@ -1,4 +1,5 @@
 import '../models/book.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../models/book_chapter.dart';
 import '../../services/book/book_service.dart';
 import '../../services/reader/cache_service.dart';
@@ -8,14 +9,14 @@ import 'book_local_datasource.dart';
 /// BookLocalDataSource 的实现类
 /// 封装现有的 BookService 和 CacheService,使其符合 DataSource 接口
 class BookLocalDataSourceImpl implements BookLocalDataSource {
-  final BookService _bookService;
+  final IBookService _bookService;
   final CacheService _cacheService;
 
   BookLocalDataSourceImpl({
-    BookService? bookService,
+    IBookService? bookService,
     CacheService? cacheService,
-  })  : _bookService = bookService ?? BookService.instance,
-        _cacheService = cacheService ?? CacheService.instance;
+  })  : _bookService = bookService ?? readService(AppServices.bookService),
+        _cacheService = cacheService ?? readService(AppServices.cacheService);
 
   @override
   Future<Book?> getBookByUrl(String bookUrl) async {

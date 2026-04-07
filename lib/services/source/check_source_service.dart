@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../core/base/base_service.dart';
 import '../../data/models/book_source.dart';
 import '../../data/models/book.dart';
@@ -183,9 +184,11 @@ class CheckSourceConfig {
 /// 参考项目：io.legado.app.model.CheckSource 和 CheckSourceService
 class CheckSourceService extends BaseService {
   static final CheckSourceService instance = CheckSourceService._init();
-  final BookService _bookService = BookService.instance;
-  final NetworkService _networkService = NetworkService.instance;
-  final ExploreService _exploreService = ExploreService.instance;
+  final IBookService _bookService = readService(AppServices.bookService);
+  final INetworkService _networkService =
+      readService(AppServices.networkService);
+  final ExploreService _exploreService =
+      readService(AppServices.exploreService);
 
   static const int notificationId = 100; // 参考项目：NotificationId.CheckSource
 
@@ -238,7 +241,8 @@ class CheckSourceService extends BaseService {
 
     // 显示通知（如果启用）
     if (showNotification) {
-      await NotificationService.instance.showProgressNotification(
+      await readService(AppServices.notificationService)
+          .showProgressNotification(
         id: notificationId,
         title: '校验书源',
         content: '正在校验 ${sources.length} 个书源',
@@ -273,7 +277,8 @@ class CheckSourceService extends BaseService {
         if (showNotification) {
           final progress = (i + 1) / _sources.length;
           final successCount = _results.where((r) => r.success).length;
-          await NotificationService.instance.showProgressNotification(
+          await readService(AppServices.notificationService)
+              .showProgressNotification(
             id: notificationId,
             title: '校验书源',
             content: '已校验: $successCount/${i + 1} 成功',
@@ -291,7 +296,7 @@ class CheckSourceService extends BaseService {
 
       // 完成通知
       if (showNotification) {
-        await NotificationService.instance.showNotification(
+        await readService(AppServices.notificationService).showNotification(
           id: notificationId,
           title: '校验完成',
           content: '$successCount/${_sources.length} 个书源校验成功',
@@ -304,7 +309,7 @@ class CheckSourceService extends BaseService {
     } catch (e) {
       // 错误通知
       if (showNotification) {
-        await NotificationService.instance.showNotification(
+        await readService(AppServices.notificationService).showNotification(
           id: notificationId,
           title: '校验失败',
           content: '批量校验失败: ${e.toString()}',

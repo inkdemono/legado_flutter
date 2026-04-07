@@ -13,13 +13,12 @@ import 'reading_position_manager.dart';
 /// 3. 字符偏移量的阅读位置保持
 /// 4. 后台预读相邻章节
 /// 5. 配置变化时自动重新分页
-class ReaderController extends ChangeNotifier {
+class ReaderController extends ValueNotifier<PaginationState> {
   /// 当前章节URL
   String? _currentChapterUrl;
 
   /// 分页状态
-  PaginationState _state = const PaginationState();
-  PaginationState get state => _state;
+  PaginationState get state => value;
 
   /// 阅读配置
   ReadingConfig _config;
@@ -41,7 +40,8 @@ class ReaderController extends ChangeNotifier {
     required ReadingConfig config,
     this.enableCache = true,
     this.enablePreload = true,
-  }) : _config = config;
+  })  : _config = config,
+        super(const PaginationState());
 
   /// 加载章节并分页
   ///
@@ -59,12 +59,11 @@ class ReaderController extends ChangeNotifier {
     _charOffset = charOffset;
 
     // 设置加载状态
-    _state = _state.copyWith(
+    value = state.copyWith(
       content: content,
       isPaginating: true,
       error: null,
     );
-    notifyListeners();
 
     try {
       // 尝试从缓存获取
@@ -111,20 +110,18 @@ class ReaderController extends ChangeNotifier {
       );
 
       // 更新状态
-      _state = _state.copyWith(
+      value = state.copyWith(
         pages: pages,
         currentPage: currentPage,
         isPaginating: false,
       );
-      notifyListeners();
 
       debugPrint('章节加载完成: $chapterUrl, 总页数=${pages.length}, 当前页=$currentPage');
     } catch (e) {
-      _state = _state.copyWith(
+      value = state.copyWith(
         isPaginating: false,
         error: '分页失败: $e',
       );
-      notifyListeners();
       debugPrint('分页错误: $e');
     }
   }
@@ -143,13 +140,12 @@ class ReaderController extends ChangeNotifier {
 
   /// 跳转到指定页
   void goToPage(int pageIndex) {
-    if (pageIndex < 0 || pageIndex >= _state.totalPages) {
+    if (pageIndex < 0 || pageIndex >= state.totalPages) {
       debugPrint('无效的页码: $pageIndex');
       return;
     }
 
-    _state = _state.copyWith(currentPage: pageIndex);
-    notifyListeners();
+    value = state.copyWith(currentPage: pageIndex);
 
     // 保存阅读位置
     _saveCurrentPosition();
@@ -157,23 +153,23 @@ class ReaderController extends ChangeNotifier {
 
   /// 下一页
   void nextPage() {
-    if (_state.currentPage < _state.totalPages - 1) {
-      goToPage(_state.currentPage + 1);
+    if (state.currentPage < state.totalPages - 1) {
+      goToPage(state.currentPage + 1);
     }
   }
 
   /// 上一页
   void previousPage() {
-    if (_state.currentPage > 0) {
-      goToPage(_state.currentPage - 1);
+    if (state.currentPage > 0) {
+      goToPage(state.currentPage - 1);
     }
   }
 
   /// 是否可以翻到下一页
-  bool get canGoNext => _state.currentPage < _state.totalPages - 1;
+  bool get canGoNext => state.currentPage < state.totalPages - 1;
 
   /// 是否可以翻到上一页
-  bool get canGoPrevious => _state.currentPage > 0;
+  bool get canGoPrevious => state.currentPage > 0;
 
   /// 更新阅读配置
   ///
@@ -195,18 +191,18 @@ class ReaderController extends ChangeNotifier {
 
     if (needRepaginate &&
         _currentChapterUrl != null &&
-        _state.content.isNotEmpty) {
+        state.content.isNotEmpty) {
       debugPrint('配置变化，重新分页');
 
       // 记录当前字符偏移量
-      if (_state.pages.isNotEmpty && _state.currentPage < _state.pages.length) {
-        _charOffset = _state.pages[_state.currentPage].start;
+      if (state.pages.isNotEmpty && state.currentPage < state.pages.length) {
+        _charOffset = state.pages[state.currentPage].start;
       }
 
       // 重新加载章节(会自动恢复位置)
       await loadChapter(
         chapterUrl: _currentChapterUrl!,
-        content: _state.content,
+        content: state.content,
         charOffset: _charOffset,
       );
     } else {
@@ -216,13 +212,13 @@ class ReaderController extends ChangeNotifier {
 
   /// 保存当前阅读位置
   Future<void> _saveCurrentPosition() async {
-    if (_currentChapterUrl == null || _state.pages.isEmpty) return;
-    if (_state.currentPage < 0 || _state.currentPage >= _state.pages.length) {
+    if (_currentChapterUrl == null || state.pages.isEmpty) return;
+    if (state.currentPage < 0 || state.currentPage >= state.pages.length) {
       return;
     }
 
     // 更新字符偏移量
-    _charOffset = _state.pages[_state.currentPage].start;
+    _charOffset = state.pages[state.currentPage].start;
 
     // 这里可以保存到数据库
     debugPrint('阅读位置: $_currentChapterUrl, 字符偏移=$_charOffset');
@@ -230,21 +226,21 @@ class ReaderController extends ChangeNotifier {
 
   /// 获取当前页内容
   String? getCurrentPageContent() {
-    if (_state.pages.isEmpty || _state.currentPage >= _state.pages.length) {
+    if (state.pages.isEmpty || state.currentPage >= state.pages.length) {
       return null;
     }
 
-    return _state.pages[_state.currentPage].getContent(_state.content);
+    return state.pages[state.currentPage].getContent(state.content);
   }
 
   /// 获取阅读进度(0.0-1.0)
   double get progress {
-    if (_state.content.isEmpty) return 0.0;
+    if (state.content.isEmpty) return 0.0;
 
     return ReadingPositionManager.getProgress(
-      currentPage: _state.currentPage,
-      pages: _state.pages,
-      totalChars: _state.content.length,
+      currentPage: state.currentPage,
+      pages: state.pages,
+      totalChars: state.content.length,
     );
   }
 
@@ -252,8 +248,8 @@ class ReaderController extends ChangeNotifier {
   void seekToProgress(double progress) {
     final pageIndex = ReadingPositionManager.getPageByProgress(
       progress: progress.clamp(0.0, 1.0),
-      pages: _state.pages,
-      totalChars: _state.content.length,
+      pages: state.pages,
+      totalChars: state.content.length,
     );
 
     goToPage(pageIndex);

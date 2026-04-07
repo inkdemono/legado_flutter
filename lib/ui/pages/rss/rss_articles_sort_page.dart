@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/rss_source.dart';
 import '../../../data/models/rss_article.dart';
@@ -133,7 +134,7 @@ class _RssArticlesSortPageState extends ConsumerState<RssArticlesSortPage>
         final articlesAsync = ref.watch(
           FutureProvider.family<List<RssArticle>, Map<String, String>>(
             (ref, params) async {
-              return await RssParserService.instance.getArticles(
+              return await readService(AppServices.rssParserService).getArticles(
                 source: widget.source,
                 sortName: params['sortName'] ?? '',
                 sortUrl: params['sortUrl'],
@@ -186,7 +187,7 @@ class _RssArticlesSortPageState extends ConsumerState<RssArticlesSortPage>
                         FutureProvider.family<List<RssArticle>,
                             Map<String, String>>(
                           (ref, params) async {
-                            return await RssParserService.instance.getArticles(
+                            return await readService(AppServices.rssParserService).getArticles(
                               source: widget.source,
                               sortName: params['sortName'] ?? '',
                               sortUrl: params['sortUrl'],
@@ -215,7 +216,7 @@ class _RssArticlesSortPageState extends ConsumerState<RssArticlesSortPage>
                       FutureProvider.family<List<RssArticle>,
                           Map<String, String>>(
                         (ref, params) async {
-                          return await RssParserService.instance.getArticles(
+                          return await readService(AppServices.rssParserService).getArticles(
                             source: widget.source,
                             sortName: params['sortName'] ?? '',
                             sortUrl: params['sortUrl'],

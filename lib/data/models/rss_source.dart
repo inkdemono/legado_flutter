@@ -1,8 +1,10 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:equatable/equatable.dart';
 
 /// RSS源数据模型
 @JsonSerializable()
-class RssSource {
+// ignore: must_be_immutable
+class RssSource with EquatableMixin {
   /// 源URL（主键）
   @JsonKey(name: 'sourceUrl')
   final String sourceUrl;
@@ -350,4 +352,11 @@ class RssSource {
     }
     return '$sourceName ($sourceGroup)';
   }
+
+  @override
+  List<Object?> get props => [sourceUrl];
+
+  @override
+  String toString() =>
+      'RssSource(name: $sourceName, url: $sourceUrl, enabled: $enabled)';
 }

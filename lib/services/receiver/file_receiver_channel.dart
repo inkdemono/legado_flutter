@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/services.dart';
 import 'package:archive/archive.dart';
 import 'package:path/path.dart' as path;
@@ -171,7 +172,7 @@ class FileReceiverChannel {
       }
 
       if (file != null) {
-        final book = await LocalBookService.instance.importBook(file.path);
+        final book = await readService(AppServices.localBookService).importBook(file.path);
         if (book != null) {
           AppLog.instance.put('导入书籍成功: ${book.name}');
         }
@@ -275,7 +276,7 @@ class FileReceiverChannel {
           final extractFile = File(extractPath);
           await extractFile.writeAsBytes(content);
 
-          final book = await LocalBookService.instance.importBook(extractPath);
+          final book = await readService(AppServices.localBookService).importBook(extractPath);
           if (book != null) {
             successCount++;
             AppLog.instance.put('从压缩包导入书籍成功: ${book.name}');

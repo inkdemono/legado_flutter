@@ -10,6 +10,7 @@
 library;
 
 import 'dart:async';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/foundation.dart';
 import '../../utils/app_log.dart';
 import '../../services/network/network_service.dart';
@@ -108,7 +109,7 @@ class BackstageWebView {
       );
     }
 
-    final response = await NetworkService.instance.get(
+    final response = await readService(AppServices.networkService).get(
       url!,
       headers: headerMap,
     );
@@ -147,7 +148,7 @@ class BackstageWebView {
       }
     } else if (url != null && url!.isNotEmpty) {
       // 通过 HTTP 请求获取原始内容
-      final response = await NetworkService.instance.get(
+      final response = await readService(AppServices.networkService).get(
         url!,
         headers: headerMap,
       );

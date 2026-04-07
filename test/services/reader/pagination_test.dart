@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:legado_flutter/services/reader/paginator.dart';
 import 'package:legado_flutter/services/reader/models/page_range.dart';
+import 'package:legado_flutter/services/reader/reader_controller.dart';
 import 'package:legado_flutter/services/reader/reading_position_manager.dart';
 
 void main() {
@@ -325,6 +326,48 @@ void main() {
 
       expect(page1, page2);
       expect(page1 == page3, false);
+    });
+  });
+
+  group('ReaderController Tests', () {
+    late ReaderController controller;
+
+    setUp(() {
+      controller = ReaderController(
+        config: const ReadingConfig(
+          maxWidth: 360,
+          maxHeight: 640,
+          fontSize: 18,
+        ),
+      );
+    });
+
+    test('使用 ValueNotifier 承载分页状态', () {
+      expect(controller, isA<ValueNotifier<PaginationState>>());
+      expect(controller.state.pages, isEmpty);
+      expect(controller.state.currentPage, 0);
+    });
+
+    test('loadChapter 后应更新分页结果并触发监听', () async {
+      final content = '这是一个用于 ReaderController 的测试章节。' * 120;
+      var notifyCount = 0;
+      controller.addListener(() {
+        notifyCount++;
+      });
+
+      await controller.loadChapter(
+        chapterUrl: 'chapter://reader-test',
+        content: content,
+      );
+
+      expect(notifyCount, greaterThanOrEqualTo(1));
+      expect(controller.state.isPaginating, isFalse);
+      expect(controller.state.pages, isNotEmpty);
+      expect(controller.getCurrentPageContent(), isNotEmpty);
+
+      final targetPage = controller.state.pages.length > 1 ? 1 : 0;
+      controller.goToPage(targetPage);
+      expect(controller.state.currentPage, targetPage);
     });
   });
 }

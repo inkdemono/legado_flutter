@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../services/update/app_update.dart';
 import '../../services/download_service.dart';
@@ -102,7 +103,7 @@ class UpdateDialog extends StatelessWidget {
       Navigator.of(context).pop(); // 关闭对话框
 
       // 使用DownloadService下载更新包
-      final taskId = await DownloadService.instance.startDownload(
+      final taskId = await readService(AppServices.downloadService).startDownload(
         updateInfo.downloadUrl,
         fileName: updateInfo.fileName,
       );

@@ -177,10 +177,32 @@
             padding-bottom: 34px;
         }
 
-        .quick-tools {
+        /* ── 工具栏分区 ──
+           第一行：操作类（目录 / 书签 / 朗读 / 自动翻页）
+           第二行：显示设置类（亮度 / 字体 / 主题 / 夜间 / 更多）
+        */
+        .action-tools,
+        .display-tools {
             display: flex;
             justify-content: space-around;
-            margin-bottom: 20px;
+        }
+
+        .action-tools {
+            margin-bottom: 16px;
+        }
+
+        .display-tools {
+            padding-top: 16px;
+            border-top: 1px solid var(--ds-line, #e5e6eb);
+        }
+
+        /* 兼容旧 quick-tools / bottom-tools 类名（不修改 HTML 结构时仍可用） */
+        .quick-tools  { display: flex; justify-content: space-around; margin-bottom: 16px; }
+        .bottom-tools {
+            display: flex;
+            justify-content: space-around;
+            padding-top: 16px;
+            border-top: 1px solid var(--ds-line, #e5e6eb);
         }
 
         .tool-item {
@@ -194,8 +216,8 @@
         .tool-icon {
             width: 44px;
             height: 44px;
-            background: #f7f8fa;
-            border-radius: 12px;
+            background: var(--ds-surface-muted, #f7f8fa);
+            border-radius: var(--ds-radius-sm, 14px);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -204,7 +226,7 @@
 
         .tool-label {
             font-size: 11px;
-            color: var(--text-secondary);
+            color: var(--ds-text-secondary, #4e5969);
         }
 
         .progress-section {
@@ -222,7 +244,7 @@
         .progress-slider {
             width: 100%;
             height: 4px;
-            background: #E0E0E0;
+            background: var(--ds-line, #E0E0E0);
             border-radius: 2px;
             position: relative;
         }
@@ -284,7 +306,7 @@
         .settings-handle {
             width: 40px;
             height: 4px;
-            background: #DDD;
+            background: var(--ds-line, #DDD);
             border-radius: 2px;
             margin: 0 auto 20px;
         }
@@ -308,13 +330,15 @@
         }
 
         .setting-btn {
-            width: 32px;
-            height: 32px;
-            border: 1px solid var(--divider);
-            background: white;
-            border-radius: 8px;
+            width: 36px;
+            height: 36px;
+            border: 1px solid var(--ds-line, #e5e6eb);
+            background: var(--ds-surface-muted, #f7f8fa);
+            border-radius: var(--ds-radius-sm, 14px);
             font-size: 18px;
+            font-weight: 600;
             cursor: pointer;
+            color: var(--ds-text-primary, #1f2329);
         }
 
         .setting-value {
@@ -326,20 +350,34 @@
 
         .theme-selector {
             display: flex;
-            gap: 12px;
+            gap: 10px;
             margin-top: 8px;
+            flex-wrap: wrap;
         }
 
         .theme-option {
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
+            /* 最小 44×44 满足触控热区规范 */
+            width: 44px;
+            height: 44px;
+            border-radius: var(--ds-radius-sm, 14px);
             cursor: pointer;
             border: 2px solid transparent;
+            position: relative;
         }
 
         .theme-option.active {
-            border-color: var(--primary-color);
+            border-color: var(--ds-accent, #1677ff);
+            box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.25);
+        }
+
+        .theme-option.active::after {
+            content: "✓";
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--ds-accent, #1677ff);
         }
 
         .theme-parchment-option { background: #F5E6C8; }
@@ -347,25 +385,7 @@
         .theme-dark-option { background: #1A1A1A; }
         .theme-white-option { background: #ffffff; border: 1px solid #E0E0E0; }
 
-        /* Dark menu */
-        .phone-frame.dark .menu-top,
-        .phone-frame.dark .menu-bottom,
-        .phone-frame.dark .settings-panel {
-            --card-bg: #1e1e1e;
-            --text-primary: #E0E0E0;
-            --text-secondary: #A0A0A0;
-            --text-hint: #4e5969;
-            background: #1e1e1e;
-        }
-
-        .phone-frame.dark .tool-icon,
-        .phone-frame.dark .setting-btn {
-            background: #2A2A2A;
-        }
-
-        .phone-frame.dark .progress-slider {
-            background: #333;
-        }
+        /* Dark Mode — 由 design_system.css [data-theme="dark"] 统一处理 */
 
         .label {
             text-align: center;
@@ -488,24 +508,26 @@
                             </div>
                             <div class="menu-middle"></div>
                             <div class="menu-bottom">
+                                <!-- 行一：操作类工具 -->
                                 <div class="quick-tools">
                                     <div class="tool-item">
-                                        <div class="tool-icon">☀️</div>
-                                        <span class="tool-label">亮度</span>
+                                        <div class="tool-icon">📚</div>
+                                        <span class="tool-label">目录</span>
                                     </div>
                                     <div class="tool-item">
-                                        <div class="tool-icon">🔤</div>
-                                        <span class="tool-label">字体</span>
+                                        <div class="tool-icon">🔖</div>
+                                        <span class="tool-label">书签</span>
                                     </div>
                                     <div class="tool-item">
-                                        <div class="tool-icon">📖</div>
-                                        <span class="tool-label">背景</span>
+                                        <div class="tool-icon">🔊</div>
+                                        <span class="tool-label">朗读</span>
                                     </div>
                                     <div class="tool-item">
-                                        <div class="tool-icon">⚙️</div>
-                                        <span class="tool-label">更多</span>
+                                        <div class="tool-icon">⏱️</div>
+                                        <span class="tool-label">自动翻页</span>
                                     </div>
                                 </div>
+                                <!-- 进度条 -->
                                 <div class="progress-section">
                                     <div class="progress-info">
                                         <span>第1章 陨落的天才</span>
@@ -516,26 +538,27 @@
                                         <div class="progress-thumb"></div>
                                     </div>
                                 </div>
+                                <!-- 行二：显示设置类（用分割线与操作行区分） -->
                                 <div class="bottom-tools">
-                                    <div class="bottom-tool">
-                                        <span class="bottom-tool-icon">📚</span>
-                                        <span class="bottom-tool-label">目录</span>
+                                    <div class="tool-item">
+                                        <div class="tool-icon">☀️</div>
+                                        <span class="tool-label">亮度</span>
                                     </div>
-                                    <div class="bottom-tool">
-                                        <span class="bottom-tool-icon">📍</span>
-                                        <span class="bottom-tool-label">进度</span>
+                                    <div class="tool-item">
+                                        <div class="tool-icon">🔤</div>
+                                        <span class="tool-label">字体</span>
                                     </div>
-                                    <div class="bottom-tool">
-                                        <span class="bottom-tool-icon">🌙</span>
-                                        <span class="bottom-tool-label">夜间</span>
+                                    <div class="tool-item">
+                                        <div class="tool-icon">🎨</div>
+                                        <span class="tool-label">主题</span>
                                     </div>
-                                    <div class="bottom-tool">
-                                        <span class="bottom-tool-icon">🔊</span>
-                                        <span class="bottom-tool-label">朗读</span>
+                                    <div class="tool-item">
+                                        <div class="tool-icon">🌙</div>
+                                        <span class="tool-label">夜间</span>
                                     </div>
-                                    <div class="bottom-tool">
-                                        <span class="bottom-tool-icon">⏱️</span>
-                                        <span class="bottom-tool-label">自动</span>
+                                    <div class="tool-item">
+                                        <div class="tool-icon">⚙️</div>
+                                        <span class="tool-label">更多</span>
                                     </div>
                                 </div>
                             </div>
@@ -545,10 +568,10 @@
                 <p class="label">菜单展开状态</p>
             </div>
 
-            <!-- Settings Panel -->
+            <!-- Settings Panel (dark) -->
             <div>
-                <div class="phone-frame">
-                    <div class="reader-page theme-parchment" style="opacity: 0.3;">
+                <div class="phone-frame" data-theme="dark">
+                    <div class="reader-page theme-dark" style="opacity: 0.4;">
                         <div class="reader-content">
                             <div class="chapter-title">第一章 陨落的天才</div>
                             <div class="paragraph">"斗之力，三段！"</div>
@@ -597,7 +620,7 @@
                         </div>
                     </div>
                 </div>
-                <p class="label">设置面板</p>
+                <p class="label">设置面板（夜间）</p>
             </div>
         </div>
     </div>

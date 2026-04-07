@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:permission_handler/permission_handler.dart';
 import '../../utils/app_log.dart';
 import '../exceptions/app_exceptions.dart' show ServiceException;
@@ -8,36 +10,43 @@ import '../exceptions/app_exceptions.dart' show ServiceException;
 abstract class BaseService {
   bool _isInitialized = false;
   bool _isDisposed = false;
-  bool _isInitializing = false; // 防止递归初始化
+  Completer<void>? _initCompleter;
 
   /// 初始化服务
   /// 子类应该重写此方法来实现具体的初始化逻辑
-  Future<void> init() async {
+  Future<void> init() {
     if (_isInitialized) {
-      return;
+      return Future<void>.value();
     }
 
-    // 如果正在初始化，等待完成（防止递归调用）
-    if (_isInitializing) {
-      // 等待初始化完成，最多等待5秒
-      var waitCount = 0;
-      while (_isInitializing && waitCount < 50) {
-        await Future.delayed(const Duration(milliseconds: 100));
-        waitCount++;
+    final currentInit = _initCompleter;
+    if (currentInit != null) {
+      return currentInit.future;
+    }
+
+    final completer = Completer<void>();
+    _initCompleter = completer;
+    () async {
+      try {
+        await onInit();
+        _isInitialized = true;
+        _isDisposed = false;
+        completer.complete();
+      } catch (e, stackTrace) {
+        AppLog.instance.put('服务初始化失败: $runtimeType', error: e);
+        _initCompleter = null;
+        completer.completeError(
+          ServiceException(
+            '服务初始化失败: $runtimeType',
+            originalError: e,
+            stackTrace: stackTrace,
+          ),
+          stackTrace,
+        );
       }
-      return;
-    }
+    }();
 
-    _isInitializing = true;
-    try {
-      await onInit();
-      _isInitialized = true;
-    } catch (e) {
-      AppLog.instance.put('服务初始化失败: $runtimeType', error: e);
-      throw ServiceException('服务初始化失败: $runtimeType', originalError: e);
-    } finally {
-      _isInitializing = false;
-    }
+    return completer.future;
   }
 
   /// 子类实现具体的初始化逻辑
@@ -54,6 +63,7 @@ abstract class BaseService {
       await onDispose();
       _isDisposed = true;
       _isInitialized = false;
+      _initCompleter = null;
     } catch (e) {
       AppLog.instance.put('服务销毁失败: $runtimeType', error: e);
     }
@@ -83,18 +93,13 @@ abstract class BaseService {
     T? defaultValue,
   }) async {
     try {
-      // 如果正在初始化，等待初始化完成（防止在 onInit 中调用 execute 导致递归）
-      if (_isInitializing) {
-        var waitCount = 0;
-        while (_isInitializing && waitCount < 50) {
-          await Future.delayed(const Duration(milliseconds: 100));
-          waitCount++;
+      if (!_isInitialized) {
+        final currentInit = _initCompleter;
+        if (currentInit != null) {
+          await currentInit.future;
+        } else {
+          await init();
         }
-      }
-
-      // 如果未初始化且不在初始化中，才调用 init
-      if (!_isInitialized && !_isInitializing) {
-        await init();
       }
 
       final result = await action();

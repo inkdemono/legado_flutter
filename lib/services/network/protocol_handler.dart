@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:dio/dio.dart';
 import '../../data/models/book_source.dart';
 import '../../utils/app_log.dart';
@@ -40,7 +41,7 @@ class ProtocolHandler {
   static final ProtocolHandler instance = ProtocolHandler._init();
   ProtocolHandler._init();
 
-  final _networkService = NetworkService.instance;
+  final _networkService = readService(AppServices.networkService);
 
   /// 根据URL判断协议类型
   ///
@@ -260,7 +261,7 @@ class ProtocolHandler {
       AppLog.instance.put('WebView协议: 启动静默WebView');
 
       // 调用WebView处理器
-      final result = await WebViewProtocolHandler.instance.loadPage(
+      final result = await readService(AppServices.webViewProtocolHandler).loadPage(
         url: url,
         source: source,
         headers: headers,

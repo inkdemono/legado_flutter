@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -295,7 +296,7 @@ class _BrowserPageState extends State<BrowserPage> {
         
         // 保存到Cookie服务
         if (cookies.isNotEmpty && widget.sourceOrigin != null) {
-          await CookieService.instance.saveCookiesForSource(
+          await readService(AppServices.cookieService).saveCookiesForSource(
             widget.sourceOrigin!,
             cookies,
           );
@@ -494,7 +495,7 @@ class _BrowserPageState extends State<BrowserPage> {
   /// 保存图片（使用 NetworkService 统一请求、重试与错误处理）
   Future<void> _saveImage(String imageUrl) async {
     try {
-      final response = await NetworkService.instance.get(
+      final response = await readService(AppServices.networkService).get(
         imageUrl,
         retryCount: 2,
       );

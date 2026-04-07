@@ -1,4 +1,5 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -42,16 +43,16 @@ class _BackupRestorePageState extends State<BackupRestorePage> {
       _isLoadingBackups = true;
     });
 
-    await WebDavService.instance.loadConfig();
+    await readService(AppServices.webDavService).loadConfig();
 
     if (!mounted) return;
     setState(() {
-      _isWebDavConfigured = WebDavService.instance.isConfigured;
-      _webDavLocation = WebDavService.instance.rootUrl;
+      _isWebDavConfigured = readService(AppServices.webDavService).isConfigured;
+      _webDavLocation = readService(AppServices.webDavService).rootUrl;
     });
 
     try {
-      final backups = await RestoreService.instance.getWebDavBackupList();
+      final backups = await readService(AppServices.restoreService).getWebDavBackupList();
       if (!mounted) return;
       setState(() {
         _webDavBackups = backups;
@@ -82,7 +83,7 @@ class _BackupRestorePageState extends State<BackupRestorePage> {
       );
 
       if (result != null) {
-        await BackupService.instance.backupToLocal(result);
+        await readService(AppServices.backupService).backupToLocal(result);
         _showMessage('备份成功');
       }
     } catch (e) {
@@ -97,8 +98,8 @@ class _BackupRestorePageState extends State<BackupRestorePage> {
   }
 
   Future<void> _backupToWebDav() async {
-    await WebDavService.instance.loadConfig();
-    if (!WebDavService.instance.isConfigured) {
+    await readService(AppServices.webDavService).loadConfig();
+    if (!readService(AppServices.webDavService).isConfigured) {
       if (!mounted) return;
       final result = await showDialog<bool>(
         context: context,
@@ -133,7 +134,7 @@ class _BackupRestorePageState extends State<BackupRestorePage> {
     });
 
     try {
-      await BackupService.instance.backupToWebDav();
+      await readService(AppServices.backupService).backupToWebDav();
       _showMessage('备份到 WebDAV 成功');
       await _loadWebDavBackups();
     } catch (e) {
@@ -166,7 +167,7 @@ class _BackupRestorePageState extends State<BackupRestorePage> {
     });
 
     try {
-      await RestoreService.instance.restoreFromLocal(filePath);
+      await readService(AppServices.restoreService).restoreFromLocal(filePath);
       _showMessage('恢复成功');
       if (mounted) {
         Navigator.of(context).pop();
@@ -191,7 +192,7 @@ class _BackupRestorePageState extends State<BackupRestorePage> {
     });
 
     try {
-      await RestoreService.instance.restoreFromWebDav(backupName);
+      await readService(AppServices.restoreService).restoreFromWebDav(backupName);
       _showMessage('恢复成功');
       if (mounted) {
         Navigator.of(context).pop();

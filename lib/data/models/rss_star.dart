@@ -1,10 +1,12 @@
+import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'rss_article.dart';
 
 /// RSS收藏数据模型
 /// 参考项目：RssStar.kt
 @JsonSerializable()
-class RssStar {
+// ignore: must_be_immutable
+class RssStar with EquatableMixin {
   /// 来源（RSS源URL）
   @JsonKey(name: 'origin')
   final String origin;
@@ -160,12 +162,8 @@ class RssStar {
   }
 
   @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is RssStar && other.origin == origin && other.link == link;
-  }
+  List<Object?> get props => [origin, link];
 
   @override
-  int get hashCode => origin.hashCode ^ link.hashCode;
+  String toString() => 'RssStar(title: $title, origin: $origin, link: $link)';
 }
-

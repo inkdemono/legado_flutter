@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../core/base/base_service.dart';
@@ -204,7 +205,7 @@ class UrlSchemeService extends BaseService {
 
     try {
       // 从URL获取内容
-      final response = await NetworkService.instance.get(src, retryCount: 1);
+      final response = await readService(AppServices.networkService).get(src, retryCount: 1);
       final content = await NetworkService.getResponseText(response);
       
       if (content.isEmpty) {
@@ -218,14 +219,14 @@ class UrlSchemeService extends BaseService {
       if (json is Map) {
         // 单个RSS源
         final source = RssSource.fromJson(Map<String, dynamic>.from(json));
-        await RssService.instance.addOrUpdateRssSource(source);
+        await readService(AppServices.rssService).addOrUpdateRssSource(source);
         AppLog.instance.put('RSS源导入成功: ${source.sourceName}');
       } else if (json is List) {
         // 批量导入
         for (final item in json) {
           if (item is Map) {
             final source = RssSource.fromJson(Map<String, dynamic>.from(item));
-            await RssService.instance.addOrUpdateRssSource(source);
+            await readService(AppServices.rssService).addOrUpdateRssSource(source);
           }
         }
         AppLog.instance.put('RSS源批量导入成功: ${json.length} 个');
@@ -245,7 +246,7 @@ class UrlSchemeService extends BaseService {
 
     try {
       // 从URL获取内容
-      final response = await NetworkService.instance.get(src, retryCount: 1);
+      final response = await readService(AppServices.networkService).get(src, retryCount: 1);
       final content = await NetworkService.getResponseText(response);
       
       if (content.isEmpty) {
@@ -259,14 +260,14 @@ class UrlSchemeService extends BaseService {
       if (json is Map) {
         // 单个替换规则
         final rule = ReplaceRule.fromJson(Map<String, dynamic>.from(json));
-        await ReplaceRuleService.instance.addOrUpdateRule(rule);
+        await readService(AppServices.replaceRuleService).addOrUpdateRule(rule);
         AppLog.instance.put('替换规则导入成功: ${rule.name}');
       } else if (json is List) {
         // 批量导入
         for (final item in json) {
           if (item is Map) {
             final rule = ReplaceRule.fromJson(Map<String, dynamic>.from(item));
-            await ReplaceRuleService.instance.addOrUpdateRule(rule);
+            await readService(AppServices.replaceRuleService).addOrUpdateRule(rule);
           }
         }
         AppLog.instance.put('替换规则批量导入成功: ${json.length} 个');
@@ -286,7 +287,7 @@ class UrlSchemeService extends BaseService {
 
     try {
       // 从URL获取内容
-      final response = await NetworkService.instance.get(src, retryCount: 1);
+      final response = await readService(AppServices.networkService).get(src, retryCount: 1);
       final content = await NetworkService.getResponseText(response);
       
       if (content.isEmpty) {
@@ -295,7 +296,7 @@ class UrlSchemeService extends BaseService {
       }
 
       // 解析JSON并导入主题
-      final success = await ThemeService.instance.addConfigFromJson(content);
+      final success = await readService(AppServices.themeService).addConfigFromJson(content);
       
       if (success) {
         AppLog.instance.put('主题导入成功');
@@ -357,7 +358,7 @@ class UrlSchemeService extends BaseService {
 
     try {
       // 从URL获取内容
-      final response = await NetworkService.instance.get(src, retryCount: 1);
+      final response = await readService(AppServices.networkService).get(src, retryCount: 1);
       final content = await NetworkService.getResponseText(response);
       
       if (content.isEmpty) {
@@ -371,14 +372,14 @@ class UrlSchemeService extends BaseService {
       if (json is Map) {
         // 单个字典规则
         final rule = DictRule.fromJson(Map<String, dynamic>.from(json));
-        await DictRuleService.instance.addOrUpdateRule(rule);
+        await readService(AppServices.dictRuleService).addOrUpdateRule(rule);
         AppLog.instance.put('字典规则导入成功: ${rule.name}');
       } else if (json is List) {
         // 批量导入
         for (final item in json) {
           if (item is Map) {
             final rule = DictRule.fromJson(Map<String, dynamic>.from(item));
-            await DictRuleService.instance.addOrUpdateRule(rule);
+            await readService(AppServices.dictRuleService).addOrUpdateRule(rule);
           }
         }
         AppLog.instance.put('字典规则批量导入成功: ${json.length} 个');

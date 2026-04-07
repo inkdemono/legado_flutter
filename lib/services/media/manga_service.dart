@@ -1,4 +1,5 @@
 import 'package:html/parser.dart' as html_parser;
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:html/dom.dart' as html_dom;
 import '../../core/base/base_service.dart';
 import '../../data/models/book.dart';
@@ -18,8 +19,10 @@ class MangaService extends BaseService {
   static final MangaService instance = MangaService._init();
   MangaService._init();
 
-  final BookSourceService _bookSourceService = BookSourceService.instance;
-  final NetworkService _networkService = NetworkService.instance;
+  final IBookSourceService _bookSourceService =
+      readService(AppServices.bookSourceService);
+  final INetworkService _networkService =
+      readService(AppServices.networkService);
 
   String _repairChapterUrl(String url, Book book) {
     final bid = '${book.variableMap['bid'] ?? ''}'.trim();
@@ -58,8 +61,8 @@ class MangaService extends BaseService {
           : chapterUrl;
 
       // 提取图片URL（不清理HTML标签）
-      final imageUrls = await _extractImageUrls(
-          html, source.ruleContent!, effectiveBaseUrl);
+      final imageUrls =
+          await _extractImageUrls(html, source.ruleContent!, effectiveBaseUrl);
       for (int i = 0; i < imageUrls.length; i++) {
         AppLog.instance.put(
           '漫画图片[${i + 1}/${imageUrls.length}]: ${imageUrls[i]}',

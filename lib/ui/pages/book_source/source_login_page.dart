@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/book_source.dart';
 import '../../../services/source/book_source_service.dart';
@@ -36,7 +37,7 @@ class _SourceLoginPageState extends ConsumerState<SourceLoginPage> {
     });
 
     try {
-      final source = await BookSourceService.instance.getBookSourceByUrl(widget.sourceUrl);
+      final source = await readService(AppServices.bookSourceService).getBookSourceByUrl(widget.sourceUrl);
       if (source == null) {
         throw Exception('未找到书源');
       }

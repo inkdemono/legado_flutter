@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:legado_flutter/services/book/async_search_service.dart';
 import 'package:legado_flutter/services/book/search_model.dart';
 import 'package:legado_flutter/services/source/book_source_service.dart';
@@ -85,7 +86,7 @@ class _AsyncSearchExampleWithModelState
     }
 
     // 获取启用的书源
-    final sources = await BookSourceService.instance.getAllBookSources(
+    final sources = await readService(AppServices.bookSourceService).getAllBookSources(
       enabledOnly: true,
     );
 
@@ -223,7 +224,7 @@ class _AsyncSearchExampleDirectState extends State<AsyncSearchExampleDirect> {
     }
 
     // 获取启用的书源
-    final sources = await BookSourceService.instance.getAllBookSources(
+    final sources = await readService(AppServices.bookSourceService).getAllBookSources(
       enabledOnly: true,
     );
 

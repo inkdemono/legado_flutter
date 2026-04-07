@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import 'dart:ui';
@@ -9,9 +10,6 @@ import '../../reader/chapter_list_page.dart';
 import '../../../../data/models/book.dart';
 import '../../../../data/models/book_chapter.dart';
 import '../../../../data/models/book_source.dart';
-import '../../../../services/book/book_service.dart';
-import '../../../../services/source/book_source_service.dart';
-import '../../../../services/book_group_service.dart';
 import '../../../../services/network/network_service.dart';
 import '../../../../data/models/book_group.dart';
 import '../../../../providers/book_provider.dart';
@@ -207,7 +205,8 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
       // 参考项目逻辑：如果提供了 bookName 和 author，优先通过这两个字段查找
       // 因为 bookUrl 可能是分类页面 URL，不是唯一的书籍标识符
       if (widget.bookName != null && widget.author != null) {
-        book = await BookService.instance.getBookByNameAndAuthor(
+        book =
+            await readService(AppServices.bookService).getBookByNameAndAuthor(
           widget.bookName!,
           widget.author!,
         );
@@ -229,7 +228,8 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
       // 如果通过名称和作者没找到，尝试通过 bookUrl 查找
       // 但需要验证名称和作者是否匹配
       if (book == null) {
-        book = await BookService.instance.getBookByUrl(widget.bookUrl);
+        book = await readService(AppServices.bookService)
+            .getBookByUrl(widget.bookUrl);
         if (book != null) {
           // 验证书籍名称和作者是否匹配（防止 bookUrl 是分类页面 URL 的情况）
           bool nameMatches =
@@ -313,23 +313,27 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
 
   Book _mergeWidgetPreviewIntoBook(Book book) {
     final widgetCover = widget.coverUrl?.trim();
-    final resolvedWidgetCover =
-        widgetCover != null && widgetCover.isNotEmpty && widget.sourceUrl != null
-            ? NetworkService.joinUrl(widget.sourceUrl!, widgetCover)
-            : null;
+    final resolvedWidgetCover = widgetCover != null &&
+            widgetCover.isNotEmpty &&
+            widget.sourceUrl != null
+        ? NetworkService.joinUrl(widget.sourceUrl!, widgetCover)
+        : null;
     final widgetIntro = widget.intro?.trim();
 
     return book.copyWith(
       name: book.name.trim().isNotEmpty
           ? book.name
-          : (widget.bookName?.trim().isNotEmpty == true ? widget.bookName!.trim() : book.name),
+          : (widget.bookName?.trim().isNotEmpty == true
+              ? widget.bookName!.trim()
+              : book.name),
       author: book.author.trim().isNotEmpty
           ? book.author
-          : (widget.author?.trim().isNotEmpty == true ? widget.author!.trim() : book.author),
-      coverUrl:
-          resolvedWidgetCover != null && resolvedWidgetCover.isNotEmpty
-              ? resolvedWidgetCover
-              : book.coverUrl,
+          : (widget.author?.trim().isNotEmpty == true
+              ? widget.author!.trim()
+              : book.author),
+      coverUrl: resolvedWidgetCover != null && resolvedWidgetCover.isNotEmpty
+          ? resolvedWidgetCover
+          : book.coverUrl,
       intro: (book.intro == null || book.intro!.trim().isEmpty)
           ? (widgetIntro?.isNotEmpty == true ? widgetIntro : book.intro)
           : book.intro,
@@ -344,7 +348,7 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
 
   Future<void> _hydrateTransientBook(Book baseBook) async {
     try {
-      final source = await BookSourceService.instance
+      final source = await readService(AppServices.bookSourceService)
           .getBookSourceByUrl(baseBook.origin);
       if (source == null || !mounted) return;
 
@@ -358,7 +362,8 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
         }
       }
 
-      final bookInfo = await BookService.instance.getBookInfo(workingBook);
+      final bookInfo =
+          await readService(AppServices.bookService).getBookInfo(workingBook);
       if (bookInfo != null) {
         workingBook = _mergeWidgetPreviewIntoBook(bookInfo);
         if (mounted) {
@@ -374,8 +379,8 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
         _chapterError = null;
       });
 
-      final chapters =
-          await BookService.instance.getChapterListWithoutSave(workingBook);
+      final chapters = await readService(AppServices.bookService)
+          .getChapterListWithoutSave(workingBook);
       if (!mounted) return;
 
       if (chapters.isNotEmpty) {
@@ -399,7 +404,7 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
       _chapterListNotifier.value = chapters;
       _chapterListLoadingNotifier.value = false;
       if (_isInBookshelf && chapters.isNotEmpty) {
-        await BookService.instance.saveChapters(chapters);
+        await readService(AppServices.bookService).saveChapters(chapters);
       }
     } catch (e, stackTrace) {
       AppLog.instance.put('BookInfoPage: 异步补全详情失败', error: e);
@@ -426,7 +431,8 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
 
     try {
       // 更新书籍信息
-      final updatedBook = await BookService.instance.getBookInfo(_book!);
+      final updatedBook =
+          await readService(AppServices.bookService).getBookInfo(_book!);
       if (updatedBook != null) {
         setState(() {
           _book = updatedBook;
@@ -449,7 +455,7 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
     if (_book == null) return;
 
     try {
-      await BookService.instance.createBook(_book!);
+      await ref.read(bookshelfBooksProvider.notifier).addBook(_book!);
 
       setState(() {
         _isInBookshelf = true;
@@ -474,14 +480,7 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
   }
 
   void _refreshBookshelfProviders() {
-    ref.invalidate(refreshBookshelfProvider);
-    ref.invalidate(bookshelfBooksProvider);
-
-    final groupsAsync = ref.read(bookGroupsProvider);
-    final groups = groupsAsync.value ?? [];
-    for (final group in groups) {
-      ref.invalidate(booksByGroupProvider(group.groupId));
-    }
+    ref.read(bookshelfBooksProvider.notifier).reload();
   }
 
   Future<void> _persistChaptersAfterAddToShelf() async {
@@ -489,7 +488,7 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
 
     try {
       if (_chapters != null && _chapters!.isNotEmpty) {
-        await BookService.instance.saveChapters(_chapters!);
+        await readService(AppServices.bookService).saveChapters(_chapters!);
       }
 
       if (_hasFullChapterList || _isLoadingChapters) {
@@ -527,18 +526,9 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
 
     if (confirmed == true) {
       try {
-        await BookService.instance.deleteBook(_book!.bookUrl);
-
-        // 刷新书架 Provider
-        ref.invalidate(refreshBookshelfProvider);
-        ref.invalidate(bookshelfBooksProvider);
-
-        // 刷新所有分组的书籍列表
-        final groupsAsync = ref.read(bookGroupsProvider);
-        final groups = groupsAsync.value ?? [];
-        for (final group in groups) {
-          ref.invalidate(booksByGroupProvider(group.groupId));
-        }
+        await ref
+            .read(bookshelfBooksProvider.notifier)
+            .removeBook(_book!.bookUrl);
 
         if (mounted) {
           Navigator.of(context).pop(true); // 返回并通知刷新
@@ -602,8 +592,9 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
 
     try {
       final chapters = _hasExternalPreviewData
-          ? await BookService.instance.getChapterListWithoutSave(_book!)
-          : await BookService.instance.getChapterList(_book!);
+          ? await readService(AppServices.bookService)
+              .getChapterListWithoutSave(_book!)
+          : await readService(AppServices.bookService).getChapterList(_book!);
       if (mounted) {
         setState(() {
           _chapters = chapters;
@@ -612,7 +603,7 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
         _chapterListNotifier.value = chapters;
       }
       if (_isInBookshelf && chapters.isNotEmpty) {
-        await BookService.instance.saveChapters(chapters);
+        await readService(AppServices.bookService).saveChapters(chapters);
       }
     } catch (e) {
       // 加载失败不影响显示
@@ -627,8 +618,9 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
     try {
       _chapterListLoadingNotifier.value = true;
       final chapters = (_isInBookshelf && !shouldPreferLiveChapters)
-          ? await BookService.instance.getChapterList(_book!)
-          : await BookService.instance.getChapterListWithoutSave(_book!);
+          ? await readService(AppServices.bookService).getChapterList(_book!)
+          : await readService(AppServices.bookService)
+              .getChapterListWithoutSave(_book!);
       if (!mounted || chapters.isEmpty) return;
 
       setState(() {
@@ -638,7 +630,7 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
       });
       _chapterListNotifier.value = chapters;
       if (_isInBookshelf) {
-        await BookService.instance.saveChapters(chapters);
+        await readService(AppServices.bookService).saveChapters(chapters);
       }
     } catch (_) {
       // 后台补全失败不影响当前目录页使用
@@ -678,8 +670,10 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
 
         _chapterListLoadingNotifier.value = true;
         chapters = (_isInBookshelf && !shouldPreferLiveChapters)
-            ? await BookService.instance.getChapterList(_book!, loadAllPages: false)
-            : await BookService.instance.getChapterListWithoutSave(
+            ? await readService(AppServices.bookService)
+                .getChapterList(_book!, loadAllPages: false)
+            : await readService(AppServices.bookService)
+                .getChapterListWithoutSave(
                 _book!,
                 loadAllPages: false,
               );
@@ -799,11 +793,12 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
             // 如果书籍在书架中，需要更新数据库
             if (_isInBookshelf) {
               // 删除旧书籍
-              await BookService.instance.deleteBook(_book!.bookUrl);
+              await readService(AppServices.bookService)
+                  .deleteBook(_book!.bookUrl);
               // 保存新书籍
-              await BookService.instance.createBook(newBook);
+              await readService(AppServices.bookService).createBook(newBook);
               // 保存章节列表
-              await BookService.instance.saveChapters(chapters);
+              await readService(AppServices.bookService).saveChapters(chapters);
             }
 
             setState(() {
@@ -842,7 +837,8 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
     });
 
     try {
-      final success = await BookService.instance.updateChapterList(_book!);
+      final success =
+          await readService(AppServices.bookService).updateChapterList(_book!);
       if (success) {
         // 重新加载书籍信息
         await _loadBook();
@@ -885,7 +881,7 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
             final updatedBook = _book!.copyWith(
               customCoverUrl: coverUrl.isEmpty ? null : coverUrl,
             );
-            await BookService.instance.updateBook(updatedBook);
+            await readService(AppServices.bookService).updateBook(updatedBook);
             setState(() {
               _book = updatedBook;
             });
@@ -906,8 +902,8 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
     if (_book == null) return;
 
     try {
-      final groups =
-          await BookGroupService.instance.getAllGroups(showOnly: false);
+      final groups = await readService(AppServices.bookGroupService)
+          .getAllGroups(showOnly: false);
       if (groups.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -945,7 +941,7 @@ class _BookInfoPageState extends ConsumerState<BookInfoPage>
 
       if (selectedGroup != null) {
         try {
-          await BookService.instance
+          await readService(AppServices.bookService)
               .updateBookGroup(_book!.bookUrl, selectedGroup.groupId);
           // 更新本地书籍对象的分组信息
           setState(() {

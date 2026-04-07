@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../../data/models/book.dart';
 import '../../../data/models/book_chapter.dart';
 import '../../../data/models/book_source.dart';
@@ -44,7 +45,7 @@ class _ExploreBookReaderPageState extends State<ExploreBookReaderPage> {
     });
 
     try {
-      final chapters = await BookService.instance.getChapterListWithoutSave(
+      final chapters = await readService(AppServices.bookService).getChapterListWithoutSave(
         widget.book,
       );
 
@@ -79,7 +80,7 @@ class _ExploreBookReaderPageState extends State<ExploreBookReaderPage> {
 
     try {
       final chapter = _chapters[index];
-      final content = await BookService.instance.getChapterContent(
+      final content = await readService(AppServices.bookService).getChapterContent(
         chapter,
         widget.bookSource,
         bookName: widget.book.name,

@@ -1,5 +1,7 @@
+import 'package:equatable/equatable.dart';
+
 /// 阅读记录显示模型
-class ReadRecordShow {
+class ReadRecordShow with EquatableMixin {
   final String bookName;
   final int readTime; // 阅读时长（毫秒）
   final int lastRead; // 最后阅读时间（毫秒）
@@ -25,5 +27,11 @@ class ReadRecordShow {
       lastRead: map['lastRead'] as int,
     );
   }
-}
 
+  @override
+  List<Object?> get props => [bookName, readTime, lastRead];
+
+  @override
+  String toString() =>
+      'ReadRecordShow(bookName: $bookName, readTime: $readTime, lastRead: $lastRead)';
+}

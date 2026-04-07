@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
@@ -33,7 +34,7 @@ class CacheExportService extends BaseService {
     try {
       // 获取章节列表
       final chapterList =
-          chapters ?? await BookService.instance.getChapterList(book);
+          chapters ?? await readService(AppServices.bookService).getChapterList(book);
       if (chapterList.isEmpty) {
         throw Exception('书籍没有章节');
       }
@@ -52,7 +53,7 @@ class CacheExportService extends BaseService {
 
       // 显示通知（如果启用）
       if (showNotification) {
-        await NotificationService.instance.showProgressNotification(
+        await readService(AppServices.notificationService).showProgressNotification(
           id: notificationId,
           title: '导出书籍',
           content: '正在导出: ${book.name}',
@@ -83,15 +84,15 @@ class CacheExportService extends BaseService {
 
         // 获取章节内容（优先从缓存读取）
         String? content =
-            await CacheService.instance.getCachedChapterContent(book, chapter);
+            await readService(AppServices.cacheService).getCachedChapterContent(book, chapter);
 
         // 如果缓存中没有，尝试从书源获取
         if (content == null || content.isEmpty) {
           try {
-            final source = await BookSourceService.instance
+            final source = await readService(AppServices.bookSourceService)
                 .getBookSourceByUrl(book.origin);
             if (source != null) {
-              content = await BookService.instance.getChapterContent(
+              content = await readService(AppServices.bookService).getChapterContent(
                 chapter,
                 source,
                 bookName: book.name,
@@ -119,7 +120,7 @@ class CacheExportService extends BaseService {
         // 更新通知
         if (showNotification) {
           final progress = (i + 1) / chapterList.length;
-          await NotificationService.instance.showProgressNotification(
+          await readService(AppServices.notificationService).showProgressNotification(
             id: notificationId,
             title: '导出书籍',
             content: '正在导出: ${book.name} (${i + 1}/${chapterList.length})',
@@ -136,7 +137,7 @@ class CacheExportService extends BaseService {
 
       // 完成通知
       if (showNotification) {
-        await NotificationService.instance.showNotification(
+        await readService(AppServices.notificationService).showNotification(
           id: notificationId,
           title: '导出完成',
           content: '${book.name} 导出成功',
@@ -149,7 +150,7 @@ class CacheExportService extends BaseService {
     } catch (e) {
       // 错误通知
       if (showNotification) {
-        await NotificationService.instance.showNotification(
+        await readService(AppServices.notificationService).showNotification(
           id: notificationId,
           title: '导出失败',
           content: '${book.name} 导出失败: ${e.toString()}',
@@ -172,7 +173,7 @@ class CacheExportService extends BaseService {
     try {
       // 获取章节列表
       final chapterList =
-          chapters ?? await BookService.instance.getChapterList(book);
+          chapters ?? await readService(AppServices.bookService).getChapterList(book);
       if (chapterList.isEmpty) {
         throw Exception('书籍没有章节');
       }
@@ -191,7 +192,7 @@ class CacheExportService extends BaseService {
 
       // 显示通知（如果启用）
       if (showNotification) {
-        await NotificationService.instance.showProgressNotification(
+        await readService(AppServices.notificationService).showProgressNotification(
           id: notificationId,
           title: '导出书籍',
           content: '正在导出: ${book.name}',
@@ -254,14 +255,14 @@ class CacheExportService extends BaseService {
 
         // 获取章节内容
         String? content =
-            await CacheService.instance.getCachedChapterContent(book, chapter);
+            await readService(AppServices.cacheService).getCachedChapterContent(book, chapter);
 
         if (content == null || content.isEmpty) {
           try {
-            final source = await BookSourceService.instance
+            final source = await readService(AppServices.bookSourceService)
                 .getBookSourceByUrl(book.origin);
             if (source != null) {
-              content = await BookService.instance.getChapterContent(
+              content = await readService(AppServices.bookService).getChapterContent(
                 chapter,
                 source,
                 bookName: book.name,
@@ -299,7 +300,7 @@ class CacheExportService extends BaseService {
         // 更新通知
         if (showNotification) {
           final progress = (i + 1) / chapterList.length;
-          await NotificationService.instance.showProgressNotification(
+          await readService(AppServices.notificationService).showProgressNotification(
             id: notificationId,
             title: '导出书籍',
             content: '正在导出: ${book.name} (${i + 1}/${chapterList.length})',
@@ -331,7 +332,7 @@ class CacheExportService extends BaseService {
       if (book.coverUrl != null && book.coverUrl!.isNotEmpty) {
         try {
           // 尝试下载封面图片
-          final response = await NetworkService.instance.get(
+          final response = await readService(AppServices.networkService).get(
             book.coverUrl!,
             retryCount: 1,
             options: Options(responseType: ResponseType.bytes),
@@ -426,7 +427,7 @@ class CacheExportService extends BaseService {
 
       // 完成通知
       if (showNotification) {
-        await NotificationService.instance.showNotification(
+        await readService(AppServices.notificationService).showNotification(
           id: notificationId,
           title: '导出完成',
           content: '${book.name} 导出成功',
@@ -440,7 +441,7 @@ class CacheExportService extends BaseService {
     } catch (e) {
       // 错误通知
       if (showNotification) {
-        await NotificationService.instance.showNotification(
+        await readService(AppServices.notificationService).showNotification(
           id: notificationId,
           title: '导出失败',
           content: '${book.name} 导出失败: ${e.toString()}',

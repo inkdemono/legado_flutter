@@ -1,12 +1,11 @@
 import 'dart:async';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../core/base/base_service.dart';
 import '../../data/models/book.dart';
 import '../../data/models/book_chapter.dart';
-import '../book/book_service.dart';
-import '../source/book_source_service.dart';
 import '../../utils/app_log.dart';
 import '../notification_service.dart';
 
@@ -99,7 +98,7 @@ class AudioPlayService extends BaseService {
     _currentChapterIndex = book.durChapterIndex;
 
     // 加载章节列表
-    _chapters = await BookService.instance.getChapterList(book);
+    _chapters = await readService(AppServices.bookService).getChapterList(book);
     chapterIndexNotifier.value = _currentChapterIndex;
 
     if (_chapters.isNotEmpty && _currentChapterIndex < _chapters.length) {
@@ -140,7 +139,8 @@ class AudioPlayService extends BaseService {
     _updateStatus(PlayStatus.stopped);
     _cancelTimer();
     // 取消播放通知
-    await NotificationService.instance.cancelNotification(_notificationId);
+    await readService(AppServices.notificationService)
+        .cancelNotification(_notificationId);
   }
 
   /// 上一章
@@ -285,7 +285,7 @@ class AudioPlayService extends BaseService {
       Map<String, String> headers = {};
 
       if (_currentBook != null) {
-        final bookSourceService = BookSourceService.instance;
+        final bookSourceService = readService(AppServices.bookSourceService);
         final source =
             await bookSourceService.getBookSourceByUrl(_currentBook!.origin);
 
@@ -320,53 +320,120 @@ class AudioPlayService extends BaseService {
   }
 
   /// 获取音频URL（从章节内容中提取）
+  ///
+  /// 优先级顺序：
+  ///   1. chapter.resourceUrl —— 书源规则解析 / sniffing 已缓存的结果
+  ///   2. chapter.url 本身是音频直链（以常见音频扩展名结尾）
+  ///   3. 调用 getChapterContent → RuleParser._parseAudioContent 解析书源规则：
+  ///        3a. [ContentRule.audioUrl] 规则（Phase 2 新增，书源作者明确指定）
+  ///        3b. [ContentRule.content] + [ContentRule.sourceRegex] 嗅探（兼容旧书源）
+  ///      解析结果由 book_service._getChapterContentInternal 写入 chapter.resourceUrl
+  ///   4. content 本身是 http(s) URL（直接返回型书源）
+  ///   5. 从 content 文本中正则兜底提取 http(s) 音频 URL
   Future<String?> _getAudioUrl(BookChapter chapter) async {
     if (_currentBook == null) return null;
 
-    // 如果章节URL本身就是音频URL，直接返回
-    if (chapter.url.startsWith('http://') ||
-        chapter.url.startsWith('https://')) {
-      final url = chapter.url.toLowerCase();
-      if (url.endsWith('.mp3') ||
-          url.endsWith('.m4a') ||
-          url.endsWith('.wav') ||
-          url.endsWith('.ogg') ||
-          url.endsWith('.aac') ||
-          url.endsWith('.flac')) {
-        return chapter.url;
-      }
+    // ── 优先级 1：已有嗅探/解析结果，直接使用 ──────────────────────────────
+    if (chapter.resourceUrl != null && chapter.resourceUrl!.isNotEmpty) {
+      AppLog.instance.put('音频URL: 使用已缓存的 resourceUrl → ${chapter.resourceUrl}');
+      return chapter.resourceUrl;
     }
 
-    // 尝试从章节内容中提取音频URL
+    // ── 优先级 2：章节URL本身是音频直链 ────────────────────────────────────
+    if (_isDirectAudioUrl(chapter.url)) {
+      AppLog.instance.put('音频URL: 章节URL为直链 → ${chapter.url}');
+      return chapter.url;
+    }
+
+    // ── 优先级 3/4：通过书源规则解析获取 ───────────────────────────────────
     try {
-      // 获取书源
-      final bookSourceService = BookSourceService.instance;
-      final source =
-          await bookSourceService.getBookSourceByUrl(_currentBook!.origin);
+      final source = await readService(AppServices.bookSourceService)
+          .getBookSourceByUrl(_currentBook!.origin);
       if (source == null) return null;
 
-      final content = await BookService.instance.getChapterContent(
+      final content =
+          await readService(AppServices.bookService).getChapterContent(
         chapter,
         source,
         bookName: _currentBook!.name,
         bookOrigin: _currentBook!.origin,
-        book: _currentBook, // 传入 book 参数，启用缓存优化
+        book: _currentBook,
       );
 
+      // 优先级 3：getChapterContent 对 bookSourceType=1 的书源已将
+      // sourceRegex 嗅探结果写入 chapter.resourceUrl。
+      if (chapter.resourceUrl != null && chapter.resourceUrl!.isNotEmpty) {
+        AppLog.instance
+            .put('音频URL: 规则解析后从 resourceUrl 获取 → ${chapter.resourceUrl}');
+        return chapter.resourceUrl;
+      }
+
+      // 优先级 3b：content 本身就是以 http(s) 开头的 URL（部分书源直接
+      // 在 content 规则里返回音频地址，不走 sourceRegex 嗅探）。
+      if (content != null &&
+          content.isNotEmpty &&
+          (content.startsWith('http://') || content.startsWith('https://')) &&
+          !content.contains('\n')) {
+        AppLog.instance.put('音频URL: content 即为URL → $content');
+        chapter.resourceUrl = content;
+        return content;
+      }
+
+      // 优先级 4：从 content 中用正则兜底提取第一个音频/流媒体 URL
       if (content != null && content.isNotEmpty) {
-        // 尝试从内容中提取音频URL（可能是HTML中的audio标签或直接URL）
-        final audioUrlPattern = RegExp(
-          r'https?://[^\s<>"]+\.(mp3|m4a|wav|ogg|aac|flac)',
+        final match = RegExp(
+          r"""https?://[^\s<>"']+\.(mp3|m4a|wav|ogg|aac|flac|opus|m3u8|mpd)(\?[^\s<>"']*)?""",
           caseSensitive: false,
-        );
-        final match = audioUrlPattern.firstMatch(content);
+        ).firstMatch(content);
         if (match != null) {
-          return match.group(0);
+          final url = match.group(0)!;
+          AppLog.instance.put('音频URL: 从内容中正则提取 → $url');
+          chapter.resourceUrl = url;
+          return url;
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      AppLog.instance.put('提取音频URL失败: ${chapter.title}', error: e);
+    }
 
+    AppLog.instance.put('音频URL: 未能提取到有效URL (章节: ${chapter.title})');
     return null;
+  }
+
+  /// 判断 URL 是否为可直接播放的音频/流媒体链接
+  ///
+  /// 支持的格式：
+  ///   - 常规音频文件：.mp3 .m4a .wav .ogg .aac .flac .opus
+  ///   - HLS 流媒体：.m3u8（just_audio 原生支持 HLS，无需额外处理）
+  ///   - DASH 流媒体：.mpd（media_kit 支持，just_audio 不支持，仅供识别）
+  bool _isDirectAudioUrl(String url) {
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      return false;
+    }
+    // 去掉查询参数后检查扩展名
+    final path = Uri.tryParse(url)?.path.toLowerCase() ?? url.toLowerCase();
+    const audioExts = [
+      // 常规音频文件
+      '.mp3',
+      '.m4a',
+      '.wav',
+      '.ogg',
+      '.aac',
+      '.flac',
+      '.opus',
+      // HLS 流媒体（just_audio 原生支持）
+      '.m3u8',
+      // DASH 流媒体（media_kit 支持）
+      '.mpd',
+    ];
+    // 部分 HLS 流的 URL path 不含扩展名，但 query 中含 .m3u8 标识
+    if (path.endsWith('.m3u8') ||
+        url.toLowerCase().contains('.m3u8') ||
+        url.toLowerCase().contains('playlist.m3u8') ||
+        url.toLowerCase().contains('index.m3u8')) {
+      return true;
+    }
+    return audioExts.any((ext) => path.endsWith(ext));
   }
 
   /// 播放完成回调
@@ -396,7 +463,7 @@ class AudioPlayService extends BaseService {
             ? _chapters[_currentChapterIndex].title
             : '未知章节';
 
-    await NotificationService.instance.showNotification(
+    await readService(AppServices.notificationService).showNotification(
       id: _notificationId,
       title: _currentBook!.name,
       content: chapterTitle,
@@ -415,7 +482,7 @@ class AudioPlayService extends BaseService {
             ? _chapters[_currentChapterIndex].title
             : '未知章节';
 
-    await NotificationService.instance.showNotification(
+    await readService(AppServices.notificationService).showNotification(
       id: _notificationId,
       title: _currentBook!.name,
       content: '$chapterTitle (已暂停)',
@@ -429,7 +496,8 @@ class AudioPlayService extends BaseService {
   @override
   Future<void> dispose() async {
     _cancelTimer();
-    await NotificationService.instance.cancelNotification(_notificationId);
+    await readService(AppServices.notificationService)
+        .cancelNotification(_notificationId);
     await _player.dispose();
   }
 }

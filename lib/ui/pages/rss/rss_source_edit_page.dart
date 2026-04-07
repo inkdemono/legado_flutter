@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../../data/models/rss_source.dart';
 import '../../../services/rss_service.dart';
 import '../../widgets/common/custom_switch_list_tile.dart';
@@ -153,7 +154,7 @@ class _RssSourceEditPageState extends State<RssSourceEditPage> {
       enabled: _enabled,
     );
 
-    final success = await RssService.instance.addOrUpdateRssSource(source);
+    final success = await readService(AppServices.rssService).addOrUpdateRssSource(source);
     if (success && mounted) {
       Navigator.pop(context, true);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -189,7 +190,7 @@ class _RssSourceEditPageState extends State<RssSourceEditPage> {
 
     if (confirmed != true) return;
 
-    final success = await RssService.instance.deleteRssSource(widget.source!.sourceUrl);
+    final success = await readService(AppServices.rssService).deleteRssSource(widget.source!.sourceUrl);
     if (success && mounted) {
       Navigator.pop(context, true);
       ScaffoldMessenger.of(context).showSnackBar(

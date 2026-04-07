@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:path_provider/path_provider.dart';
@@ -84,8 +85,8 @@ class RestoreService extends BaseService {
   /// 从WebDAV恢复
   Future<void> restoreFromWebDav(String backupFileName) async {
     try {
-      await WebDavService.instance.loadConfig();
-      if (!WebDavService.instance.isConfigured) {
+      await readService(AppServices.webDavService).loadConfig();
+      if (!readService(AppServices.webDavService).isConfigured) {
         throw Exception('WebDAV未配置');
       }
 
@@ -93,7 +94,7 @@ class RestoreService extends BaseService {
       final backupDir = await _getBackupDir();
       final tempZipPath = '${backupDir.path}/temp_restore.zip';
       
-      await WebDavService.instance.downloadTo(backupFileName, tempZipPath);
+      await readService(AppServices.webDavService).downloadTo(backupFileName, tempZipPath);
 
       // 从本地文件恢复
       await restoreFromLocal(tempZipPath);
@@ -149,7 +150,7 @@ class RestoreService extends BaseService {
       for (final group in groups) {
         // 跳过系统内置分组
         if (group.groupId < 0) continue;
-        await BookGroupService.instance.createGroup(group);
+        await readService(AppServices.bookGroupService).createGroup(group);
       }
     } catch (e) {
       AppLog.instance.put('恢复书籍分组失败', error: e);
@@ -169,13 +170,13 @@ class RestoreService extends BaseService {
       for (final book in books) {
         try {
           // 检查书籍是否已存在
-          final existingBook = await BookService.instance.getBookByUrl(book.bookUrl);
+          final existingBook = await readService(AppServices.bookService).getBookByUrl(book.bookUrl);
           if (existingBook != null) {
             // 更新现有书籍
-            await BookService.instance.saveBook(book);
+            await readService(AppServices.bookService).saveBook(book);
           } else {
             // 添加新书籍
-            await BookService.instance.createBook(book);
+            await readService(AppServices.bookService).createBook(book);
           }
         } catch (e) {
           // 跳过失败的书籍，继续恢复其他书籍
@@ -199,7 +200,7 @@ class RestoreService extends BaseService {
       final jsonString = await file.readAsString();
       
       // ✅ 使用BookSourceService的Isolate解析方法
-      final result = await BookSourceService.instance.importBookSourcesFromJson(
+      final result = await readService(AppServices.bookSourceService).importBookSourcesFromJson(
         jsonString,
       );
       
@@ -223,7 +224,7 @@ class RestoreService extends BaseService {
 
       for (final bookmark in bookmarks) {
         try {
-          await BookmarkService.instance.addBookmark(bookmark);
+          await readService(AppServices.bookmarkService).addBookmark(bookmark);
         } catch (e) {
           // 书签可能已存在，跳过
         }
@@ -245,7 +246,7 @@ class RestoreService extends BaseService {
 
       for (final rule in rules) {
         try {
-          await ReplaceRuleService.instance.addOrUpdateRule(rule);
+          await readService(AppServices.replaceRuleService).addOrUpdateRule(rule);
         } catch (e) {
           AppLog.instance.put('恢复替换规则失败: ${rule.name}', error: e);
         }
@@ -267,7 +268,7 @@ class RestoreService extends BaseService {
 
       for (final rule in rules) {
         try {
-          await DictRuleService.instance.addOrUpdateRule(rule);
+          await readService(AppServices.dictRuleService).addOrUpdateRule(rule);
         } catch (e) {
           AppLog.instance.put('恢复字典规则失败: ${rule.name}', error: e);
         }
@@ -290,11 +291,11 @@ class RestoreService extends BaseService {
       for (final rule in rules) {
         try {
           // 检查规则是否已存在
-          final existing = await TxtTocRuleService.instance.getRuleById(rule.id);
+          final existing = await readService(AppServices.txtTocRuleService).getRuleById(rule.id);
           if (existing != null) {
-            await TxtTocRuleService.instance.updateRule(rule);
+            await readService(AppServices.txtTocRuleService).updateRule(rule);
           } else {
-            await TxtTocRuleService.instance.addRule(rule);
+            await readService(AppServices.txtTocRuleService).addRule(rule);
           }
         } catch (e) {
           AppLog.instance.put('恢复TXT目录规则失败: ${rule.name}', error: e);
@@ -331,12 +332,12 @@ class RestoreService extends BaseService {
   /// 获取WebDAV备份列表
   Future<List<String>> getWebDavBackupList() async {
     try {
-      await WebDavService.instance.loadConfig();
-      if (!WebDavService.instance.isConfigured) {
+      await readService(AppServices.webDavService).loadConfig();
+      if (!readService(AppServices.webDavService).isConfigured) {
         return [];
       }
 
-      final files = await WebDavService.instance.listFiles();
+      final files = await readService(AppServices.webDavService).listFiles();
       final backupFiles = files
           .where((file) => file.name.startsWith('backup') && file.name.endsWith('.zip'))
           .map((file) => file.name)

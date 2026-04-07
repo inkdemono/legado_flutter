@@ -1,11 +1,13 @@
 import 'dart:convert';
 
+import 'package:equatable/equatable.dart';
+
 /// UI规则相关数据模型
 /// 参考项目：io.legado.app.data.entities.rule
 
 /// 行UI规则
 /// 参考项目：io.legado.app.data.entities.rule.RowUi
-class RowUi {
+class RowUi with EquatableMixin {
   /// 名称
   final String name;
 
@@ -54,13 +56,19 @@ class RowUi {
   static const String typeText = 'text';
   static const String typePassword = 'password';
   static const String typeButton = 'button';
+
+  @override
+  List<Object?> get props => [name, type, action, style];
+
+  @override
+  String toString() => 'RowUi(name: $name, type: $type, action: $action)';
 }
 
 /// 弹性子样式
 /// 参考项目：io.legado.app.data.entities.rule.FlexChildStyle
 /// 
 /// 注意：Flutter 使用不同的布局系统，此模型主要用于数据存储和序列化
-class FlexChildStyle {
+class FlexChildStyle with EquatableMixin {
   /// 弹性增长
   final double layoutFlexGrow;
 
@@ -138,11 +146,24 @@ class FlexChildStyle {
   static const String alignSelfCenter = 'center';
   static const String alignSelfBaseline = 'baseline';
   static const String alignSelfStretch = 'stretch';
+
+  @override
+  List<Object?> get props => [
+        layoutFlexGrow,
+        layoutFlexShrink,
+        layoutAlignSelf,
+        layoutFlexBasisPercent,
+        layoutWrapBefore,
+      ];
+
+  @override
+  String toString() =>
+      'FlexChildStyle(grow: $layoutFlexGrow, shrink: $layoutFlexShrink, align: $layoutAlignSelf)';
 }
 
 /// 评论规则
 /// 参考项目：io.legado.app.data.entities.rule.ReviewRule
-class ReviewRule {
+class ReviewRule with EquatableMixin {
   /// 段评URL
   final String? reviewUrl;
 
@@ -246,5 +267,22 @@ class ReviewRule {
   String toJsonString() {
     return jsonEncode(toJson());
   }
-}
 
+  @override
+  List<Object?> get props => [
+        reviewUrl,
+        avatarRule,
+        contentRule,
+        postTimeRule,
+        reviewQuoteUrl,
+        voteUpUrl,
+        voteDownUrl,
+        postReviewUrl,
+        postQuoteUrl,
+        deleteUrl,
+      ];
+
+  @override
+  String toString() =>
+      'ReviewRule(reviewUrl: $reviewUrl, postReviewUrl: $postReviewUrl)';
+}

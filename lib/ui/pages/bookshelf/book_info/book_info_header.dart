@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:ui' as ui;
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../data/models/book.dart';
@@ -64,7 +65,7 @@ class _BookInfoHeaderState extends State<BookInfoHeader> {
 
     try {
       final group =
-          await BookGroupService.instance.getGroupById(widget.book.group);
+          await readService(AppServices.bookGroupService).getGroupById(widget.book.group);
       setState(() {
         _group = group;
         _isLoadingGroup = false;

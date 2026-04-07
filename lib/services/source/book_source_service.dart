@@ -7,8 +7,46 @@ import '../../utils/eighteen_plus_filter.dart';
 import '../../utils/app_log.dart';
 import 'book_source_parser.dart';
 
+abstract class IBookSourceService {
+  Future<List<BookSource>> getAllBookSources({bool enabledOnly = false});
+
+  Future<List<BookSource>> getEnabledBookSources();
+
+  Future<List<BookSource>> getDisabledBookSources();
+
+  Future<List<BookSource>> getEnabledExploreBookSources();
+
+  Future<List<String>> getExploreGroups();
+
+  Future<List<BookSource>> searchBookSources(String keyword);
+
+  Future<List<BookSource>> getBookSourcesByGroup(String? group);
+
+  Future<List<String>> getAllGroups();
+
+  Future<int> getMinOrder();
+
+  Future<BookSource?> getBookSourceByUrl(String url);
+
+  Future<void> addBookSource(BookSource bookSource);
+
+  Future<void> updateBookSource(BookSource bookSource);
+
+  Future<void> deleteBookSource(String url);
+
+  Future<Map<String, int>> importBookSources(List<BookSource> bookSources);
+
+  Future<void> setBookSourceEnabled(String url, bool enabled);
+
+  Future<void> batchSetEnabled(List<String> urls, bool enabled);
+
+  Future<void> batchDeleteBookSources(List<String> urls);
+
+  Future<void> batchSetGroup(List<String> urls, String? groupName);
+}
+
 /// 书源管理服务
-class BookSourceService extends BaseService {
+class BookSourceService extends BaseService implements IBookSourceService {
   static final BookSourceService instance = BookSourceService._init();
   final AppDatabase _db = AppDatabase.instance;
 
@@ -25,7 +63,9 @@ class BookSourceService extends BaseService {
           where: enabledOnly ? 'enabled = 1' : null,
           orderBy: 'customOrder ASC, bookSourceName ASC',
         );
-        return result.map((json) => BookSource.fromJson(_convertDbToJson(json))).toList();
+        return result
+            .map((json) => BookSource.fromJson(_convertDbToJson(json)))
+            .toList();
       },
       operationName: '获取所有书源',
       logError: true,
@@ -44,7 +84,9 @@ class BookSourceService extends BaseService {
           where: 'enabled = 1',
           orderBy: 'customOrder ASC, bookSourceName ASC',
         );
-        return result.map((json) => BookSource.fromJson(_convertDbToJson(json))).toList();
+        return result
+            .map((json) => BookSource.fromJson(_convertDbToJson(json)))
+            .toList();
       },
       operationName: '获取启用的书源',
       logError: true,
@@ -63,7 +105,9 @@ class BookSourceService extends BaseService {
           where: 'enabled = 0',
           orderBy: 'customOrder ASC, bookSourceName ASC',
         );
-        return result.map((json) => BookSource.fromJson(_convertDbToJson(json))).toList();
+        return result
+            .map((json) => BookSource.fromJson(_convertDbToJson(json)))
+            .toList();
       },
       operationName: '获取禁用的书源',
       logError: true,
@@ -80,7 +124,9 @@ class BookSourceService extends BaseService {
       where: 'loginUrl IS NOT NULL AND loginUrl != ""',
       orderBy: 'customOrder ASC, bookSourceName ASC',
     );
-    return result.map((json) => BookSource.fromJson(_convertDbToJson(json))).toList();
+    return result
+        .map((json) => BookSource.fromJson(_convertDbToJson(json)))
+        .toList();
   }
 
   /// 获取无分组的书源
@@ -92,7 +138,9 @@ class BookSourceService extends BaseService {
       where: 'bookSourceGroup IS NULL OR bookSourceGroup = ""',
       orderBy: 'customOrder ASC, bookSourceName ASC',
     );
-    return result.map((json) => BookSource.fromJson(_convertDbToJson(json))).toList();
+    return result
+        .map((json) => BookSource.fromJson(_convertDbToJson(json)))
+        .toList();
   }
 
   /// 获取启用发现的书源（有发现URL的）
@@ -101,10 +149,13 @@ class BookSourceService extends BaseService {
     if (db == null) return [];
     final result = await db.query(
       'book_sources',
-      where: 'enabledExplore = 1 AND exploreUrl IS NOT NULL AND exploreUrl != ""',
+      where:
+          'enabledExplore = 1 AND exploreUrl IS NOT NULL AND exploreUrl != ""',
       orderBy: 'customOrder ASC, bookSourceName ASC',
     );
-    return result.map((json) => BookSource.fromJson(_convertDbToJson(json))).toList();
+    return result
+        .map((json) => BookSource.fromJson(_convertDbToJson(json)))
+        .toList();
   }
 
   /// 搜索发现书源
@@ -113,11 +164,14 @@ class BookSourceService extends BaseService {
     if (db == null) return [];
     final result = await db.query(
       'book_sources',
-      where: 'enabledExplore = 1 AND exploreUrl IS NOT NULL AND exploreUrl != "" AND (bookSourceName LIKE ? OR bookSourceGroup LIKE ?)',
+      where:
+          'enabledExplore = 1 AND exploreUrl IS NOT NULL AND exploreUrl != "" AND (bookSourceName LIKE ? OR bookSourceGroup LIKE ?)',
       whereArgs: ['%$keyword%', '%$keyword%'],
       orderBy: 'customOrder ASC, bookSourceName ASC',
     );
-    return result.map((json) => BookSource.fromJson(_convertDbToJson(json))).toList();
+    return result
+        .map((json) => BookSource.fromJson(_convertDbToJson(json)))
+        .toList();
   }
 
   /// 根据分组获取发现书源
@@ -126,11 +180,14 @@ class BookSourceService extends BaseService {
     if (db == null) return [];
     final result = await db.query(
       'book_sources',
-      where: 'enabledExplore = 1 AND exploreUrl IS NOT NULL AND exploreUrl != "" AND (bookSourceGroup = ? OR bookSourceGroup LIKE ? OR bookSourceGroup LIKE ? OR bookSourceGroup LIKE ?)',
+      where:
+          'enabledExplore = 1 AND exploreUrl IS NOT NULL AND exploreUrl != "" AND (bookSourceGroup = ? OR bookSourceGroup LIKE ? OR bookSourceGroup LIKE ? OR bookSourceGroup LIKE ?)',
       whereArgs: [group, '$group,%', '%,$group', '%,$group,%'],
       orderBy: 'customOrder ASC, bookSourceName ASC',
     );
-    return result.map((json) => BookSource.fromJson(_convertDbToJson(json))).toList();
+    return result
+        .map((json) => BookSource.fromJson(_convertDbToJson(json)))
+        .toList();
   }
 
   /// 获取发现书源的所有分组
@@ -152,7 +209,9 @@ class BookSourceService extends BaseService {
       where: 'enabledExplore = 0',
       orderBy: 'customOrder ASC, bookSourceName ASC',
     );
-    return result.map((json) => BookSource.fromJson(_convertDbToJson(json))).toList();
+    return result
+        .map((json) => BookSource.fromJson(_convertDbToJson(json)))
+        .toList();
   }
 
   /// 根据分组搜索书源
@@ -165,7 +224,9 @@ class BookSourceService extends BaseService {
       whereArgs: ['%$group%'],
       orderBy: 'customOrder ASC, bookSourceName ASC',
     );
-    return result.map((json) => BookSource.fromJson(_convertDbToJson(json))).toList();
+    return result
+        .map((json) => BookSource.fromJson(_convertDbToJson(json)))
+        .toList();
   }
 
   /// 搜索书源
@@ -174,11 +235,14 @@ class BookSourceService extends BaseService {
     if (db == null) return [];
     final result = await db.query(
       'book_sources',
-      where: 'bookSourceName LIKE ? OR bookSourceUrl LIKE ? OR bookSourceGroup LIKE ?',
+      where:
+          'bookSourceName LIKE ? OR bookSourceUrl LIKE ? OR bookSourceGroup LIKE ?',
       whereArgs: ['%$keyword%', '%$keyword%', '%$keyword%'],
       orderBy: 'customOrder ASC, bookSourceName ASC',
     );
-    return result.map((json) => BookSource.fromJson(_convertDbToJson(json))).toList();
+    return result
+        .map((json) => BookSource.fromJson(_convertDbToJson(json)))
+        .toList();
   }
 
   /// 根据分组获取书源
@@ -191,7 +255,9 @@ class BookSourceService extends BaseService {
       whereArgs: group == null ? null : [group],
       orderBy: 'customOrder ASC, bookSourceName ASC',
     );
-    return result.map((json) => BookSource.fromJson(_convertDbToJson(json))).toList();
+    return result
+        .map((json) => BookSource.fromJson(_convertDbToJson(json)))
+        .toList();
   }
 
   /// 获取所有分组
@@ -274,25 +340,26 @@ class BookSourceService extends BaseService {
 
   /// 批量导入书源
   /// 返回：{导入数量, 被过滤的18+网站数量}
-  Future<Map<String, int>> importBookSources(List<BookSource> bookSources) async {
+  Future<Map<String, int>> importBookSources(
+      List<BookSource> bookSources) async {
     final db = await _db.database;
     if (db == null) throw Exception('数据库不可用（Web平台不支持SQLite）');
-    
+
     // 过滤 18+ 网站
     final result = await EighteenPlusFilter.instance.filter18Plus<BookSource>(
       items: bookSources,
       getUrl: (source) => source.bookSourceUrl,
       getName: (source) => source.bookSourceName,
     );
-    
+
     final filtered = result['filtered'] as List<BookSource>;
     final blocked = result['blocked'] as List<BookSource>;
-    
+
     // 导入过滤后的书源
     int count = 0;
     if (filtered.isNotEmpty) {
       final batch = db.batch();
-      
+
       for (final bookSource in filtered) {
         batch.insert(
           'book_sources',
@@ -301,10 +368,10 @@ class BookSourceService extends BaseService {
         );
         count++;
       }
-      
+
       await batch.commit(noResult: true);
     }
-    
+
     return {
       'imported': count,
       'blocked': blocked.length,
@@ -312,9 +379,9 @@ class BookSourceService extends BaseService {
   }
 
   /// 从JSON字符串导入书源(使用Isolate解析)
-  /// 
+  ///
   /// ✅ 符合项目规范: 在Isolate中解析JSON,避免UI线程阻塞
-  /// 
+  ///
   /// [jsonString] JSON字符串(可以是数组或单个对象)
   /// [onProgress] 进度回调(可选)
   /// 返回：{imported: 导入数量, blocked: 被过滤的18+网站数量, total: JSON中的总数量}
@@ -327,7 +394,7 @@ class BookSourceService extends BaseService {
 
     try {
       final allSources = <BookSource>[];
-      
+
       if (onProgress != null) {
         // 使用批量解析,支持进度回调
         await for (final result in BookSourceParser.parseInBatches(
@@ -336,14 +403,15 @@ class BookSourceService extends BaseService {
         )) {
           allSources.addAll(result.sources);
           onProgress(result.progress);
-          
+
           if (result.error != null) {
             AppLog.instance.put('解析书源JSON出错: ${result.error}');
           }
         }
       } else {
         // 直接解析,不需要进度反馈
-        final parsedSources = await BookSourceParser.parseInBackground(jsonString);
+        final parsedSources =
+            await BookSourceParser.parseInBackground(jsonString);
         allSources.addAll(parsedSources);
       }
 
@@ -357,7 +425,7 @@ class BookSourceService extends BaseService {
       }
 
       final importResult = await importBookSources(allSources);
-      
+
       return {
         'imported': importResult['imported'] ?? 0,
         'blocked': importResult['blocked'] ?? 0,
@@ -389,7 +457,7 @@ class BookSourceService extends BaseService {
   Future<void> batchSetEnabled(List<String> urls, bool enabled) async {
     final db = await _db.database;
     if (db == null) throw Exception('数据库不可用（Web平台不支持SQLite）');
-    
+
     final batch = db.batch();
     for (final url in urls) {
       batch.update(
@@ -406,7 +474,7 @@ class BookSourceService extends BaseService {
   Future<void> batchDeleteBookSources(List<String> urls) async {
     final db = await _db.database;
     if (db == null) throw Exception('数据库不可用（Web平台不支持SQLite）');
-    
+
     final batch = db.batch();
     for (final url in urls) {
       batch.delete(
@@ -422,7 +490,7 @@ class BookSourceService extends BaseService {
   Future<void> batchSetGroup(List<String> urls, String? groupName) async {
     final db = await _db.database;
     if (db == null) throw Exception('数据库不可用（Web平台不支持SQLite）');
-    
+
     final batch = db.batch();
     for (final url in urls) {
       batch.update(
@@ -438,12 +506,12 @@ class BookSourceService extends BaseService {
   /// 转换数据库格式到JSON格式
   Map<String, dynamic> _convertDbToJson(Map<String, dynamic> dbData) {
     final json = Map<String, dynamic>.from(dbData);
-    
+
     // 转换布尔值
     json['enabled'] = dbData['enabled'] == 1;
     json['enabledExplore'] = dbData['enabledExplore'] == 1;
     json['enabledCookieJar'] = dbData['enabledCookieJar'] == 1;
-    
+
     // 解析JSON字符串字段
     if (dbData['ruleExplore'] != null) {
       try {
@@ -480,19 +548,19 @@ class BookSourceService extends BaseService {
         json['ruleContent'] = null;
       }
     }
-    
+
     return json;
   }
 
   /// 转换JSON格式到数据库格式
   Map<String, dynamic> _convertJsonToDb(Map<String, dynamic> json) {
     final dbData = Map<String, dynamic>.from(json);
-    
+
     // 转换布尔值
     dbData['enabled'] = json['enabled'] == true ? 1 : 0;
     dbData['enabledExplore'] = json['enabledExplore'] == true ? 1 : 0;
     dbData['enabledCookieJar'] = json['enabledCookieJar'] == true ? 1 : 0;
-    
+
     // 序列化JSON对象字段
     if (json['ruleExplore'] != null) {
       dbData['ruleExplore'] = jsonEncode(json['ruleExplore']);
@@ -509,8 +577,7 @@ class BookSourceService extends BaseService {
     if (json['ruleContent'] != null) {
       dbData['ruleContent'] = jsonEncode(json['ruleContent']);
     }
-    
+
     return dbData;
   }
 }
-

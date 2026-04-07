@@ -42,80 +42,78 @@ class _ReaderViewState extends State<ReaderView> {
     _pageController = PageController(
       initialPage: widget.controller.state.currentPage,
     );
-
-    // 监听控制器状态变化
-    widget.controller.addListener(_onControllerChanged);
-  }
-
-  void _onControllerChanged() {
-    if (!mounted) return;
-
-    setState(() {
-      // 如果页码变化，跳转到新页面
-      if (_pageController.hasClients) {
-        final targetPage = widget.controller.state.currentPage;
-        if (_pageController.page?.round() != targetPage) {
-          _pageController.jumpToPage(targetPage);
-        }
-      }
-    });
   }
 
   @override
   void dispose() {
-    widget.controller.removeListener(_onControllerChanged);
     _pageController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = widget.controller.state;
+    return ValueListenableBuilder<PaginationState>(
+      valueListenable: widget.controller,
+      builder: (context, state, _) {
+        _syncPageController(state.currentPage);
 
-    // 加载中
-    if (state.isPaginating) {
-      return Container(
-        color: widget.controller.config.backgroundColor,
-        child: const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    // 错误
-    if (state.hasError) {
-      return Container(
-        color: widget.controller.config.backgroundColor,
-        child: Center(
-          child: Text(
-            '分页失败: ${state.error}',
-            style: TextStyle(
-              color: widget.controller.config.textColor,
-              fontSize: 16,
+        // 加载中
+        if (state.isPaginating) {
+          return Container(
+            color: widget.controller.config.backgroundColor,
+            child: const Center(
+              child: CircularProgressIndicator(),
             ),
-          ),
-        ),
-      );
-    }
+          );
+        }
 
-    // 无内容
-    if (state.pages.isEmpty) {
-      return Container(
-        color: widget.controller.config.backgroundColor,
-        child: Center(
-          child: Text(
-            '暂无内容',
-            style: TextStyle(
-              color: widget.controller.config.textColor,
-              fontSize: 16,
+        // 错误
+        if (state.hasError) {
+          return Container(
+            color: widget.controller.config.backgroundColor,
+            child: Center(
+              child: Text(
+                '分页失败: ${state.error}',
+                style: TextStyle(
+                  color: widget.controller.config.textColor,
+                  fontSize: 16,
+                ),
+              ),
             ),
-          ),
-        ),
-      );
-    }
+          );
+        }
 
-    // 正常显示
-    return _buildPageView(state);
+        // 无内容
+        if (state.pages.isEmpty) {
+          return Container(
+            color: widget.controller.config.backgroundColor,
+            child: Center(
+              child: Text(
+                '暂无内容',
+                style: TextStyle(
+                  color: widget.controller.config.textColor,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          );
+        }
+
+        // 正常显示
+        return _buildPageView(state);
+      },
+    );
+  }
+
+  void _syncPageController(int targetPage) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_pageController.hasClients) {
+        return;
+      }
+      if (_pageController.page?.round() != targetPage) {
+        _pageController.jumpToPage(targetPage);
+      }
+    });
   }
 
   /// 构建PageView

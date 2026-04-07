@@ -1,7 +1,7 @@
 part of 'reader_page.dart';
 
 /// 滚动模式相关视图
-extension ReaderViewScroll on _ReaderPageState {
+extension _ReaderViewScroll on _ReaderPageState {
   /// 构建滚动模式
   Widget _buildScrollMode() {
     return PageView.builder(
@@ -22,8 +22,12 @@ extension ReaderViewScroll on _ReaderPageState {
 
   /// 构建滚动模式的单章页面
   Widget _buildScrollChapterPage(int index) {
-    var content = _curTextChapter?.content ?? '加载中...';
-    if (_currentChapterIndex != index) content = "预加载中...";
+    var content = _chapterContents[index] ?? '加载中...';
+    if (_currentChapterIndex == index) {
+      content = _curTextChapter?.content ?? content;
+    } else if (content.isEmpty) {
+      content = '预加载中...';
+    }
 
     final chapter = _chapters[index];
     final chapterTitle = chapter.title;

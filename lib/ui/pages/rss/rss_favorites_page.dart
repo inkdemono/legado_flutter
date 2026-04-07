@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/rss_star.dart';
 import '../../../services/rss_service.dart';
@@ -6,13 +7,13 @@ import 'rss_read_page.dart';
 
 /// RSS收藏列表Provider
 final rssFavoritesListProvider = FutureProvider.family<List<RssStar>, String?>((ref, group) async {
-  final service = RssService.instance;
+  final service = readService(AppServices.rssService);
   return await service.getRssStars(group: group);
 });
 
 /// RSS收藏分组列表Provider
 final rssFavoritesGroupsProvider = FutureProvider<List<String>>((ref) async {
-  final service = RssService.instance;
+  final service = readService(AppServices.rssService);
   return await service.getStarGroups();
 });
 
@@ -56,7 +57,7 @@ class _RssFavoritesPageState extends ConsumerState<RssFavoritesPage> {
     );
 
     if (confirmed == true) {
-      await RssService.instance.deleteRssStar(star.origin, star.link);
+      await readService(AppServices.rssService).deleteRssStar(star.origin, star.link);
       if (mounted) {
         ref.invalidate(rssFavoritesListProvider(_selectedGroup));
         ScaffoldMessenger.of(context).showSnackBar(
@@ -69,7 +70,7 @@ class _RssFavoritesPageState extends ConsumerState<RssFavoritesPage> {
   Future<void> _readStar(RssStar star) async {
     // 将RssStar转换为RssArticle并打开阅读页面
     final article = star.toRssArticle();
-    final source = await RssService.instance.getRssSourceByUrl(star.origin);
+    final source = await readService(AppServices.rssService).getRssSourceByUrl(star.origin);
     
     if (source != null && mounted) {
       Navigator.of(context).push(

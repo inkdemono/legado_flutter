@@ -1,17 +1,18 @@
 import 'dart:io';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import '../../../data/models/book.dart';
 import '../../../data/models/remote_book.dart';
-import '../../../services/book/remote_book_service.dart';
-import '../../../services/book/local_book_service.dart';
 import '../../../providers/book_provider.dart';
 import '../../../utils/app_log.dart';
 import '../../widgets/base/base_bottom_sheet_consumer.dart';
 
 /// 远程书籍对话框
 class RemoteBookDialog extends BaseBottomSheetConsumer {
-  const RemoteBookDialog({super.key}) : super(
+  const RemoteBookDialog({super.key})
+      : super(
           title: '远程书籍',
           heightFactor: 0.8,
         );
@@ -20,7 +21,8 @@ class RemoteBookDialog extends BaseBottomSheetConsumer {
   ConsumerState<RemoteBookDialog> createState() => _RemoteBookDialogState();
 }
 
-class _RemoteBookDialogState extends BaseBottomSheetConsumerState<RemoteBookDialog> {
+class _RemoteBookDialogState
+    extends BaseBottomSheetConsumerState<RemoteBookDialog> {
   final TextEditingController _urlController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -50,7 +52,7 @@ class _RemoteBookDialogState extends BaseBottomSheetConsumerState<RemoteBookDial
   /// 检查配置
   void _checkConfiguration() {
     setState(() {
-      _isConfigured = RemoteBookService.instance.isConfigured;
+      _isConfigured = readService(AppServices.remoteBookService).isConfigured;
     });
   }
 
@@ -108,7 +110,7 @@ class _RemoteBookDialogState extends BaseBottomSheetConsumerState<RemoteBookDial
               }
 
               try {
-                RemoteBookService.instance.configure(
+                readService(AppServices.remoteBookService).configure(
                   baseUrl: url,
                   username: _usernameController.text.trim().isEmpty
                       ? null
@@ -148,8 +150,8 @@ class _RemoteBookDialogState extends BaseBottomSheetConsumerState<RemoteBookDial
     });
 
     try {
-      final books =
-          await RemoteBookService.instance.getRemoteBookList(path ?? '/');
+      final books = await readService(AppServices.remoteBookService)
+          .getRemoteBookList(path ?? '/');
       setState(() {
         _remoteBooks = books;
         _isLoading = false;
@@ -213,6 +215,7 @@ class _RemoteBookDialogState extends BaseBottomSheetConsumerState<RemoteBookDial
 
     try {
       int successCount = 0;
+      final importedBooks = <Book>[];
       final appDir = await getApplicationDocumentsDirectory();
       final booksDir = Directory('${appDir.path}/books');
       if (!await booksDir.exists()) {
@@ -222,20 +225,21 @@ class _RemoteBookDialogState extends BaseBottomSheetConsumerState<RemoteBookDial
       for (final remoteBook in books) {
         try {
           // 下载文件
-          final fileData =
-              await RemoteBookService.instance.downloadRemoteBook(remoteBook);
+          final fileData = await readService(AppServices.remoteBookService)
+              .downloadRemoteBook(remoteBook);
 
           // 保存到本地
           final localFile = File('${booksDir.path}/${remoteBook.filename}');
           await localFile.writeAsBytes(fileData);
 
           // 导入到书架
-          final book =
-              await LocalBookService.instance.importBook(localFile.path);
+          final book = await readService(AppServices.localBookService)
+              .importBook(localFile.path);
           if (book == null) {
             throw Exception('导入书籍失败');
           }
 
+          importedBooks.add(book);
           successCount++;
         } catch (e) {
           AppLog.instance.put('添加书籍失败: ${remoteBook.filename}', error: e);
@@ -245,14 +249,9 @@ class _RemoteBookDialogState extends BaseBottomSheetConsumerState<RemoteBookDial
       if (!mounted) return;
       Navigator.pop(context); // 关闭进度对话框
 
-      // 刷新书架 - 需要同时刷新所有分组的书籍列表
-      ref.invalidate(refreshBookshelfProvider);
-      // 刷新所有分组的书籍列表
-      final groupsAsync = ref.read(bookGroupsProvider);
-      final groups = groupsAsync.value ?? [];
-      for (final group in groups) {
-        ref.invalidate(booksByGroupProvider(group.groupId));
-      }
+      await ref
+          .read(bookshelfBooksProvider.notifier)
+          .addImportedBooks(importedBooks);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -361,74 +360,73 @@ class _RemoteBookDialogState extends BaseBottomSheetConsumerState<RemoteBookDial
           ),
         // 书籍列表
         Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : filteredBooks.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.folder_open,
-                                  size: 64, color: Colors.grey),
-                              const SizedBox(height: 16),
-                              Text(
-                                _isConfigured ? '暂无书籍' : '请先配置WebDAV',
-                                style: const TextStyle(color: Colors.grey),
-                              ),
-                              if (!_isConfigured) ...[
-                                const SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: _showConfigDialog,
-                                  child: const Text('配置WebDAV'),
-                                ),
-                              ],
-                            ],
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : filteredBooks.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.folder_open,
+                              size: 64, color: Colors.grey),
+                          const SizedBox(height: 16),
+                          Text(
+                            _isConfigured ? '暂无书籍' : '请先配置WebDAV',
+                            style: const TextStyle(color: Colors.grey),
                           ),
-                        )
-                      : ListView.builder(
-                          itemCount: filteredBooks.length,
-                          itemBuilder: (context, index) {
-                            final book = filteredBooks[index];
-                            final isSelected = _selectedBooks.contains(book);
+                          if (!_isConfigured) ...[
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _showConfigDialog,
+                              child: const Text('配置WebDAV'),
+                            ),
+                          ],
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: filteredBooks.length,
+                      itemBuilder: (context, index) {
+                        final book = filteredBooks[index];
+                        final isSelected = _selectedBooks.contains(book);
 
-                            return ListTile(
-                              leading: Icon(
-                                book.isDir ? Icons.folder : Icons.book,
-                                color: book.isDir ? Colors.blue : Colors.orange,
-                              ),
-                              title: Text(book.filename),
-                              subtitle: book.isDir
-                                  ? const Text('文件夹')
-                                  : Text(
-                                      '${_formatSize(book.size)} • ${_formatDate(book.lastModify)}'),
-                              trailing: book.isDir
-                                  ? const Icon(Icons.chevron_right)
-                                  : (book.isOnBookShelf
-                                      ? const Icon(Icons.check,
-                                          color: Colors.green)
-                                      : null),
-                              onTap: () {
-                                if (book.isDir) {
-                                  _enterDirectory(book);
-                                } else {
-                                  // 单个书籍添加到书架
-                                  _addToBookshelf([book]);
-                                }
-                              },
-                              onLongPress: () {
-                                if (!book.isDir) {
-                                  setState(() {
-                                    if (isSelected) {
-                                      _selectedBooks.remove(book);
-                                    } else {
-                                      _selectedBooks.add(book);
-                                    }
-                                  });
-                                }
-                              },
-                            );
+                        return ListTile(
+                          leading: Icon(
+                            book.isDir ? Icons.folder : Icons.book,
+                            color: book.isDir ? Colors.blue : Colors.orange,
+                          ),
+                          title: Text(book.filename),
+                          subtitle: book.isDir
+                              ? const Text('文件夹')
+                              : Text(
+                                  '${_formatSize(book.size)} • ${_formatDate(book.lastModify)}'),
+                          trailing: book.isDir
+                              ? const Icon(Icons.chevron_right)
+                              : (book.isOnBookShelf
+                                  ? const Icon(Icons.check, color: Colors.green)
+                                  : null),
+                          onTap: () {
+                            if (book.isDir) {
+                              _enterDirectory(book);
+                            } else {
+                              // 单个书籍添加到书架
+                              _addToBookshelf([book]);
+                            }
                           },
-                        ),
+                          onLongPress: () {
+                            if (!book.isDir) {
+                              setState(() {
+                                if (isSelected) {
+                                  _selectedBooks.remove(book);
+                                } else {
+                                  _selectedBooks.add(book);
+                                }
+                              });
+                            }
+                          },
+                        );
+                      },
+                    ),
         ),
       ],
     );

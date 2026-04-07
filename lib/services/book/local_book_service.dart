@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
@@ -21,7 +22,6 @@ import 'epub_parser.dart';
 import 'mobi/mobi_reader.dart';
 import 'umd/umd_reader.dart';
 import 'pdf/pdf_reader.dart';
-import '../txt_toc_rule_service.dart';
 import '../../utils/app_log.dart';
 import '../../utils/file_utils.dart';
 
@@ -30,7 +30,7 @@ class LocalBookService extends BaseService {
   static final LocalBookService instance = LocalBookService._init();
   LocalBookService._init();
 
-  final BookService _bookService = BookService.instance;
+  final IBookService _bookService = readService(AppServices.bookService);
 
   /// 选择并导入本地文件
   Future<List<Book>> importLocalFiles({List<String>? allowedExtensions}) async {
@@ -55,7 +55,9 @@ class LocalBookService extends BaseService {
           if (book != null) {
             books.add(book);
           }
-        } catch (e) {}
+        } catch (e) {
+          AppLog.instance.put('导入本地书籍失败: ${file.path}', error: e);
+        }
       }
 
       return books;
@@ -240,7 +242,8 @@ class LocalBookService extends BaseService {
     }
 
     // 获取启用的TXT目录规则
-    final enabledRules = await TxtTocRuleService.instance.getEnabledRules();
+    final enabledRules =
+        await readService(AppServices.txtTocRuleService).getEnabledRules();
 
     // 如果没有启用的规则，使用默认规则
     List<RegExp> chapterPatterns = [];
@@ -249,7 +252,9 @@ class LocalBookService extends BaseService {
       for (final rule in enabledRules) {
         try {
           chapterPatterns.add(RegExp(rule.rule, multiLine: true));
-        } catch (e) {}
+        } catch (e) {
+          AppLog.instance.put('TXT目录规则无效: ${rule.name}', error: e);
+        }
       }
     }
 

@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/book.dart';
 import '../../../data/models/book_group.dart';
 import '../../../providers/book_provider.dart';
-import '../../../services/reader/cache_service.dart';
-import '../../../services/reader/cache_export_service.dart';
-import '../../../services/book/book_service.dart';
-import '../../../services/source/book_source_service.dart';
 import '../../widgets/base/base_bottom_sheet_consumer.dart';
 
 /// 缓存/导出对话框
@@ -54,9 +51,10 @@ class _CacheExportDialogState
       if (book.isLocal) continue;
 
       try {
-        final chapters = await BookService.instance.getChapterList(book);
-        final cachedCount =
-            await CacheService.instance.getCachedChapterCount(book, chapters);
+        final chapters =
+            await readService(AppServices.bookService).getChapterList(book);
+        final cachedCount = await readService(AppServices.cacheService)
+            .getCachedChapterCount(book, chapters);
 
         setState(() {
           _totalCounts[book.bookUrl] = chapters.length;
@@ -278,7 +276,9 @@ class _CacheExportDialogState
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
-                      ref.invalidate(booksByGroupProvider(widget.groupId));
+                      ref
+                          .read(bookshelfBooksProvider.notifier)
+                          .reload(showLoading: true);
                     },
                     child: const Text('重试'),
                   ),
@@ -358,8 +358,8 @@ class _CacheExportDialogState
     );
 
     try {
-      final source =
-          await BookSourceService.instance.getBookSourceByUrl(book.origin);
+      final source = await readService(AppServices.bookSourceService)
+          .getBookSourceByUrl(book.origin);
       if (source == null) {
         if (mounted) {
           Navigator.pop(context);
@@ -370,7 +370,8 @@ class _CacheExportDialogState
         return;
       }
 
-      final chapters = await BookService.instance.getChapterList(book);
+      final chapters =
+          await readService(AppServices.bookService).getChapterList(book);
       if (chapters.isEmpty) {
         if (mounted) {
           Navigator.pop(context);
@@ -382,7 +383,7 @@ class _CacheExportDialogState
       }
 
       int successCount = 0;
-      await CacheService.instance.cacheChapters(
+      await readService(AppServices.cacheService).cacheChapters(
         book,
         chapters,
         source,
@@ -478,22 +479,26 @@ class _CacheExportDialogState
       for (final book in books) {
         if (book.isLocal) continue;
 
-        final source =
-            await BookSourceService.instance.getBookSourceByUrl(book.origin);
+        final source = await readService(AppServices.bookSourceService)
+            .getBookSourceByUrl(book.origin);
         if (source == null) continue;
 
-        final chapters = await BookService.instance.getChapterList(book);
+        final chapters =
+            await readService(AppServices.bookService).getChapterList(book);
         if (chapters.isEmpty) continue;
 
-        totalChapters += chapters.length;
+        totalChapters = (totalChapters + chapters.length).toInt();
 
-        final results = await CacheService.instance.cacheChapters(
+        final results =
+            await readService(AppServices.cacheService).cacheChapters(
           book,
           chapters,
           source,
         );
 
-        totalSuccess += results.values.where((v) => v == true).length;
+        totalSuccess =
+            (totalSuccess + results.values.where((v) => v == true).length)
+                .toInt();
       }
 
       if (!mounted) return;
@@ -584,11 +589,13 @@ class _CacheExportDialogState
                       try {
                         bool success;
                         if (exportType == 'txt') {
-                          success = await CacheExportService.instance
-                              .exportAsTxt(book);
+                          success =
+                              await readService(AppServices.cacheExportService)
+                                  .exportAsTxt(book);
                         } else {
-                          success = await CacheExportService.instance
-                              .exportAsEpub(book);
+                          success =
+                              await readService(AppServices.cacheExportService)
+                                  .exportAsEpub(book);
                         }
 
                         if (context.mounted) {
@@ -694,7 +701,8 @@ class _CacheExportDialogState
 
                         // 批量导出
                         final results =
-                            await CacheExportService.instance.exportBooks(
+                            await readService(AppServices.cacheExportService)
+                                .exportBooks(
                           selectedBooks,
                           exportType,
                         );

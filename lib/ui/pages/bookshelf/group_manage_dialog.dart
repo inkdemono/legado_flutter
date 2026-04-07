@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/book_group.dart';
 import '../../../providers/book_provider.dart';
-import '../../../services/book/book_service.dart';
-import '../../../services/book_group_service.dart';
 import '../../widgets/base/base_bottom_sheet_consumer.dart';
 import '../../widgets/common/custom_switch.dart';
 import 'group_edit_dialog.dart';
@@ -200,10 +198,9 @@ class _GroupManageDialogState
                 ? null
                 : (value) async {
                     try {
-                      await BookGroupService.instance.updateGroup(
-                        group.copyWith(show: value),
-                      );
-                      ref.invalidate(bookGroupsProvider);
+                      await ref
+                          .read(bookGroupsProvider.notifier)
+                          .toggleGroupVisibility(group, value);
                     } catch (e) {
                       if (!mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -342,7 +339,9 @@ class _GroupManageDialogState
             ),
             const SizedBox(height: 16),
             FilledButton(
-              onPressed: () => ref.invalidate(bookGroupsProvider),
+              onPressed: () => ref
+                  .read(bookGroupsProvider.notifier)
+                  .reload(showLoading: true),
               child: const Text('重试'),
             ),
           ],
@@ -355,18 +354,14 @@ class _GroupManageDialogState
     showDialog(
       context: context,
       builder: (context) => const GroupEditDialog(),
-    ).then((_) {
-      ref.invalidate(bookGroupsProvider);
-    });
+    );
   }
 
   void _showEditGroupDialog(BookGroup group) {
     showDialog(
       context: context,
       builder: (context) => GroupEditDialog(group: group),
-    ).then((_) {
-      ref.invalidate(bookGroupsProvider);
-    });
+    );
   }
 
   void _showDeleteConfirmDialog(BookGroup group) {
@@ -384,15 +379,17 @@ class _GroupManageDialogState
             onPressed: () async {
               Navigator.pop(alertContext);
               try {
-                await BookGroupService.instance.deleteGroup(group.groupId);
                 final books =
                     await ref.read(booksByGroupProvider(group.groupId).future);
-                for (final book in books) {
-                  await BookService.instance
-                      .updateBookGroup(book.bookUrl, BookGroup.idAll);
-                }
-                ref.invalidate(bookGroupsProvider);
-                ref.invalidate(refreshBookshelfProvider);
+                await ref
+                    .read(bookshelfBooksProvider.notifier)
+                    .updateBookGroups(
+                      books.map((book) => book.bookUrl).toList(),
+                      BookGroup.idAll,
+                    );
+                await ref
+                    .read(bookGroupsProvider.notifier)
+                    .deleteGroup(group.groupId);
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('已删除分组')),

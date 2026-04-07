@@ -6,31 +6,56 @@ import '../core/constants/prefer_key.dart';
 class AppConfig {
   static SharedPreferences? _prefs;
   static bool _initialized = false;
-  static bool _initializing = false;
+  static Future<void>? _initFuture;
 
   /// 初始化状态
   static bool get isInitialized => _initialized;
 
   /// 异步初始化（非阻塞）
   static Future<void> init() async {
-    if (_initialized || _initializing) return;
-    _initializing = true;
-    _prefs = await SharedPreferences.getInstance();
-    _initialized = true;
-    _initializing = false;
+    if (_initialized) return;
+    await _ensureInitFuture();
   }
 
   /// 启动时预加载（不阻塞）
   static void preload() {
-    if (_initialized || _initializing) return;
-    _initializing = true;
-    SharedPreferences.getInstance().then((prefs) {
+    _ensureInitFuture();
+  }
+
+  /// 等待预热完成，可选超时以避免启动阶段被无限阻塞。
+  static Future<void> waitUntilReady({Duration? timeout}) async {
+    final future = _ensureInitFuture();
+    if (timeout == null) {
+      await future;
+      return;
+    }
+
+    await future.timeout(
+      timeout,
+      onTimeout: () {},
+    );
+  }
+
+  static Future<void> _ensureInitFuture() {
+    if (_initialized) {
+      return Future<void>.value();
+    }
+
+    final currentFuture = _initFuture;
+    if (currentFuture != null) {
+      return currentFuture;
+    }
+
+    final future = SharedPreferences.getInstance().then((prefs) {
       _prefs = prefs;
       _initialized = true;
-      _initializing = false;
-    }).catchError((e) {
-      _initializing = false;
+    }).catchError((error) {
+      _initFuture = null;
+      throw error;
     });
+
+    _initFuture = future;
+    return future;
   }
 
   // 获取字符串
@@ -1501,7 +1526,8 @@ class AppConfig {
 
   /// WebDAV 冲突解决策略
   static String getWebDavConflictResolution() {
-    return getString(PreferKey.webDavConflictResolution, defaultValue: 'keepNewer');
+    return getString(PreferKey.webDavConflictResolution,
+        defaultValue: 'keepNewer');
   }
 
   static Future<bool> setWebDavConflictResolution(String strategy) {
@@ -1749,7 +1775,7 @@ class AppConfig {
     // 注意：需要导入 BookGroupService
     // 暂时返回默认排序，实际实现需要访问数据库
     // TODO: 实现数据库查询逻辑
-    // final group = await BookGroupService.instance.getGroupById(groupId);
+    // final group = await readService(AppServices.bookGroupService).getGroupById(groupId);
     // return group?.getRealBookSort() ?? getBookshelfSort();
     return getBookshelfSort();
   }

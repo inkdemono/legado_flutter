@@ -1,4 +1,5 @@
 import 'dart:io' show Platform;
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/services.dart';
 import '../core/base/base_service.dart';
 import '../utils/app_log.dart';
@@ -40,7 +41,7 @@ class ShortcutService extends BaseService {
   /// 获取最后阅读的书籍
   Future<Book?> _getLastReadBook() async {
     try {
-      final books = await BookService.instance.getBookshelfBooks();
+      final books = await readService(AppServices.bookService).getBookshelfBooks();
       if (books.isEmpty) {
         return null;
       }

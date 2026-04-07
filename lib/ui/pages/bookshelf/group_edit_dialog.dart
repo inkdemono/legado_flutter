@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/book_group.dart';
-import '../../../services/book_group_service.dart';
-import '../../../services/book/book_service.dart';
 import '../../../providers/book_provider.dart';
 import '../../widgets/common/custom_switch_list_tile.dart';
 
@@ -206,10 +205,11 @@ class _GroupEditDialogState extends ConsumerState<GroupEditDialog> {
           enableRefresh: _enableRefresh,
           bookSort: _bookSort,
         );
-        await BookGroupService.instance.updateGroup(updatedGroup);
+        await ref.read(bookGroupsProvider.notifier).updateGroup(updatedGroup);
       } else {
         // 创建新分组
-        final nextId = await BookGroupService.instance.getNextGroupId();
+        final nextId =
+            await readService(AppServices.bookGroupService).getNextGroupId();
         final newGroup = BookGroup(
           groupId: nextId,
           groupName: name,
@@ -218,10 +218,9 @@ class _GroupEditDialogState extends ConsumerState<GroupEditDialog> {
           order: 0,
           show: true,
         );
-        await BookGroupService.instance.createGroup(newGroup);
+        await ref.read(bookGroupsProvider.notifier).createGroup(newGroup);
       }
 
-      ref.invalidate(bookGroupsProvider);
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -258,16 +257,18 @@ class _GroupEditDialogState extends ConsumerState<GroupEditDialog> {
               Navigator.pop(context); // 关闭编辑对话框
               try {
                 final group = widget.group!;
-                await BookGroupService.instance.deleteGroup(group.groupId);
                 // 将分组中的书籍移动到"全部"分组
                 final books =
                     await ref.read(booksByGroupProvider(group.groupId).future);
-                for (final book in books) {
-                  await BookService.instance
-                      .updateBookGroup(book.bookUrl, BookGroup.idAll);
-                }
-                ref.invalidate(bookGroupsProvider);
-                ref.invalidate(refreshBookshelfProvider);
+                await ref
+                    .read(bookshelfBooksProvider.notifier)
+                    .updateBookGroups(
+                      books.map((book) => book.bookUrl).toList(),
+                      BookGroup.idAll,
+                    );
+                await ref
+                    .read(bookGroupsProvider.notifier)
+                    .deleteGroup(group.groupId);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('已删除分组')),

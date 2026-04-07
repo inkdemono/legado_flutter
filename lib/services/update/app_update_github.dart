@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../network/network_service.dart';
 import '../../utils/app_log.dart';
 import '../../core/exceptions/app_exceptions.dart';
@@ -38,7 +39,7 @@ class AppUpdateGitHub implements AppUpdateInterface {
         : 'https://api.github.com/repos/gedoor/legado/releases/latest';
 
     try {
-      final response = await NetworkService.instance.get(
+      final response = await readService(AppServices.networkService).get(
         lastReleaseUrl,
         retryCount: 1,
       );

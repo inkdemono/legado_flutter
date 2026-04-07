@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../../../data/models/book.dart';
 import '../../../../services/book/book_service.dart';
 
@@ -83,7 +84,7 @@ class _BookInfoEditPageState extends State<BookInfoEditPage> {
       }
 
       // 保存到数据库
-      await BookService.instance.updateBook(updatedBook);
+      await readService(AppServices.bookService).updateBook(updatedBook);
 
       if (mounted) {
         Navigator.of(context).pop(updatedBook);

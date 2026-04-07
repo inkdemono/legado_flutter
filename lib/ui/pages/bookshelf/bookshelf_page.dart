@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,8 +14,6 @@ import '../../../providers/bookshelf_settings_provider.dart';
 import '../../../providers/main_page_index_provider.dart';
 import '../../../providers/scroll_control_provider.dart';
 import '../../../providers/book_update_count_provider.dart';
-import '../../../services/book/book_service.dart';
-import '../../../services/book/local_book_service.dart';
 import '../../widgets/book/book_card.dart';
 import '../../widgets/book/book_grid_card.dart';
 import '../reader/reader_page.dart';
@@ -72,6 +71,18 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
     super.dispose();
   }
 
+  Future<void> _reloadBookshelf({bool showLoading = false}) {
+    return ref
+        .read(bookshelfBooksProvider.notifier)
+        .reload(showLoading: showLoading);
+  }
+
+  Future<void> _reloadGroups({bool showLoading = false}) {
+    return ref
+        .read(bookGroupsProvider.notifier)
+        .reload(showLoading: showLoading);
+  }
+
   /// 打开书籍
   void _openBook(Book book) {
     Navigator.of(context).push(
@@ -107,13 +118,6 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
     if (confirmed == true) {
       try {
         await ref.read(bookOperationsProvider).removeBook(book.bookUrl, ref);
-
-        // 刷新所有分组的书籍列表，确保界面更新
-        final groupsAsync = ref.read(bookGroupsProvider);
-        final groups = groupsAsync.value ?? [];
-        for (final group in groups) {
-          ref.invalidate(booksByGroupProvider(group.groupId));
-        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -159,7 +163,8 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
         ),
       );
 
-      final books = await LocalBookService.instance.importLocalFiles();
+      final books =
+          await readService(AppServices.localBookService).importLocalFiles();
 
       if (!mounted) return;
       Navigator.pop(context); // 关闭加载对话框
@@ -171,15 +176,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
         return;
       }
 
-      // 刷新书架 - 需要同时刷新所有分组的书籍列表
-      ref.invalidate(refreshBookshelfProvider);
-      // 刷新当前分组的书籍列表
-      final groupsAsync = ref.read(bookGroupsProvider);
-      final groups = groupsAsync.value ?? [];
-      if (groups.isNotEmpty && _selectedGroupIndex < groups.length) {
-        ref.invalidate(
-            booksByGroupProvider(groups[_selectedGroupIndex].groupId));
-      }
+      await ref.read(bookshelfBooksProvider.notifier).addImportedBooks(books);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -246,7 +243,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: () {
-                            ref.invalidate(bookGroupsProvider);
+                            _reloadGroups(showLoading: true);
                           },
                           child: const Text('重试'),
                         ),
@@ -304,7 +301,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
-                ref.invalidate(refreshBookshelfProvider);
+                _reloadBookshelf(showLoading: true);
               },
               child: const Text('重试'),
             ),
@@ -530,14 +527,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(refreshBookshelfProvider);
-        // 刷新当前分组的书籍列表
-        final groupsAsync = ref.read(bookGroupsProvider);
-        final groups = groupsAsync.value ?? [];
-        if (groups.isNotEmpty && _selectedGroupIndex < groups.length) {
-          ref.invalidate(
-              booksByGroupProvider(groups[_selectedGroupIndex].groupId));
-        }
+        await _reloadBookshelf();
       },
       child: layoutType == BookshelfLayoutType.list
           ? _buildListView(sortedBooks, settings, effectiveSortType)
@@ -677,16 +667,20 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
   Widget _buildGroupedListView(
       List<Book> books, BookshelfSettings settings, SortType sortType) {
     final grouped = _groupBooks(books, settings.groupingStyle);
+    final entries = _buildGroupedListEntries(
+      grouped,
+      includeManualSortWarning: sortType == SortType.manual,
+    );
 
-    // 如果是手动排序，需要特殊处理（分组模式下不支持拖拽排序）
-    if (sortType == SortType.manual) {
-      // 提示用户：分组模式下不支持拖拽排序
-      return ListView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.all(8),
-        itemCount: grouped.length + 1,
-        itemBuilder: (context, index) {
-          if (index == 0) {
+    final groupedListView = ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.all(8),
+      itemCount: entries.length,
+      itemBuilder: (context, index) {
+        final entry = entries[index];
+
+        switch (entry.type) {
+          case _GroupedBookListEntryType.warning:
             return Container(
               padding: const EdgeInsets.all(16),
               margin: const EdgeInsets.all(8),
@@ -710,63 +704,32 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
                 ],
               ),
             );
-          }
-          final group = grouped[index - 1];
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (group['title'] != null)
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  child: Text(
-                    group['title'] as String,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ...(group['books'] as List<Book>).map((book) => BookCard(
-                    book: book,
-                    isSearchResult: false,
-                    onTap: () => _openBook(book),
-                    onLongPress: () => _showBookMenu(book),
-                  )),
-            ],
-          );
-        },
-      );
-    }
-
-    final groupedListView = ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.all(8),
-      itemCount: grouped.length,
-      itemBuilder: (context, index) {
-        final group = grouped[index];
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (group['title'] != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                child: Text(
-                  group['title'] as String,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+          case _GroupedBookListEntryType.header:
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Text(
+                entry.title!,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ...(group['books'] as List<Book>).map((book) => BookCard(
-                  book: book,
-                  isSearchResult: false,
-                  onTap: () => _openBook(book),
-                  onLongPress: () => _showBookMenu(book),
-                )),
-          ],
-        );
+            );
+          case _GroupedBookListEntryType.book:
+            final book = entry.book!;
+            final isSelected =
+                _isBatchMode && _selectedBookUrls.contains(book.bookUrl);
+            return _buildBookCardWithSelection(
+              book: book,
+              isSelected: isSelected,
+              onTap: _isBatchMode
+                  ? () => _toggleBookSelection(book)
+                  : () => _openBook(book),
+              onLongPress: _isBatchMode
+                  ? () => _toggleBookSelection(book)
+                  : () => _showBookMenu(book),
+            );
+        }
       },
     );
 
@@ -820,6 +783,30 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
         .sort((a, b) => (a['title'] as String).compareTo(b['title'] as String));
 
     return result;
+  }
+
+  List<_GroupedBookListEntry> _buildGroupedListEntries(
+    List<Map<String, dynamic>> grouped, {
+    required bool includeManualSortWarning,
+  }) {
+    final entries = <_GroupedBookListEntry>[
+      if (includeManualSortWarning) const _GroupedBookListEntry.warning(),
+    ];
+
+    for (final group in grouped) {
+      final title = group['title'] as String?;
+      final groupBooks = group['books'] as List<Book>;
+
+      if (title != null) {
+        entries.add(_GroupedBookListEntry.header(title));
+      }
+
+      for (final book in groupBooks) {
+        entries.add(_GroupedBookListEntry.book(book));
+      }
+    }
+
+    return entries;
   }
 
   /// 构建网格视图
@@ -1035,7 +1022,8 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
       );
 
       // 批量更新目录
-      final results = await BookService.instance.updateChapterLists(books);
+      final results =
+          await readService(AppServices.bookService).updateChapterLists(books);
 
       if (!mounted) return;
       navigator.pop(); // 关闭进度对话框
@@ -1043,8 +1031,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
       final successCount = results.values.where((v) => v == true).length;
       final failCount = results.length - successCount;
 
-      // 刷新书架
-      ref.invalidate(refreshBookshelfProvider);
+      await _reloadBookshelf();
       // 刷新更新数量Badge
       ref.read(bookUpdateCountProvider.notifier).refresh();
 
@@ -1134,7 +1121,8 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
                 final currentGroup =
                     groups.isNotEmpty ? groups[_selectedGroupIndex] : null;
 
-                final successCount = await BookService.instance.addBookByUrl(
+                final successCount =
+                    await readService(AppServices.bookService).addBookByUrl(
                   urls,
                   groupId: currentGroup?.groupId,
                 );
@@ -1142,8 +1130,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
                 if (!mounted) return;
                 navigator.pop(); // 关闭进度对话框
 
-                // 刷新书架
-                ref.invalidate(refreshBookshelfProvider);
+                await _reloadBookshelf();
 
                 messenger.showSnackBar(
                   SnackBar(
@@ -1437,7 +1424,8 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
                 final currentGroup =
                     groups.isNotEmpty ? groups[_selectedGroupIndex] : null;
 
-                final successCount = await BookService.instance.importBooklist(
+                final successCount =
+                    await readService(AppServices.bookService).importBooklist(
                   jsonText,
                   groupId: currentGroup?.groupId,
                 );
@@ -1445,8 +1433,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
                 if (!mounted) return;
                 navigator.pop(); // 关闭进度对话框
 
-                // 刷新书架
-                ref.invalidate(refreshBookshelfProvider);
+                await _reloadBookshelf();
 
                 messenger.showSnackBar(
                   SnackBar(
@@ -1549,14 +1536,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
     );
 
     if (updatedBook != null && mounted) {
-      // 刷新书架
-      ref.invalidate(booksByGroupProvider);
-      final groupsAsync = ref.read(bookGroupsProvider);
-      final groups = groupsAsync.value ?? [];
-      if (groups.isNotEmpty && _selectedGroupIndex < groups.length) {
-        ref.invalidate(
-            booksByGroupProvider(groups[_selectedGroupIndex].groupId));
-      }
+      await ref.read(bookshelfBooksProvider.notifier).updateBook(updatedBook);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('书籍信息已更新')),
@@ -1583,7 +1563,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
         .then((shouldRefresh) {
       // 如果返回 true，刷新书架
       if (shouldRefresh == true) {
-        ref.invalidate(booksByGroupProvider);
+        _reloadBookshelf();
       }
     });
   }
@@ -1761,14 +1741,13 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
 
     try {
       final count = _selectedBookUrls.length;
-      for (final bookUrl in _selectedBookUrls) {
-        await BookService.instance.deleteBook(bookUrl);
-      }
+      await ref
+          .read(bookshelfBooksProvider.notifier)
+          .removeBooks(_selectedBookUrls.toList());
       setState(() {
         _isBatchMode = false;
         _selectedBookUrls.clear();
       });
-      ref.invalidate(refreshBookshelfProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('已删除 $count 本书籍')),
@@ -1816,15 +1795,13 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
 
     try {
       final count = _selectedBookUrls.length;
-      for (final bookUrl in _selectedBookUrls) {
-        await BookService.instance
-            .updateBookGroup(bookUrl, selectedGroup.groupId);
-      }
+      await ref
+          .read(bookshelfBooksProvider.notifier)
+          .updateBookGroups(_selectedBookUrls.toList(), selectedGroup.groupId);
       setState(() {
         _isBatchMode = false;
         _selectedBookUrls.clear();
       });
-      ref.invalidate(refreshBookshelfProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1846,10 +1823,10 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
 
     try {
       final count = _selectedBookUrls.length;
-      for (final bookUrl in _selectedBookUrls) {
-        await BookService.instance.updateBookOrder(bookUrl, -1);
-      }
-      ref.invalidate(refreshBookshelfProvider);
+      final orders = {
+        for (final bookUrl in _selectedBookUrls) bookUrl: -1,
+      };
+      await ref.read(bookshelfBooksProvider.notifier).updateBookOrders(orders);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('已置顶 $count 本书籍')),
@@ -1883,10 +1860,11 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
 
       int newOrder = maxOrder + 1;
       final count = _selectedBookUrls.length;
+      final orders = <String, int>{};
       for (final bookUrl in _selectedBookUrls) {
-        await BookService.instance.updateBookOrder(bookUrl, newOrder++);
+        orders[bookUrl] = newOrder++;
       }
-      ref.invalidate(refreshBookshelfProvider);
+      await ref.read(bookshelfBooksProvider.notifier).updateBookOrders(orders);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('已取消置顶 $count 本书籍')),
@@ -1935,15 +1913,12 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
 
     // 更新所有书籍的order字段
     try {
+      final orders = <String, int>{};
       for (int i = 0; i < books.length; i++) {
         final book = books[i];
-        // 如果书籍原本是置顶的（order < 0），保持置顶状态
-        final newOrder = book.order < 0 ? book.order : i;
-        await BookService.instance.updateBookOrder(book.bookUrl, newOrder);
+        orders[book.bookUrl] = book.order < 0 ? book.order : i;
       }
-
-      // 刷新书架
-      ref.invalidate(refreshBookshelfProvider);
+      await ref.read(bookshelfBooksProvider.notifier).updateBookOrders(orders);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1963,8 +1938,9 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
   Future<void> _togglePinBook(Book book) async {
     try {
       final newOrder = book.order < 0 ? 0 : -1;
-      await BookService.instance.updateBookOrder(book.bookUrl, newOrder);
-      ref.invalidate(refreshBookshelfProvider);
+      await ref
+          .read(bookshelfBooksProvider.notifier)
+          .updateBookOrder(book.bookUrl, newOrder);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(newOrder < 0 ? '已置顶' : '已取消置顶')),
@@ -1978,4 +1954,29 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
       }
     }
   }
+}
+
+enum _GroupedBookListEntryType {
+  warning,
+  header,
+  book,
+}
+
+class _GroupedBookListEntry {
+  const _GroupedBookListEntry.warning()
+      : type = _GroupedBookListEntryType.warning,
+        title = null,
+        book = null;
+
+  const _GroupedBookListEntry.header(this.title)
+      : type = _GroupedBookListEntryType.header,
+        book = null;
+
+  const _GroupedBookListEntry.book(this.book)
+      : type = _GroupedBookListEntryType.book,
+        title = null;
+
+  final _GroupedBookListEntryType type;
+  final String? title;
+  final Book? book;
 }

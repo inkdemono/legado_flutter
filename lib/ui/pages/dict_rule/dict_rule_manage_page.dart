@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,10 +12,91 @@ import 'dict_rule_item_widget.dart';
 import 'dict_rule_edit_dialog.dart';
 import 'dict_rule_import_dialog.dart';
 
-/// 字典规则列表Provider
-final dictRuleListProvider = FutureProvider<List<DictRule>>((ref) async {
-  return await DictRuleService.instance.getAllRules();
-});
+/// 字典规则列表 Notifier
+///
+/// 将原 FutureProvider 升级为 AsyncNotifier，CRUD 操作直接更新内存列表，
+/// 彻底消除每次增删改后的全量 DB 重查，避免列表闪烁。
+/// 仅在导入等批量操作（不知道具体变化）时才调用 [reload] 重新读库。
+class DictRuleNotifier extends AsyncNotifier<List<DictRule>> {
+  DictRuleService get _svc => readService(AppServices.dictRuleService);
+
+  @override
+  Future<List<DictRule>> build() => _svc.getAllRules();
+
+  /// 新增或更新规则（存在同名则替换，否则追加到末尾）
+  Future<void> addOrUpdate(DictRule rule) async {
+    await _svc.addOrUpdateRule(rule);
+    final current = state.requireValue;
+    final idx = current.indexWhere((r) => r.name == rule.name);
+    state = AsyncValue.data(
+      idx >= 0
+          ? [...current.sublist(0, idx), rule, ...current.sublist(idx + 1)]
+          : [...current, rule],
+    );
+  }
+
+  /// 切换启用状态（直接更新内存，不触发全量 DB 查询）
+  Future<void> toggleEnabled(DictRule rule, bool enabled) async {
+    await _svc.updateRule(rule.copyWith(enabled: enabled));
+    state = AsyncValue.data(
+      state.requireValue
+          .map((r) => r.name == rule.name ? r.copyWith(enabled: enabled) : r)
+          .toList(),
+    );
+  }
+
+  /// 删除单条规则
+  Future<void> delete(String name) async {
+    await _svc.deleteRule(name);
+    state = AsyncValue.data(
+      state.requireValue.where((r) => r.name != name).toList(),
+    );
+  }
+
+  /// 批量删除
+  Future<void> deleteMany(List<String> names) async {
+    await _svc.deleteRules(names);
+    final nameSet = names.toSet();
+    state = AsyncValue.data(
+      state.requireValue.where((r) => !nameSet.contains(r.name)).toList(),
+    );
+  }
+
+  /// 批量启用/禁用
+  Future<void> batchSetEnabled(List<String> names, bool enabled) async {
+    await _svc.batchSetEnabled(names, enabled);
+    final nameSet = names.toSet();
+    state = AsyncValue.data(
+      state.requireValue
+          .map((r) =>
+              nameSet.contains(r.name) ? r.copyWith(enabled: enabled) : r)
+          .toList(),
+    );
+  }
+
+  /// 拖拽重排（乐观更新：先同步 UI，写库失败时回滚）
+  Future<void> reorder(List<DictRule> rules) async {
+    state = AsyncValue.data(rules);
+    try {
+      await _svc.updateOrder(rules);
+    } catch (e) {
+      ref.invalidateSelf(); // 回滚：重新从 DB 加载
+      rethrow;
+    }
+  }
+
+  /// 全量重新加载（仅在导入等批量操作后调用）
+  Future<void> reload({bool showLoading = false}) async {
+    if (showLoading || !state.hasValue) {
+      state = const AsyncValue.loading();
+    }
+    state = await AsyncValue.guard(_svc.getAllRules);
+  }
+}
+
+final dictRuleNotifierProvider =
+    AsyncNotifierProvider<DictRuleNotifier, List<DictRule>>(
+        DictRuleNotifier.new);
 
 /// 字典规则管理页面
 class DictRuleManagePage extends ConsumerStatefulWidget {
@@ -38,7 +120,7 @@ class _DictRuleManagePageState extends ConsumerState<DictRuleManagePage> {
 
   @override
   Widget build(BuildContext context) {
-    final rulesAsync = ref.watch(dictRuleListProvider);
+    final rulesAsync = ref.watch(dictRuleNotifierProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -274,7 +356,7 @@ class _DictRuleManagePageState extends ConsumerState<DictRuleManagePage> {
 
                 return RefreshIndicator(
                   onRefresh: () async {
-                    ref.invalidate(dictRuleListProvider);
+                    await ref.read(dictRuleNotifierProvider.notifier).reload();
                   },
                   child: _isBatchMode
                       ? ListView.builder(
@@ -399,7 +481,9 @@ class _DictRuleManagePageState extends ConsumerState<DictRuleManagePage> {
                       const SizedBox(height: 16),
                       FilledButton.tonal(
                         onPressed: () {
-                          ref.invalidate(dictRuleListProvider);
+                          ref
+                              .read(dictRuleNotifierProvider.notifier)
+                              .reload(showLoading: true);
                         },
                         child: const Text('重试'),
                       ),
@@ -479,8 +563,7 @@ class _DictRuleManagePageState extends ConsumerState<DictRuleManagePage> {
       context: context,
       builder: (context) => DictRuleEditDialog(
         onSave: (rule) async {
-          await DictRuleService.instance.addOrUpdateRule(rule);
-          ref.invalidate(dictRuleListProvider);
+          await ref.read(dictRuleNotifierProvider.notifier).addOrUpdate(rule);
         },
       ),
     );
@@ -492,8 +575,9 @@ class _DictRuleManagePageState extends ConsumerState<DictRuleManagePage> {
       builder: (context) => DictRuleEditDialog(
         rule: rule,
         onSave: (updatedRule) async {
-          await DictRuleService.instance.addOrUpdateRule(updatedRule);
-          ref.invalidate(dictRuleListProvider);
+          await ref
+              .read(dictRuleNotifierProvider.notifier)
+              .addOrUpdate(updatedRule);
         },
       ),
     );
@@ -501,9 +585,9 @@ class _DictRuleManagePageState extends ConsumerState<DictRuleManagePage> {
 
   void _toggleEnabled(DictRule rule, bool enabled) async {
     try {
-      await DictRuleService.instance
-          .updateRule(rule.copyWith(enabled: enabled));
-      ref.invalidate(dictRuleListProvider);
+      await ref
+          .read(dictRuleNotifierProvider.notifier)
+          .toggleEnabled(rule, enabled);
     } catch (e) {
       _showMessage('操作失败: $e');
     }
@@ -531,8 +615,9 @@ class _DictRuleManagePageState extends ConsumerState<DictRuleManagePage> {
             onPressed: () async {
               Navigator.pop(dialogContext);
               try {
-                await DictRuleService.instance.deleteRule(rule.name);
-                ref.invalidate(dictRuleListProvider);
+                await ref
+                    .read(dictRuleNotifierProvider.notifier)
+                    .delete(rule.name);
                 _showMessage('已删除');
               } catch (e) {
                 _showMessage('删除失败: $e');
@@ -550,15 +635,13 @@ class _DictRuleManagePageState extends ConsumerState<DictRuleManagePage> {
     final selectedCount = _selectedNames.length;
 
     try {
-      await DictRuleService.instance.batchSetEnabled(
-        _selectedNames.toList(),
-        enabled,
-      );
+      await ref
+          .read(dictRuleNotifierProvider.notifier)
+          .batchSetEnabled(_selectedNames.toList(), enabled);
       setState(() {
         _selectedNames.clear();
         _isBatchMode = false;
       });
-      ref.invalidate(dictRuleListProvider);
       _showMessage('已${enabled ? '启用' : '禁用'} $selectedCount 项');
     } catch (e) {
       _showMessage('操作失败: $e');
@@ -582,13 +665,13 @@ class _DictRuleManagePageState extends ConsumerState<DictRuleManagePage> {
             onPressed: () async {
               Navigator.pop(dialogContext);
               try {
-                await DictRuleService.instance
-                    .deleteRules(_selectedNames.toList());
+                await ref
+                    .read(dictRuleNotifierProvider.notifier)
+                    .deleteMany(_selectedNames.toList());
                 setState(() {
                   _selectedNames.clear();
                   _isBatchMode = false;
                 });
-                ref.invalidate(dictRuleListProvider);
                 _showMessage('已删除');
               } catch (e) {
                 _showMessage('删除失败: $e');
@@ -609,8 +692,7 @@ class _DictRuleManagePageState extends ConsumerState<DictRuleManagePage> {
     reorderedRules.insert(newIndex, rule);
 
     try {
-      await DictRuleService.instance.updateOrder(reorderedRules);
-      ref.invalidate(dictRuleListProvider);
+      await ref.read(dictRuleNotifierProvider.notifier).reorder(reorderedRules);
     } catch (e) {
       _showMessage('排序失败: $e');
     }
@@ -686,7 +768,8 @@ class _DictRuleManagePageState extends ConsumerState<DictRuleManagePage> {
                         });
 
                         try {
-                          final response = await NetworkService.instance.get(
+                          final response =
+                              await readService(AppServices.networkService).get(
                             content,
                             retryCount: 1,
                           );
@@ -731,8 +814,9 @@ class _DictRuleManagePageState extends ConsumerState<DictRuleManagePage> {
             onPressed: () async {
               Navigator.pop(dialogContext);
               try {
-                await DictRuleService.instance.importDefaultRules();
-                ref.invalidate(dictRuleListProvider);
+                await readService(AppServices.dictRuleService)
+                    .importDefaultRules();
+                await ref.read(dictRuleNotifierProvider.notifier).reload();
                 _showMessage('导入成功');
               } catch (e) {
                 _showMessage('导入失败: $e');
@@ -747,7 +831,8 @@ class _DictRuleManagePageState extends ConsumerState<DictRuleManagePage> {
 
   Future<void> _exportRules() async {
     try {
-      final rules = await DictRuleService.instance.getAllRules();
+      final rules =
+          await readService(AppServices.dictRuleService).getAllRules();
 
       if (rules.isEmpty) {
         _showMessage('没有可导出的规则');
@@ -779,7 +864,7 @@ class _DictRuleManagePageState extends ConsumerState<DictRuleManagePage> {
       builder: (context) => DictRuleImportDialog(
         content: content,
         onImportComplete: () {
-          ref.invalidate(dictRuleListProvider);
+          ref.read(dictRuleNotifierProvider.notifier).reload();
         },
       ),
     );

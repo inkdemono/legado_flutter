@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -41,7 +42,7 @@ class _ThemeSettingsPageState extends ConsumerState<ThemeSettingsPage> {
     });
 
     try {
-      final configs = await ThemeService.instance.loadConfigs();
+      final configs = await readService(AppServices.themeService).loadConfigs();
       if (!mounted) return;
       setState(() {
         _configs = configs;
@@ -77,7 +78,7 @@ class _ThemeSettingsPageState extends ConsumerState<ThemeSettingsPage> {
 
   Future<void> _applyTheme(ThemeConfig config) async {
     try {
-      await ThemeService.instance.applyConfig(config);
+      await readService(AppServices.themeService).applyConfig(config);
       ref.invalidate(themeModeProvider);
       _showMessage('已应用主题: ${config.themeName}');
     } catch (e) {
@@ -107,7 +108,7 @@ class _ThemeSettingsPageState extends ConsumerState<ThemeSettingsPage> {
     if (confirmed != true) return;
 
     try {
-      await ThemeService.instance.deleteConfig(index);
+      await readService(AppServices.themeService).deleteConfig(index);
       await _loadConfigs();
       _showMessage('删除成功');
     } catch (e) {
@@ -133,7 +134,7 @@ class _ThemeSettingsPageState extends ConsumerState<ThemeSettingsPage> {
     }
 
     try {
-      final success = await ThemeService.instance.addConfigFromJson(text.text!);
+      final success = await readService(AppServices.themeService).addConfigFromJson(text.text!);
       if (success) {
         await _loadConfigs();
         _showMessage('导入成功');
@@ -193,7 +194,7 @@ class _ThemeSettingsPageState extends ConsumerState<ThemeSettingsPage> {
     if (confirmed != true || nameController.text.trim().isEmpty) return;
 
     try {
-      await ThemeService.instance.saveCurrentTheme(
+      await readService(AppServices.themeService).saveCurrentTheme(
         nameController.text.trim(),
         isNightTheme,
       );

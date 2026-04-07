@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -96,7 +97,7 @@ class _RssReadPageState extends State<RssReadPage> {
   }
 
   Future<void> _checkStarStatus() async {
-    final isStarred = await RssService.instance.isStarred(
+    final isStarred = await readService(AppServices.rssService).isStarred(
       widget.article.origin,
       widget.article.link,
     );
@@ -111,7 +112,7 @@ class _RssReadPageState extends State<RssReadPage> {
   Future<void> _toggleStar() async {
     if (_isStarred) {
       // 取消收藏
-      final success = await RssService.instance.deleteRssStar(
+      final success = await readService(AppServices.rssService).deleteRssStar(
         widget.article.origin,
         widget.article.link,
       );
@@ -127,7 +128,7 @@ class _RssReadPageState extends State<RssReadPage> {
       }
     } else {
       // 添加收藏
-      final success = await RssService.instance.addStarFromArticle(widget.article);
+      final success = await readService(AppServices.rssService).addStarFromArticle(widget.article);
       if (success && mounted) {
         setState(() {
           _isStarred = true;
@@ -182,7 +183,7 @@ class _RssReadPageState extends State<RssReadPage> {
     try {
       // 从网络获取文章内容
       // 参考项目：Rss.getContentAwait
-      final response = await NetworkService.instance.get(
+      final response = await readService(AppServices.networkService).get(
         widget.article.link,
         headers: NetworkService.parseHeaders(widget.source.header),
         retryCount: 1,
@@ -208,7 +209,7 @@ class _RssReadPageState extends State<RssReadPage> {
       if (content != null && content.isNotEmpty) {
         // 更新文章内容
         final updatedArticle = widget.article.copyWith(content: content);
-        await RssService.instance.addOrUpdateRssArticle(updatedArticle);
+        await readService(AppServices.rssService).addOrUpdateRssArticle(updatedArticle);
         
         setState(() {
           _content = content;
@@ -232,13 +233,13 @@ class _RssReadPageState extends State<RssReadPage> {
 
   Future<void> _markAsRead() async {
     // 记录RSS阅读记录
-    await RssReadRecordService.instance.markAsRead(
+    await readService(AppServices.rssReadRecordService).markAsRead(
       widget.article.origin,
       widget.article.link,
       title: widget.article.title,
     );
     if (!widget.article.read) {
-      await RssService.instance.markArticleAsRead(
+      await readService(AppServices.rssService).markArticleAsRead(
         widget.article.origin,
         widget.article.link,
         true,
@@ -754,7 +755,7 @@ class _RssReadPageState extends State<RssReadPage> {
   /// 保存图片（使用 NetworkService 统一请求与错误处理）
   Future<void> _saveImage(String imageUrl) async {
     try {
-      final response = await NetworkService.instance.get(
+      final response = await readService(AppServices.networkService).get(
         imageUrl,
         retryCount: 2,
       );

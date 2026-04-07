@@ -1,4 +1,5 @@
 import '../models/search_book.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../models/book.dart';
 import '../models/book_chapter.dart';
 import '../models/book_source.dart';
@@ -11,11 +12,12 @@ import 'book_remote_datasource.dart';
 /// BookRemoteDataSource 的实现类
 /// 封装网络请求和规则解析逻辑,负责从书源获取数据
 class BookRemoteDataSourceImpl implements BookRemoteDataSource {
-  final NetworkService _networkService;
+  final INetworkService _networkService;
 
   BookRemoteDataSourceImpl({
-    NetworkService? networkService,
-  }) : _networkService = networkService ?? NetworkService.instance;
+    INetworkService? networkService,
+  }) : _networkService =
+            networkService ?? readService(AppServices.networkService);
 
   @override
   Stream<SearchBook> searchBooks(String keyword, BookSource source) async* {

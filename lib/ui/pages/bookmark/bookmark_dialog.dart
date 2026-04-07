@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 
 import '../../../data/models/bookmark.dart';
 import '../../../services/bookmark_service.dart';
@@ -288,7 +289,7 @@ class _BookmarkDialogState extends BaseBottomSheetState<BookmarkDialog> {
       content: _contentController.text.trim(),
     );
 
-    await BookmarkService.instance.addBookmark(updatedBookmark);
+    await readService(AppServices.bookmarkService).addBookmark(updatedBookmark);
     if (!mounted) return;
     Navigator.pop(context);
   }
@@ -307,7 +308,7 @@ class _BookmarkDialogState extends BaseBottomSheetState<BookmarkDialog> {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              await BookmarkService.instance
+              await readService(AppServices.bookmarkService)
                   .deleteBookmark(widget.bookmark.time);
               if (!mounted) return;
               Navigator.pop(this.context);

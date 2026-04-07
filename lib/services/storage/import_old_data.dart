@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'dart:io';
 import 'package:json_path/json_path.dart';
 import '../../data/models/book.dart';
@@ -94,7 +95,7 @@ class ImportOldData {
       final books = _fromOldBooks(json);
       for (final book in books) {
         try {
-          await BookService.instance.saveBook(book);
+          await readService(AppServices.bookService).saveBook(book);
         } catch (e) {
           AppLog.instance.put('导入书籍失败: ${book.name}', error: e);
         }
@@ -113,7 +114,7 @@ class ImportOldData {
       final sources = _fromOldBookSources(json);
       for (final source in sources) {
         try {
-          BookSourceService.instance.addBookSource(source);
+          readService(AppServices.bookSourceService).addBookSource(source);
         } catch (e) {
           AppLog.instance.put('导入书源失败: ${source.bookSourceName}', error: e);
         }
@@ -132,7 +133,7 @@ class ImportOldData {
       final rules = ReplaceAnalyzer.jsonToReplaceRules(json);
       for (final rule in rules) {
         try {
-          await ReplaceRuleService.instance.addOrUpdateRule(rule);
+          await readService(AppServices.replaceRuleService).addOrUpdateRule(rule);
         } catch (e) {
           AppLog.instance.put('导入替换规则失败: ${rule.name}', error: e);
         }

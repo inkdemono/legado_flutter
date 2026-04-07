@@ -1,67 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:legado_flutter/providers/app_log_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../utils/app_log.dart';
 import 'app_log_item.dart';
 import 'app_log_filter_widget.dart';
 
 /// 应用日志查看页面
-class AppLogPage extends StatefulWidget {
+class AppLogPage extends ConsumerStatefulWidget {
   const AppLogPage({super.key});
 
   @override
-  State<AppLogPage> createState() => _AppLogPageState();
+  ConsumerState<AppLogPage> createState() => _AppLogPageState();
 }
 
-class _AppLogPageState extends State<AppLogPage> {
-  List<LogEntry> _filteredLogs = [];
+class _AppLogPageState extends ConsumerState<AppLogPage> {
   String _searchQuery = '';
   LogLevel _filterLevel = LogLevel.all;
+  LogCategory _filterCategory = LogCategory.all;
   bool _showErrorsOnly = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _updateFilteredLogs();
-    // 监听日志变化
-    AppLog.instance.logsNotifier.addListener(_onLogsChanged);
-  }
-
-  @override
-  void dispose() {
-    AppLog.instance.logsNotifier.removeListener(_onLogsChanged);
-    super.dispose();
-  }
-
-  void _onLogsChanged() {
-    if (mounted) {
-      setState(() {
-        _updateFilteredLogs();
-      });
-    }
-  }
-
-  void _updateFilteredLogs() {
-    var logs = AppLog.instance.logs;
+  List<LogEntry> _getFilteredLogs(List<LogEntry> sourceLogs) {
+    var logs = List<LogEntry>.from(sourceLogs);
 
     // 按错误筛选
     if (_showErrorsOnly) {
-      logs = logs.where((log) => log.error != null).toList();
+      logs = logs
+          .where((log) => log.level == LogLevel.error || log.error != null)
+          .toList();
     }
 
     // 按级别筛选
     if (_filterLevel != LogLevel.all) {
-      logs = logs.where((log) {
-        if (_filterLevel == LogLevel.error) {
-          return log.error != null;
-        } else if (_filterLevel == LogLevel.warning) {
-          return log.message.toLowerCase().contains('warning') ||
-              log.message.toLowerCase().contains('警告');
-        } else if (_filterLevel == LogLevel.info) {
-          return log.error == null;
-        }
-        return true;
-      }).toList();
+      logs = logs.where((log) => log.level == _filterLevel).toList();
+    }
+
+    if (_filterCategory != LogCategory.all) {
+      logs = logs.where((log) => log.category == _filterCategory).toList();
     }
 
     // 按搜索关键词筛选
@@ -73,13 +49,12 @@ class _AppLogPageState extends State<AppLogPage> {
       }).toList();
     }
 
-    setState(() {
-      _filteredLogs = logs;
-    });
+    return logs;
   }
 
   Future<void> _exportLogs() async {
-    if (_filteredLogs.isEmpty) {
+    final filteredLogs = _getFilteredLogs(ref.read(appLogProvider).logs);
+    if (filteredLogs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('没有日志可导出')),
       );
@@ -90,11 +65,11 @@ class _AppLogPageState extends State<AppLogPage> {
       final buffer = StringBuffer();
       buffer.writeln('应用日志导出');
       buffer.writeln('导出时间: ${DateTime.now().toString()}');
-      buffer.writeln('日志数量: ${_filteredLogs.length}');
+      buffer.writeln('日志数量: ${filteredLogs.length}');
       buffer.writeln('=' * 50);
       buffer.writeln();
 
-      for (final log in _filteredLogs) {
+      for (final log in filteredLogs) {
         buffer.writeln('[${log.formattedTime}] ${log.message}');
         if (log.error != null) {
           buffer.writeln('错误: ${log.error}');
@@ -119,7 +94,8 @@ class _AppLogPageState extends State<AppLogPage> {
   }
 
   Future<void> _copyLogs() async {
-    if (_filteredLogs.isEmpty) {
+    final filteredLogs = _getFilteredLogs(ref.read(appLogProvider).logs);
+    if (filteredLogs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('没有日志可复制')),
       );
@@ -128,7 +104,7 @@ class _AppLogPageState extends State<AppLogPage> {
 
     try {
       final buffer = StringBuffer();
-      for (final log in _filteredLogs) {
+      for (final log in filteredLogs) {
         buffer.writeln('[${log.formattedTime}] ${log.message}');
         if (log.error != null) {
           buffer.writeln('错误: ${log.error}');
@@ -185,6 +161,11 @@ class _AppLogPageState extends State<AppLogPage> {
 
   @override
   Widget build(BuildContext context) {
+    final logs = ref.watch(appLogEntriesProvider).asData?.value ??
+        ref.watch(appLogProvider).logs;
+    final summary = ref.watch(appLogSummaryProvider);
+    final filteredLogs = _getFilteredLogs(logs);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('应用日志'),
@@ -226,30 +207,71 @@ class _AppLogPageState extends State<AppLogPage> {
           AppLogFilterWidget(
             searchQuery: _searchQuery,
             filterLevel: _filterLevel,
+            filterCategory: _filterCategory,
             showErrorsOnly: _showErrorsOnly,
             onSearchChanged: (query) {
               setState(() {
                 _searchQuery = query;
-                _updateFilteredLogs();
               });
             },
             onFilterLevelChanged: (level) {
               setState(() {
                 _filterLevel = level;
-                _updateFilteredLogs();
+              });
+            },
+            onFilterCategoryChanged: (category) {
+              setState(() {
+                _filterCategory = category;
               });
             },
             onShowErrorsOnlyChanged: (value) {
               setState(() {
                 _showErrorsOnly = value;
-                _updateFilteredLogs();
               });
             },
           ),
+          if (summary.totalLogs > 0) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildSummaryChip(
+                      label: '总数 ${summary.totalLogs}',
+                    ),
+                    for (final entry in summary.categoryCounts.entries.take(5))
+                      _buildSummaryChip(
+                        label: '${entry.key.label} ${entry.value}',
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            if (summary.repeatedEntries.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: summary.repeatedEntries
+                      .map(
+                        (entry) => Text(
+                          '${entry.category.label} ×${entry.count} · ${entry.message}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+          ],
           const Divider(height: 1),
           // 日志列表
           Expanded(
-            child: _filteredLogs.isEmpty
+            child: filteredLogs.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -261,7 +283,10 @@ class _AppLogPageState extends State<AppLogPage> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          _searchQuery.isNotEmpty || _filterLevel != LogLevel.all || _showErrorsOnly
+                          _searchQuery.isNotEmpty ||
+                                  _filterLevel != LogLevel.all ||
+                                  _filterCategory != LogCategory.all ||
+                                  _showErrorsOnly
                               ? '没有匹配的日志'
                               : '暂无日志',
                           style: TextStyle(
@@ -273,9 +298,9 @@ class _AppLogPageState extends State<AppLogPage> {
                     ),
                   )
                 : ListView.builder(
-                    itemCount: _filteredLogs.length,
+                    itemCount: filteredLogs.length,
                     itemBuilder: (context, index) {
-                      final log = _filteredLogs[index];
+                      final log = filteredLogs[index];
                       return AppLogItem(
                         log: log,
                         onTap: () {
@@ -322,13 +347,15 @@ class _AppLogPageState extends State<AppLogPage> {
       ),
     );
   }
-}
 
-/// 日志级别
-enum LogLevel {
-  all,
-  info,
-  warning,
-  error,
+  Widget _buildSummaryChip({required String label}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(label),
+    );
+  }
 }
-

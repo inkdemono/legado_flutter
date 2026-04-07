@@ -1,10 +1,12 @@
+import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 part 'video_item.g.dart';
 
 /// 视频项模型
 @JsonSerializable()
-class VideoItem {
+// ignore: must_be_immutable
+class VideoItem with EquatableMixin {
   /// 唯一标识符
   final String id;
 
@@ -84,10 +86,9 @@ class VideoItem {
   String get playSource => filePath ?? url ?? '';
 
   /// 获取宽高比
-  double? get aspectRatio =>
-      (width != null && height != null && height != 0)
-          ? width! / height!
-          : null;
+  double? get aspectRatio => (width != null && height != null && height != 0)
+      ? width! / height!
+      : null;
 
   /// 观看进度百分比 (0.0 - 1.0)
   double get watchProgressPercent {
@@ -169,11 +170,5 @@ class VideoItem {
   }
 
   @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is VideoItem && other.id == id;
-  }
-
-  @override
-  int get hashCode => id.hashCode;
+  List<Object?> get props => [id];
 }

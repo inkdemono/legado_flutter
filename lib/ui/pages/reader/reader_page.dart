@@ -1,15 +1,12 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../../data/models/book.dart';
 import '../../../data/models/book_chapter.dart';
 import '../../../data/models/book_source.dart';
-import '../../../services/book/book_service.dart';
-import '../../../services/source/book_source_service.dart';
-import '../../../services/reader/cache_service.dart';
 import '../../../services/reader/content_processor.dart';
 import '../../../config/app_config.dart';
 import '../../../core/constants/app_status.dart';
@@ -51,6 +48,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   List<BookChapter> _chapters = [];
   final Map<int, String> _chapterContents = {};
   final Map<int, List<String>> _chapterPages = {};
+  final LinkedHashMap<int, TextChapter> _chapterCache = LinkedHashMap();
   bool _isLoading = true;
   bool _showMenu = false;
   BookSource? _bookSource;
@@ -58,10 +56,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
 
   TextChapter? _prevTextChapter;
   TextChapter? _curTextChapter;
-  TextChapter? _nextTextChapter;
 
   final Set<int> _loadingChapters = {};
   final Map<int, ScrollController> _chapterScrollControllers = {};
+  int _preloadGeneration = 0;
+  static const int _preloadBatchSize = 2;
+  static const int _preloadAheadCount = 3;
+  static const int _preloadBehindCount = 1;
+  static const int _chapterCacheLimit = 6;
   // ignore: unused_field
   String? _searchKeyword;
   // ignore: unused_field
@@ -69,19 +71,20 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   // ignore: unused_field
   int? _searchPosition;
 
-  DateTime _currentTime = DateTime.now();
+  final DateTime _currentTime = DateTime.now();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _currentChapterIndex = widget.initialChapterIndex;
+    _currentPageIndex = math.max(0, widget.book.durChapterPos);
     // 翻页模式下，PageController 控制的是当前章节内的页面索引，初始为0
-    _pageController = PageController(initialPage: 0);
-    
+    _pageController = PageController(initialPage: _currentPageIndex);
+
     // 从书籍加载阅读配置
     _readConfig = widget.book.readConfig ?? ReadConfig();
-    
+
     // 根据全局主题模式调整配置颜色
     final isNightTheme = AppConfig.isNightTheme();
     if (isNightTheme && _readConfig.backgroundColor != 0xFF000000) {
@@ -97,7 +100,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
         textColor: 0xFF000000,
       );
     }
-    
+
     _loadChapters();
   }
 
@@ -106,6 +109,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     _pageController.dispose();
     for (var c in _chapterScrollControllers.values) {
       c.dispose();
+    }
+    for (final chapter in _chapterCache.values) {
+      chapter.dispose();
     }
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -182,7 +188,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
           pageCount = pages.length;
         }
       }
-      
+
       if (_currentPageIndex < pageCount - 1) {
         _pageController.nextPage(
             duration: const Duration(milliseconds: 250), curve: Curves.easeOut);

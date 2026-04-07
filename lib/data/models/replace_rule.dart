@@ -1,5 +1,8 @@
+import 'package:equatable/equatable.dart';
+
 /// 替换规则模型
-class ReplaceRule {
+// ignore: must_be_immutable
+class ReplaceRule with EquatableMixin {
   /// 规则ID（主键，自增）
   final int id;
 
@@ -58,22 +61,33 @@ class ReplaceRule {
   /// 从JSON创建
   factory ReplaceRule.fromJson(Map<String, dynamic> json) {
     // 兼容旧格式（使用name作为主键）和新格式（使用id作为主键）
-    final id = json['id'] as int? ?? 
-               (json['name'] != null ? json['name'].hashCode : DateTime.now().millisecondsSinceEpoch);
-    
+    final id = json['id'] as int? ??
+        (json['name'] != null
+            ? json['name'].hashCode
+            : DateTime.now().millisecondsSinceEpoch);
+
     return ReplaceRule(
       id: id,
       name: json['name'] as String? ?? '',
       pattern: json['pattern'] as String? ?? json['regex'] as String? ?? '',
       replacement: json['replacement'] as String? ?? '',
-      enabled: json['enabled'] == 1 || json['enabled'] == true || json['isEnabled'] == true,
-      sortNumber: json['sortNumber'] as int? ?? json['order'] as int? ?? json['serialNumber'] as int? ?? 0,
+      enabled: json['enabled'] == 1 ||
+          json['enabled'] == true ||
+          json['isEnabled'] == true,
+      sortNumber: json['sortNumber'] as int? ??
+          json['order'] as int? ??
+          json['serialNumber'] as int? ??
+          0,
       group: json['group'] as String?,
       scope: json['scope'] as String? ?? json['useTo'] as String?,
       scopeTitle: json['scopeTitle'] == 1 || json['scopeTitle'] == true,
-      scopeContent: json['scopeContent'] == 1 || json['scopeContent'] == true || json['scopeContent'] == null,
+      scopeContent: json['scopeContent'] == 1 ||
+          json['scopeContent'] == true ||
+          json['scopeContent'] == null,
       excludeScope: json['excludeScope'] as String?,
-      isRegex: json['isRegex'] == 1 || json['isRegex'] == true || json['isRegex'] == null,
+      isRegex: json['isRegex'] == 1 ||
+          json['isRegex'] == true ||
+          json['isRegex'] == null,
       timeoutMillisecond: json['timeoutMillisecond'] as int? ?? 3000,
     );
   }
@@ -144,7 +158,7 @@ class ReplaceRule {
     if (pattern.isEmpty) {
       return false;
     }
-    
+
     // 如果是正则表达式，验证正则语法
     if (isRegex) {
       try {
@@ -157,7 +171,7 @@ class ReplaceRule {
         return false;
       }
     }
-    
+
     return true;
   }
 
@@ -168,5 +182,10 @@ class ReplaceRule {
     }
     return timeoutMillisecond;
   }
-}
 
+  @override
+  List<Object?> get props => [id];
+
+  @override
+  String toString() => 'ReplaceRule(id: $id, name: $name, enabled: $enabled)';
+}

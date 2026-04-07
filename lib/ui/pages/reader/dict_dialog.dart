@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_html/flutter_html.dart';
 import '../../../data/models/dict_rule.dart';
@@ -13,7 +14,7 @@ import '../../widgets/common/custom_tab_bar.dart';
 
 /// 字典规则列表Provider
 final enabledDictRulesProvider = FutureProvider<List<DictRule>>((ref) async {
-  return await DictRuleService.instance.getEnabledRules();
+  return await readService(AppServices.dictRuleService).getEnabledRules();
 });
 
 /// 字典查询对话框

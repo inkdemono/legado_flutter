@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'share_receiver_service.dart';
 import '../../utils/app_log.dart';
 
@@ -28,19 +29,19 @@ class ShareReceiverChannel {
         case 'onSharedText':
           final text = call.arguments['text'] as String?;
           if (text != null && text.isNotEmpty) {
-            await ShareReceiverService.instance.handleSharedText(text);
+            await readService(AppServices.shareReceiverService).handleSharedText(text);
           }
           break;
         
         case 'onProcessText':
           final text = call.arguments['text'] as String?;
           if (text != null && text.isNotEmpty) {
-            await ShareReceiverService.instance.handleProcessText(text);
+            await readService(AppServices.shareReceiverService).handleProcessText(text);
           }
           break;
         
         case 'onReadAloud':
-          await ShareReceiverService.instance.handleReadAloud();
+          await readService(AppServices.shareReceiverService).handleReadAloud();
           break;
         
         default:

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import '../../../services/media/tts_service.dart';
 
 /// TTS朗读控制组件
@@ -17,7 +18,7 @@ class TtsControlWidget extends StatefulWidget {
 }
 
 class _TtsControlWidgetState extends State<TtsControlWidget> {
-  final TtsService _ttsService = TtsService.instance;
+  final TtsService _ttsService = readService(AppServices.ttsService);
   bool _isSpeaking = false;
   bool _isPaused = false;
   double _speechRate = 0.5;

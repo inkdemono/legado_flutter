@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/rss_source.dart';
@@ -11,7 +12,7 @@ import 'rss_source_item_widget.dart';
 
 /// RSS源列表Provider
 final rssSourceListProvider = FutureProvider<List<RssSource>>((ref) async {
-  final service = RssService.instance;
+  final service = readService(AppServices.rssService);
   return await service.getAllRssSources();
 });
 
@@ -364,7 +365,7 @@ class _RssSourceManagePageState extends ConsumerState<RssSourceManagePage> {
                   });
                 },
                 onToggleEnabled: (enabled) async {
-                  await RssService.instance.updateRssSourceEnabled(
+                  await readService(AppServices.rssService).updateRssSourceEnabled(
                     source.sourceUrl,
                     enabled,
                   );
@@ -713,7 +714,7 @@ class _RssSourceManagePageState extends ConsumerState<RssSourceManagePage> {
 
   Future<void> _enableSelected() async {
     for (final url in _selectedUrls) {
-      await RssService.instance.updateRssSourceEnabled(url, true);
+      await readService(AppServices.rssService).updateRssSourceEnabled(url, true);
     }
     setState(() {
       _selectedUrls.clear();
@@ -724,7 +725,7 @@ class _RssSourceManagePageState extends ConsumerState<RssSourceManagePage> {
 
   Future<void> _disableSelected() async {
     for (final url in _selectedUrls) {
-      await RssService.instance.updateRssSourceEnabled(url, false);
+      await readService(AppServices.rssService).updateRssSourceEnabled(url, false);
     }
     setState(() {
       _selectedUrls.clear();
@@ -747,7 +748,7 @@ class _RssSourceManagePageState extends ConsumerState<RssSourceManagePage> {
     try {
       for (int i = 0; i < reorderedSources.length; i++) {
         final updatedSource = reorderedSources[i].copyWith(customOrder: i);
-        await RssService.instance.addOrUpdateRssSource(updatedSource);
+        await readService(AppServices.rssService).addOrUpdateRssSource(updatedSource);
       }
       ref.invalidate(rssSourceListProvider);
     } catch (e) {
@@ -780,7 +781,7 @@ class _RssSourceManagePageState extends ConsumerState<RssSourceManagePage> {
     if (confirmed != true) return;
 
     for (final url in _selectedUrls) {
-      await RssService.instance.deleteRssSource(url);
+      await readService(AppServices.rssService).deleteRssSource(url);
     }
     setState(() {
       _selectedUrls.clear();

@@ -1,6 +1,9 @@
+import 'package:equatable/equatable.dart';
+
 /// HTTP TTS（文本转语音）数据模型
 /// 参考项目：io.legado.app.data.entities.HttpTTS
-class HttpTTS {
+// ignore: must_be_immutable
+class HttpTTS with EquatableMixin {
   /// TTS ID（主键）
   final int id;
 
@@ -51,7 +54,8 @@ class HttpTTS {
     this.loginCheckJs,
     int? lastUpdateTime,
   })  : id = id ?? DateTime.now().millisecondsSinceEpoch,
-        lastUpdateTime = lastUpdateTime ?? DateTime.now().millisecondsSinceEpoch;
+        lastUpdateTime =
+            lastUpdateTime ?? DateTime.now().millisecondsSinceEpoch;
 
   /// 从JSON创建
   factory HttpTTS.fromJson(Map<String, dynamic> json) {
@@ -65,7 +69,8 @@ class HttpTTS {
       loginUi: json['loginUi'] as String?,
       header: json['header'] as String?,
       jsLib: json['jsLib'] as String?,
-      enabledCookieJar: json['enabledCookieJar'] == 1 || json['enabledCookieJar'] == true,
+      enabledCookieJar:
+          json['enabledCookieJar'] == 1 || json['enabledCookieJar'] == true,
       loginCheckJs: json['loginCheckJs'] as String?,
       lastUpdateTime: json['lastUpdateTime'] as int?,
     );
@@ -90,12 +95,8 @@ class HttpTTS {
   }
 
   @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is HttpTTS && other.id == id;
-  }
+  List<Object?> get props => [id];
 
   @override
-  int get hashCode => id.hashCode;
+  String toString() => 'HttpTTS(id: $id, name: $name)';
 }
-
