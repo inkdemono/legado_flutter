@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:legado_flutter/providers/service_registry.dart';
 import '../../../data/models/rss_source.dart';
-import '../../../services/rss_service.dart';
 import '../../widgets/common/custom_switch_list_tile.dart';
+
+class RssSourceEditResult {
+  final RssSource? source;
+  final String? deletedUrl;
+
+  const RssSourceEditResult.saved(this.source) : deletedUrl = null;
+  const RssSourceEditResult.deleted(this.deletedUrl) : source = null;
+}
 
 /// RSS源编辑页面
 class RssSourceEditPage extends StatefulWidget {
@@ -156,7 +163,7 @@ class _RssSourceEditPageState extends State<RssSourceEditPage> {
 
     final success = await readService(AppServices.rssService).addOrUpdateRssSource(source);
     if (success && mounted) {
-      Navigator.pop(context, true);
+      Navigator.pop(context, RssSourceEditResult.saved(source));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(widget.source == null ? '添加成功' : '保存成功')),
       );
@@ -192,7 +199,10 @@ class _RssSourceEditPageState extends State<RssSourceEditPage> {
 
     final success = await readService(AppServices.rssService).deleteRssSource(widget.source!.sourceUrl);
     if (success && mounted) {
-      Navigator.pop(context, true);
+      Navigator.pop(
+        context,
+        RssSourceEditResult.deleted(widget.source!.sourceUrl),
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('删除成功')),
       );
@@ -203,4 +213,3 @@ class _RssSourceEditPageState extends State<RssSourceEditPage> {
     }
   }
 }
-

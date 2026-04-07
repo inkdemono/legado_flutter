@@ -11,10 +11,29 @@ enum BookshelfLayoutType {
   grid6,   // 6列网格
 }
 
+class BookshelfLayoutNotifier extends Notifier<BookshelfLayoutType> {
+  @override
+  BookshelfLayoutType build() => _loadLayout();
+
+  void setLayout(BookshelfLayoutType layout) {
+    final layoutValue = switch (layout) {
+      BookshelfLayoutType.list => 0,
+      BookshelfLayoutType.grid2 => 1,
+      BookshelfLayoutType.grid3 => 2,
+      BookshelfLayoutType.grid4 => 3,
+      BookshelfLayoutType.grid5 => 4,
+      BookshelfLayoutType.grid6 => 5,
+    };
+    AppConfig.setBookshelfLayout(layoutValue);
+    state = layout;
+  }
+}
+
 /// 书架布局Provider
-final bookshelfLayoutProvider = Provider<BookshelfLayoutType>((ref) {
-  return _loadLayout();
-});
+final bookshelfLayoutProvider =
+    NotifierProvider<BookshelfLayoutNotifier, BookshelfLayoutType>(
+  BookshelfLayoutNotifier.new,
+);
 
 /// 加载布局配置
 BookshelfLayoutType _loadLayout() {
@@ -39,17 +58,7 @@ BookshelfLayoutType _loadLayout() {
 
 /// 设置布局
 void setBookshelfLayout(WidgetRef ref, BookshelfLayoutType layout) {
-  final layoutValue = switch (layout) {
-    BookshelfLayoutType.list => 0,
-    BookshelfLayoutType.grid2 => 1,
-    BookshelfLayoutType.grid3 => 2,
-    BookshelfLayoutType.grid4 => 3,
-    BookshelfLayoutType.grid5 => 4,
-    BookshelfLayoutType.grid6 => 5,
-  };
-  AppConfig.setBookshelfLayout(layoutValue);
-  // 刷新provider
-  ref.invalidate(bookshelfLayoutProvider);
+  ref.read(bookshelfLayoutProvider.notifier).setLayout(layout);
 }
 
 /// 获取网格列数
@@ -68,4 +77,3 @@ int getGridCrossAxisCount(BookshelfLayoutType layout) {
 bool isListLayout(BookshelfLayoutType layout) {
   return layout == BookshelfLayoutType.list;
 }
-

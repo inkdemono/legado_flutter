@@ -7,8 +7,10 @@ import 'package:legado_flutter/data/models/book.dart';
 import 'package:legado_flutter/data/models/book_source.dart';
 import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:legado_flutter/services/book/book_service.dart';
+import 'package:legado_flutter/services/local_config_service.dart';
 import 'package:legado_flutter/services/network/network_service.dart';
 import 'package:legado_flutter/services/source/book_source_service.dart';
+import 'package:legado_flutter/utils/parsers/rule_parser.dart';
 
 class _FakeBookService implements IBookService {
   _FakeBookService({required this.books});
@@ -40,6 +42,9 @@ class _FakeBookSourceService implements IBookSourceService {
 }
 
 class _FakeNetworkService implements INetworkService {
+  String? lastGetUrl;
+  Map<String, String>? lastHeaders;
+
   @override
   Dio get dio => Dio();
 
@@ -67,6 +72,8 @@ class _FakeNetworkService implements INetworkService {
     int retryCount = 0,
     Map<String, String>? headers,
   }) async {
+    lastGetUrl = url;
+    lastHeaders = headers;
     return Response(
       requestOptions: RequestOptions(path: url),
       data: 'ok',
@@ -90,6 +97,18 @@ class _FakeNetworkService implements INetworkService {
       statusCode: 200,
     );
   }
+}
+
+class _FakeLocalConfigService implements LocalConfigService {
+  _FakeLocalConfigService({required this.privacyPolicyConfirmed});
+
+  final bool privacyPolicyConfirmed;
+
+  @override
+  bool get privacyPolicyOk => privacyPolicyConfirmed;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {
@@ -142,5 +161,47 @@ void main() {
           .bookSourceName,
       '测试书源',
     );
+  });
+
+  test('AppServices 支持通过测试容器覆盖具体类型 Service', () {
+    final fakeLocalConfigService =
+        _FakeLocalConfigService(privacyPolicyConfirmed: true);
+    final container = ProviderContainer(
+      overrides: [
+        AppServices.localConfigService
+            .overrideWithValue(fakeLocalConfigService),
+      ],
+    );
+
+    setAppProviderContainerForTesting(container);
+
+    expect(
+      identical(
+        readService(AppServices.localConfigService),
+        fakeLocalConfigService,
+      ),
+      isTrue,
+    );
+    expect(readService(AppServices.localConfigService).privacyPolicyOk, isTrue);
+  });
+
+  test('RuleParser payAction 使用可覆盖的 NetworkService Provider', () async {
+    final fakeNetworkService = _FakeNetworkService();
+    final container = ProviderContainer(
+      overrides: [
+        AppServices.networkService.overrideWithValue(fakeNetworkService),
+      ],
+    );
+
+    setAppProviderContainerForTesting(container);
+
+    final result = await RuleParser.executePayAction(
+      '<html></html>',
+      'https://example.com/paywall/unlock',
+    );
+
+    expect(result, isTrue);
+    expect(fakeNetworkService.lastGetUrl,
+        'https://example.com/paywall/unlock');
   });
 }

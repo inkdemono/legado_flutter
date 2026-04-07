@@ -3,10 +3,10 @@ import 'package:flutter/foundation.dart';
 /// 日志级别
 enum LogLevel {
   all,
-  debug,   // 调试日志（仅开发模式）
-  info,    // 信息日志
+  debug, // 调试日志（仅开发模式）
+  info, // 信息日志
   warning, // 警告日志
-  error,   // 错误日志
+  error, // 错误日志
 }
 
 /// 日志分类
@@ -23,6 +23,75 @@ enum LogCategory {
   sync,
   ui,
   database,
+}
+
+/// 细粒度模块标签
+abstract final class AppLogTag {
+  static const String all = 'all';
+  static const String general = 'general';
+  static const String startup = 'startup';
+  static const String startupFlow = 'startup_flow';
+  static const String serviceInit = 'service_init';
+  static const String performance = 'performance';
+  static const String reader = 'reader';
+  static const String parser = 'parser';
+  static const String network = 'network';
+  static const String protocol = 'protocol';
+  static const String storage = 'storage';
+  static const String media = 'media';
+  static const String audio = 'audio';
+  static const String video = 'video';
+  static const String sync = 'sync';
+  static const String ui = 'ui';
+  static const String database = 'database';
+
+  static String normalize(String tag) {
+    if (tag.trim().isEmpty || tag == all) {
+      return general;
+    }
+    return tag;
+  }
+
+  static String labelOf(String tag) {
+    switch (tag) {
+      case all:
+        return '全部';
+      case general:
+        return '通用';
+      case startup:
+        return '启动';
+      case startupFlow:
+        return '启动流程';
+      case serviceInit:
+        return '服务初始化';
+      case performance:
+        return '性能';
+      case reader:
+        return '阅读器';
+      case parser:
+        return '解析器';
+      case network:
+        return '网络';
+      case protocol:
+        return '协议';
+      case storage:
+        return '存储';
+      case media:
+        return '媒体';
+      case audio:
+        return '音频';
+      case video:
+        return '视频';
+      case sync:
+        return '同步';
+      case ui:
+        return '界面';
+      case database:
+        return '数据库';
+      default:
+        return tag;
+    }
+  }
 }
 
 extension LogLevelX on LogLevel {
@@ -106,10 +175,12 @@ class AppLog {
     bool toast = false,
     LogLevel level = LogLevel.info,
     LogCategory category = LogCategory.general,
+    String tag = AppLogTag.general,
     Duration? duration,
     Map<String, Object?>? metadata,
   }) {
     if (message == null || message.isEmpty) return;
+    final resolvedTag = AppLogTag.normalize(tag);
 
     // 限制日志数量
     if (_logsList.length >= maxLogs) {
@@ -126,6 +197,7 @@ class AppLog {
       stackTrace: error is Error ? error.stackTrace?.toString() : null,
       level: resolvedLevel,
       category: category,
+      tag: resolvedTag,
       duration: duration,
       metadata: metadata,
     );
@@ -146,31 +218,54 @@ class AppLog {
   }
 
   /// 添加调试日志（仅在开发模式下记录）
-  void putDebug(String? message, {Object? error, LogCategory category = LogCategory.general}) {
+  void putDebug(
+    String? message, {
+    Object? error,
+    LogCategory category = LogCategory.general,
+    String tag = AppLogTag.general,
+  }) {
     if (!kDebugMode) return;
-    put(message, error: error, level: LogLevel.debug, category: category);
+    put(
+      message,
+      error: error,
+      level: LogLevel.debug,
+      category: category,
+      tag: tag,
+    );
   }
 
   /// 添加启动性能日志
-  void putStartup(String? message, {Object? error, Duration? duration}) {
+  void putStartup(
+    String? message, {
+    Object? error,
+    Duration? duration,
+    String tag = AppLogTag.startup,
+  }) {
     if (!enableStartupLogs) return;
     put(
       message,
       error: error,
       level: LogLevel.debug,
       category: LogCategory.startup,
+      tag: tag,
       duration: duration,
     );
   }
 
   /// 添加服务初始化日志
-  void putServiceInit(String? message, {Object? error, Duration? duration}) {
+  void putServiceInit(
+    String? message, {
+    Object? error,
+    Duration? duration,
+    String tag = AppLogTag.serviceInit,
+  }) {
     if (!enableServiceInitLogs) return;
     put(
       message,
       error: error,
       level: LogLevel.debug,
       category: LogCategory.serviceInit,
+      tag: tag,
       duration: duration,
     );
   }
@@ -180,6 +275,7 @@ class AppLog {
     String? message, {
     Duration? duration,
     LogCategory category = LogCategory.performance,
+    String tag = AppLogTag.performance,
     LogLevel? level,
     Map<String, Object?>? metadata,
   }) {
@@ -192,6 +288,7 @@ class AppLog {
       message,
       level: resolvedLevel,
       category: category,
+      tag: tag,
       duration: duration,
       metadata: metadata,
     );
@@ -212,6 +309,7 @@ class LogEntry {
   final String? stackTrace;
   final LogLevel level;
   final LogCategory category;
+  final String tag;
   final Duration? duration;
   final Map<String, Object?> metadata;
 
@@ -222,6 +320,7 @@ class LogEntry {
     this.stackTrace,
     this.level = LogLevel.info,
     this.category = LogCategory.general,
+    this.tag = AppLogTag.general,
     this.duration,
     Map<String, Object?>? metadata,
   }) : metadata = Map.unmodifiable(metadata ?? const {});
@@ -233,6 +332,7 @@ class LogEntry {
 
   String get fullMessage {
     final buffer = StringBuffer();
+    buffer.writeln('[tag: $tag]');
     if (duration != null) {
       buffer.writeln('[耗时 ${duration!.inMilliseconds}ms]');
     }
@@ -270,17 +370,20 @@ class AppLogSummary {
     required this.totalLogs,
     required this.levelCounts,
     required this.categoryCounts,
+    required this.tagCounts,
     required this.repeatedEntries,
   });
 
   final int totalLogs;
   final Map<LogLevel, int> levelCounts;
   final Map<LogCategory, int> categoryCounts;
+  final Map<String, int> tagCounts;
   final List<AggregatedLogEntry> repeatedEntries;
 
   factory AppLogSummary.fromLogs(List<LogEntry> logs) {
     final levelCounts = <LogLevel, int>{};
     final categoryCounts = <LogCategory, int>{};
+    final tagCounts = <String, int>{};
     final groups = <String, AggregatedLogEntry>{};
 
     for (final log in logs) {
@@ -290,12 +393,15 @@ class AppLogSummary {
         (count) => count + 1,
         ifAbsent: () => 1,
       );
+      tagCounts.update(log.tag, (count) => count + 1, ifAbsent: () => 1);
 
-      final key = '${log.category.name}|${log.level.name}|${log.message}|${log.error ?? ''}';
+      final key =
+          '${log.category.name}|${log.tag}|${log.level.name}|${log.message}|${log.error ?? ''}';
       final current = groups[key];
       if (current == null) {
         groups[key] = AggregatedLogEntry(
           category: log.category,
+          tag: log.tag,
           level: log.level,
           message: log.message,
           count: 1,
@@ -311,19 +417,19 @@ class AppLogSummary {
       }
     }
 
-    final repeatedEntries = groups.values
-        .where((entry) => entry.count > 1)
-        .toList()
-      ..sort((a, b) {
-        final countCompare = b.count.compareTo(a.count);
-        if (countCompare != 0) return countCompare;
-        return b.latestTimestamp.compareTo(a.latestTimestamp);
-      });
+    final repeatedEntries =
+        groups.values.where((entry) => entry.count > 1).toList()
+          ..sort((a, b) {
+            final countCompare = b.count.compareTo(a.count);
+            if (countCompare != 0) return countCompare;
+            return b.latestTimestamp.compareTo(a.latestTimestamp);
+          });
 
     return AppLogSummary(
       totalLogs: logs.length,
       levelCounts: Map.unmodifiable(levelCounts),
       categoryCounts: Map.unmodifiable(categoryCounts),
+      tagCounts: Map.unmodifiable(tagCounts),
       repeatedEntries: List.unmodifiable(repeatedEntries.take(5)),
     );
   }
@@ -332,6 +438,7 @@ class AppLogSummary {
 class AggregatedLogEntry {
   const AggregatedLogEntry({
     required this.category,
+    required this.tag,
     required this.level,
     required this.message,
     required this.count,
@@ -340,6 +447,7 @@ class AggregatedLogEntry {
   });
 
   final LogCategory category;
+  final String tag;
   final LogLevel level;
   final String message;
   final int count;
@@ -353,6 +461,7 @@ class AggregatedLogEntry {
   }) {
     return AggregatedLogEntry(
       category: category,
+      tag: tag,
       level: level,
       message: message,
       count: count ?? this.count,

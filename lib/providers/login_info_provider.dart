@@ -11,11 +11,32 @@ final loginInfoServiceProvider = Provider<LoginInfoService>((ref) {
 });
 
 /// 单个书源登录信息 Provider
+class LoginInfoNotifier extends AsyncNotifier<Map<String, String>> {
+  LoginInfoNotifier(this.sourceUrl);
+
+  final String sourceUrl;
+  LoginInfoService get _service => ref.read(loginInfoServiceProvider);
+
+  @override
+  Future<Map<String, String>> build() {
+    return _service.getLoginInfo(sourceUrl);
+  }
+
+  Future<void> save(Map<String, String> loginData) async {
+    await _service.saveLoginInfo(sourceUrl, loginData);
+    state = AsyncValue.data(loginData);
+  }
+
+  Future<void> clear() async {
+    await _service.clearLoginInfo(sourceUrl);
+    state = const AsyncValue.data(<String, String>{});
+  }
+}
+
 final loginInfoProvider =
-    FutureProvider.family<Map<String, String>, String>((ref, sourceUrl) async {
-  final service = ref.read(loginInfoServiceProvider);
-  return service.getLoginInfo(sourceUrl);
-});
+    AsyncNotifierProvider.family<LoginInfoNotifier, Map<String, String>, String>(
+  LoginInfoNotifier.new,
+);
 
 /// 登录信息操作 Provider
 final loginInfoOperationsProvider = Provider<LoginInfoOperations>((ref) {
@@ -35,15 +56,11 @@ class LoginInfoOperations {
     String sourceUrl,
     Map<String, String> loginData,
   ) async {
-    await _ref
-        .read(loginInfoServiceProvider)
-        .saveLoginInfo(sourceUrl, loginData);
-    _ref.invalidate(loginInfoProvider(sourceUrl));
+    await _ref.read(loginInfoProvider(sourceUrl).notifier).save(loginData);
   }
 
   Future<void> clearLoginInfo(String sourceUrl) async {
-    await _ref.read(loginInfoServiceProvider).clearLoginInfo(sourceUrl);
-    _ref.invalidate(loginInfoProvider(sourceUrl));
+    await _ref.read(loginInfoProvider(sourceUrl).notifier).clear();
   }
 
   Future<void> clearAllLoginInfo() async {

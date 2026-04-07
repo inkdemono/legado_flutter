@@ -3,7 +3,6 @@ import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/rss_source.dart';
 import '../../../data/models/rss_article.dart';
-import '../../../services/rss/rss_parser_service.dart';
 import '../../../utils/helpers/source/rss_source_extensions.dart';
 import 'rss_article_item_widget.dart';
 import 'rss_read_page.dart';
@@ -27,9 +26,12 @@ class RssArticlesSortPage extends ConsumerStatefulWidget {
 
 class _RssArticlesSortPageState extends ConsumerState<RssArticlesSortPage>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+  TabController? _tabController;
   List<MapEntry<String, String>> _sortList = [];
   bool _isLoading = true;
+  final Map<String, List<RssArticle>> _articlesBySort = {};
+  final Set<String> _loadingSorts = {};
+  final Map<String, Object> _errorsBySort = {};
 
   @override
   void initState() {
@@ -47,10 +49,13 @@ class _RssArticlesSortPageState extends ConsumerState<RssArticlesSortPage>
       if (mounted) {
         setState(() {
           _sortList = sortUrls;
-          _tabController = TabController(
-            length: _sortList.length,
-            vsync: this,
-          );
+          _tabController?.dispose();
+          _tabController = _sortList.isEmpty
+              ? null
+              : TabController(
+                  length: _sortList.length,
+                  vsync: this,
+                );
           _isLoading = false;
         });
       }
@@ -69,6 +74,8 @@ class _RssArticlesSortPageState extends ConsumerState<RssArticlesSortPage>
   Future<void> _clearSortCache() async {
     await widget.source.removeSortCache();
     if (!mounted) return;
+    _articlesBySort.clear();
+    _errorsBySort.clear();
     await _loadSortUrls();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -76,9 +83,79 @@ class _RssArticlesSortPageState extends ConsumerState<RssArticlesSortPage>
     );
   }
 
+  String _sortKey(String sortName, String sortUrl) => '$sortName::$sortUrl';
+
+  Future<void> _loadArticles(
+    String sortName,
+    String sortUrl, {
+    bool force = false,
+  }) async {
+    final key = _sortKey(sortName, sortUrl);
+    if (!force && (_articlesBySort.containsKey(key) || _loadingSorts.contains(key))) {
+      return;
+    }
+
+    setState(() {
+      _loadingSorts.add(key);
+      if (force) {
+        _errorsBySort.remove(key);
+      }
+    });
+
+    try {
+      final articles = await readService(AppServices.rssParserService).getArticles(
+        source: widget.source,
+        sortName: sortName,
+        sortUrl: sortUrl,
+      );
+      if (!mounted) return;
+      setState(() {
+        _articlesBySort[key] = articles;
+        _errorsBySort.remove(key);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorsBySort[key] = e;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingSorts.remove(key);
+        });
+      }
+    }
+  }
+
+  Future<void> _openArticle(
+    String sortName,
+    String sortUrl,
+    RssArticle article,
+  ) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => RssReadPage(
+          source: widget.source,
+          article: article,
+        ),
+      ),
+    );
+
+    final key = _sortKey(sortName, sortUrl);
+    final current = _articlesBySort[key];
+    if (current == null || !mounted) {
+      return;
+    }
+    setState(() {
+      _articlesBySort[key] = current
+          .map((item) => item.link == article.link ? item.copyWith(read: true) : item)
+          .toList();
+    });
+  }
+
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController?.dispose();
     super.dispose();
   }
 
@@ -110,7 +187,7 @@ class _RssArticlesSortPageState extends ConsumerState<RssArticlesSortPage>
           ),
         ],
         bottom: CustomTabBar(
-          controller: _tabController,
+          controller: _tabController!,
           isScrollable: _sortList.length > 3,
           tabs: _sortList.map((sort) {
             final name = sort.key.isEmpty ? '全部' : sort.key;
@@ -119,7 +196,7 @@ class _RssArticlesSortPageState extends ConsumerState<RssArticlesSortPage>
         ),
       ),
       body: TabBarView(
-        controller: _tabController,
+        controller: _tabController!,
         children: _sortList.map((sort) {
           return _buildArticlesList(sort.key, sort.value);
         }).toList(),
@@ -128,110 +205,71 @@ class _RssArticlesSortPageState extends ConsumerState<RssArticlesSortPage>
   }
 
   Widget _buildArticlesList(String sortName, String sortUrl) {
-    return Consumer(
-      builder: (context, ref, child) {
-        // 创建基于sortName和sortUrl的Provider
-        final articlesAsync = ref.watch(
-          FutureProvider.family<List<RssArticle>, Map<String, String>>(
-            (ref, params) async {
-              return await readService(AppServices.rssParserService).getArticles(
-                source: widget.source,
-                sortName: params['sortName'] ?? '',
-                sortUrl: params['sortUrl'],
-              );
-            },
-          ).call({'sortName': sortName, 'sortUrl': sortUrl}),
-        );
+    final key = _sortKey(sortName, sortUrl);
+    final articles = _articlesBySort[key];
+    final error = _errorsBySort[key];
+    final isLoading = _loadingSorts.contains(key);
 
-        return articlesAsync.when(
-          data: (articles) {
-            if (articles.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.article_outlined,
-                      size: 64,
-                      color: Colors.grey[400],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '暂无文章',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              );
-            }
+    if (articles == null && error == null && !isLoading) {
+      _loadArticles(sortName, sortUrl);
+    }
 
-            return ListView.builder(
-              itemCount: articles.length,
-              itemBuilder: (context, index) {
-                final article = articles[index];
-                return RssArticleItemWidget(
-                  article: article,
-                  sourceName: widget.source.sourceName,
-                  onTap: () {
-                    Navigator.of(context)
-                        .push(
-                      MaterialPageRoute(
-                        builder: (context) => RssReadPage(
-                          source: widget.source,
-                          article: article,
-                        ),
-                      ),
-                    )
-                        .then((_) {
-                      ref.invalidate(
-                        FutureProvider.family<List<RssArticle>,
-                            Map<String, String>>(
-                          (ref, params) async {
-                            return await readService(AppServices.rssParserService).getArticles(
-                              source: widget.source,
-                              sortName: params['sortName'] ?? '',
-                              sortUrl: params['sortUrl'],
-                            );
-                          },
-                        ).call({'sortName': sortName, 'sortUrl': sortUrl}),
-                      );
-                    });
-                  },
-                );
-              },
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stack) => Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                const SizedBox(height: 16),
-                Text('加载失败: $error'),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () {
-                    ref.invalidate(
-                      FutureProvider.family<List<RssArticle>,
-                          Map<String, String>>(
-                        (ref, params) async {
-                          return await readService(AppServices.rssParserService).getArticles(
-                            source: widget.source,
-                            sortName: params['sortName'] ?? '',
-                            sortUrl: params['sortUrl'],
-                          );
-                        },
-                      ).call({'sortName': sortName, 'sortUrl': sortUrl}),
-                    );
-                  },
-                  child: const Text('重试'),
-                ),
-              ],
+    if (isLoading && articles == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (error != null && articles == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Text('加载失败: $error'),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => _loadArticles(sortName, sortUrl, force: true),
+              child: const Text('重试'),
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      );
+    }
+
+    final resolved = articles ?? const <RssArticle>[];
+    if (resolved.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.article_outlined,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '暂无文章',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => _loadArticles(sortName, sortUrl, force: true),
+      child: ListView.builder(
+        itemCount: resolved.length,
+        itemBuilder: (context, index) {
+          final article = resolved[index];
+          return RssArticleItemWidget(
+            article: article,
+            sourceName: widget.source.sourceName,
+            onTap: () => _openArticle(sortName, sortUrl, article),
+          );
+        },
+      ),
     );
   }
 }

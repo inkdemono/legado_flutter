@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../config/theme_config.dart';
 import '../../../data/models/theme_config.dart';
-import '../../../services/theme_service.dart';
 import '../../widgets/home/home_shell.dart';
 import 'theme_edit_page.dart';
 
@@ -79,7 +78,7 @@ class _ThemeSettingsPageState extends ConsumerState<ThemeSettingsPage> {
   Future<void> _applyTheme(ThemeConfig config) async {
     try {
       await readService(AppServices.themeService).applyConfig(config);
-      ref.invalidate(themeModeProvider);
+      ref.read(themeRevisionProvider.notifier).bump();
       _showMessage('已应用主题: ${config.themeName}');
     } catch (e) {
       _showMessage('应用主题失败: $e');

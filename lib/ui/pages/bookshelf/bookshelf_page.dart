@@ -1460,7 +1460,7 @@ class _BookshelfPageState extends ConsumerState<BookshelfPage> {
   void _showLogDialog() {
     showDialog(
       context: context,
-      builder: (context) => const LogDialog(),
+      builder: (context) => LogDialog(),
     );
   }
 

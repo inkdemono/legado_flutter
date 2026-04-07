@@ -264,8 +264,12 @@ class AudioPlayService extends BaseService {
         loadingNotifier.value = false;
       }
     } catch (e) {
-      AppLog.instance
-          .put('AudioPlayService._loadAndPlayChapter error: $e', error: e);
+      AppLog.instance.put(
+        'AudioPlayService._loadAndPlayChapter error: $e',
+        error: e,
+        category: LogCategory.media,
+        tag: AppLogTag.audio,
+      );
       loadingNotifier.value = false;
     }
   }
@@ -299,12 +303,19 @@ class AudioPlayService extends BaseService {
                   decoded.map((key, value) => MapEntry(key, value.toString()));
               if (headers.isNotEmpty) {
                 AppLog.instance.put(
-                    'AudioPlayService: 检测到自定义请求头，但 just_audio 暂不支持，URL: $url');
+                  'AudioPlayService: 检测到自定义请求头，但 just_audio 暂不支持，URL: $url',
+                  level: LogLevel.warning,
+                  category: LogCategory.media,
+                  tag: AppLogTag.audio,
+                );
               }
             }
           } catch (e) {
-            AppLog.instance
-                .put('AudioPlayService._createAudioSource: 解析 header 失败: $e');
+            AppLog.instance.put(
+              'AudioPlayService._createAudioSource: 解析 header 失败: $e',
+              category: LogCategory.media,
+              tag: AppLogTag.audio,
+            );
           }
         }
       }
@@ -312,8 +323,12 @@ class AudioPlayService extends BaseService {
       // 使用简单的 URL（just_audio 暂不支持自定义请求头）
       return AudioSource.uri(Uri.parse(url));
     } catch (e) {
-      AppLog.instance
-          .put('AudioPlayService._createAudioSource error: $e', error: e);
+      AppLog.instance.put(
+        'AudioPlayService._createAudioSource error: $e',
+        error: e,
+        category: LogCategory.media,
+        tag: AppLogTag.audio,
+      );
       // 如果创建失败，回退到简单的 URL
       return AudioSource.uri(Uri.parse(url));
     }
@@ -335,13 +350,21 @@ class AudioPlayService extends BaseService {
 
     // ── 优先级 1：已有嗅探/解析结果，直接使用 ──────────────────────────────
     if (chapter.resourceUrl != null && chapter.resourceUrl!.isNotEmpty) {
-      AppLog.instance.put('音频URL: 使用已缓存的 resourceUrl → ${chapter.resourceUrl}');
+      AppLog.instance.put(
+        '音频URL: 使用已缓存的 resourceUrl → ${chapter.resourceUrl}',
+        category: LogCategory.media,
+        tag: AppLogTag.audio,
+      );
       return chapter.resourceUrl;
     }
 
     // ── 优先级 2：章节URL本身是音频直链 ────────────────────────────────────
     if (_isDirectAudioUrl(chapter.url)) {
-      AppLog.instance.put('音频URL: 章节URL为直链 → ${chapter.url}');
+      AppLog.instance.put(
+        '音频URL: 章节URL为直链 → ${chapter.url}',
+        category: LogCategory.media,
+        tag: AppLogTag.audio,
+      );
       return chapter.url;
     }
 
@@ -363,8 +386,11 @@ class AudioPlayService extends BaseService {
       // 优先级 3：getChapterContent 对 bookSourceType=1 的书源已将
       // sourceRegex 嗅探结果写入 chapter.resourceUrl。
       if (chapter.resourceUrl != null && chapter.resourceUrl!.isNotEmpty) {
-        AppLog.instance
-            .put('音频URL: 规则解析后从 resourceUrl 获取 → ${chapter.resourceUrl}');
+        AppLog.instance.put(
+          '音频URL: 规则解析后从 resourceUrl 获取 → ${chapter.resourceUrl}',
+          category: LogCategory.media,
+          tag: AppLogTag.audio,
+        );
         return chapter.resourceUrl;
       }
 
@@ -374,7 +400,11 @@ class AudioPlayService extends BaseService {
           content.isNotEmpty &&
           (content.startsWith('http://') || content.startsWith('https://')) &&
           !content.contains('\n')) {
-        AppLog.instance.put('音频URL: content 即为URL → $content');
+        AppLog.instance.put(
+          '音频URL: content 即为URL → $content',
+          category: LogCategory.media,
+          tag: AppLogTag.audio,
+        );
         chapter.resourceUrl = content;
         return content;
       }
@@ -387,16 +417,30 @@ class AudioPlayService extends BaseService {
         ).firstMatch(content);
         if (match != null) {
           final url = match.group(0)!;
-          AppLog.instance.put('音频URL: 从内容中正则提取 → $url');
+          AppLog.instance.put(
+            '音频URL: 从内容中正则提取 → $url',
+            category: LogCategory.media,
+            tag: AppLogTag.audio,
+          );
           chapter.resourceUrl = url;
           return url;
         }
       }
     } catch (e) {
-      AppLog.instance.put('提取音频URL失败: ${chapter.title}', error: e);
+      AppLog.instance.put(
+        '提取音频URL失败: ${chapter.title}',
+        error: e,
+        category: LogCategory.media,
+        tag: AppLogTag.audio,
+      );
     }
 
-    AppLog.instance.put('音频URL: 未能提取到有效URL (章节: ${chapter.title})');
+    AppLog.instance.put(
+      '音频URL: 未能提取到有效URL (章节: ${chapter.title})',
+      level: LogLevel.warning,
+      category: LogCategory.media,
+      tag: AppLogTag.audio,
+    );
     return null;
   }
 

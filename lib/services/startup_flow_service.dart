@@ -1,15 +1,14 @@
 import 'dart:async';
 import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode, visibleForTesting;
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/event/app_events.dart';
 import '../config/app_config.dart';
 import '../utils/app_log.dart';
-import '../services/local_config_service.dart';
-import '../services/storage/webdav_service.dart';
+import '../data/models/book.dart';
 import '../providers/book_provider.dart';
 import '../providers/book_update_count_provider.dart';
 import '../providers/event_bus_provider.dart';
@@ -67,7 +66,7 @@ class StartupFlowService {
         if (!isMounted()) return;
 
         unawaited(
-          Future.delayed(const Duration(milliseconds: 500), () async {
+          () async {
             try {
               if (!isMounted()) return;
               await startupPerformanceMonitor.trackAsync(
@@ -77,7 +76,7 @@ class StartupFlowService {
             } catch (e) {
               AppLog.instance.put('自动更新书籍目录失败', error: e);
             }
-          }),
+          }(),
         );
       } catch (e) {
         AppLog.instance.put('启动初始化失败', error: e);
@@ -272,33 +271,74 @@ class StartupFlowService {
     bool Function() isMounted,
   ) async {
     if (!AppConfig.getAutoRefresh()) return;
-    await Future.delayed(const Duration(seconds: 2));
+    await _runAutoRefreshWorkflow(
+      waitForDependencies: () async {
+        await ref.read(bookshelfBooksProvider.future);
+      },
+      loadBookshelfBooks: () => ref.read(bookServiceProvider).getBookshelfBooks(),
+      updateChapterLists: (books) =>
+          ref.read(bookServiceProvider).updateChapterLists(books),
+      fireCollectionChanged: () {
+        ref.read(eventBusProvider).fire(
+              const BookCollectionChangedEvent(reason: 'auto_refresh_books'),
+            );
+      },
+      refreshUpdateCount: () =>
+          ref.read(bookUpdateCountProvider.notifier).refresh(),
+      isMounted: isMounted,
+    );
+  }
+
+  @visibleForTesting
+  static Future<void> runAutoRefreshWorkflowForTesting({
+    required Future<void> Function() waitForDependencies,
+    required Future<List<Book>> Function() loadBookshelfBooks,
+    required Future<Map<String, bool>> Function(List<Book> books)
+        updateChapterLists,
+    required void Function() fireCollectionChanged,
+    required Future<void> Function() refreshUpdateCount,
+    required bool Function() isMounted,
+  }) {
+    return _runAutoRefreshWorkflow(
+      waitForDependencies: waitForDependencies,
+      loadBookshelfBooks: loadBookshelfBooks,
+      updateChapterLists: updateChapterLists,
+      fireCollectionChanged: fireCollectionChanged,
+      refreshUpdateCount: refreshUpdateCount,
+      isMounted: isMounted,
+    );
+  }
+
+  static Future<void> _runAutoRefreshWorkflow({
+    required Future<void> Function() waitForDependencies,
+    required Future<List<Book>> Function() loadBookshelfBooks,
+    required Future<Map<String, bool>> Function(List<Book> books)
+        updateChapterLists,
+    required void Function() fireCollectionChanged,
+    required Future<void> Function() refreshUpdateCount,
+    required bool Function() isMounted,
+  }) async {
     if (!isMounted()) return;
 
     try {
-      final bookService = ref.read(bookServiceProvider);
-      final allBooks = await bookService.getBookshelfBooks();
+      await waitForDependencies();
+      if (!isMounted()) return;
+
+      final allBooks = await loadBookshelfBooks();
       final booksToUpdate =
           allBooks.where((book) => !book.isLocal && book.canUpdate).toList();
       if (booksToUpdate.isEmpty) return;
 
-      final results = await bookService.updateChapterLists(booksToUpdate);
+      final results = await updateChapterLists(booksToUpdate);
       final successCount = results.values.where((v) => v == true).length;
       final failCount = results.length - successCount;
       AppLog.instance.put(
         '自动更新书籍目录完成: 成功 $successCount 本，失败 $failCount 本',
       );
-      ref.read(eventBusProvider).fire(
-            const BookCollectionChangedEvent(reason: 'auto_refresh_books'),
-          );
 
-      if (isMounted()) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (isMounted()) {
-            ref.read(bookUpdateCountProvider.notifier).refresh();
-          }
-        });
-      }
+      if (!isMounted()) return;
+      fireCollectionChanged();
+      await refreshUpdateCount();
     } catch (e) {
       AppLog.instance.put('自动更新书籍目录失败', error: e);
     }

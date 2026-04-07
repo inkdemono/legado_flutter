@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/book_source_provider.dart';
 import '../../data/models/book.dart';
 import '../../data/models/book_source.dart';
 import '../../services/book/book_service.dart';
-import '../../services/source/book_source_service.dart';
 import '../../utils/app_log.dart';
 import '../../utils/network_utils.dart';
 import '../pages/bookshelf/book_info/book_info_page.dart';
@@ -93,8 +93,7 @@ class _AddToBookshelfDialogState extends ConsumerState<AddToBookshelfDialog> {
 
       // 3. 在所有启用的书源中使用bookUrlPattern匹配
       if (source == null) {
-        final allSources = await readService(AppServices.bookSourceService)
-            .getAllBookSources(enabledOnly: true);
+        final allSources = await ref.read(enabledBookSourceListProvider.future);
         for (final s in allSources) {
           if (s.bookUrlPattern != null && s.bookUrlPattern!.isNotEmpty) {
             try {

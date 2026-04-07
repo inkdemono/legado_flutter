@@ -8,11 +8,17 @@ import '../../widgets/base/base_bottom_sheet_consumer.dart';
 
 /// 日志对话框
 class LogDialog extends BaseBottomSheetConsumer {
-  const LogDialog({super.key})
-      : super(
-          title: '应用日志',
+  LogDialog({
+    super.key,
+    this.filterTag = AppLogTag.all,
+  }) : super(
+          title: filterTag == AppLogTag.all
+              ? '应用日志'
+              : '应用日志 · ${AppLogTag.labelOf(filterTag)}',
           heightFactor: 0.8,
         );
+
+  final String filterTag;
 
   @override
   ConsumerState<LogDialog> createState() => _LogDialogState();
@@ -48,8 +54,11 @@ class _LogDialogState extends BaseBottomSheetConsumerState<LogDialog> {
 
   @override
   Widget buildContent(BuildContext context) {
-    final logs = ref.watch(appLogEntriesProvider).valueOrNull ??
+    final sourceLogs = ref.watch(appLogEntriesProvider).valueOrNull ??
         ref.read(appLogProvider).logs;
+    final logs = widget.filterTag == AppLogTag.all
+        ? sourceLogs
+        : sourceLogs.where((log) => log.tag == widget.filterTag).toList();
     _syncAutoScroll(logs.length);
 
     return Column(

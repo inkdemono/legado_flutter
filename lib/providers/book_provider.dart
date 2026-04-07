@@ -9,6 +9,7 @@ import '../data/mappers/entity_mapper.dart';
 import '../services/book/book_service.dart';
 import '../services/book_group_service.dart';
 import 'event_bus_provider.dart';
+import 'book_source_provider.dart';
 import 'helpers/async_value_extension.dart';
 import 'repository_providers.dart';
 import 'service_registry.dart';
@@ -213,11 +214,13 @@ final bookshelfBooksProvider =
 final bookSearchProvider =
     StreamProvider.family<List<Book>, String>((ref, keyword) {
   final repository = ref.read(bookRepositoryProvider);
-  final sourceRepository = ref.read(bookSourceRepositoryProvider);
 
-  return sourceRepository
-      .getEnabledBookSources()
-      .asStream()
+  return Stream.fromFuture(ref.watch(enabledBookSourceListProvider.future))
+      .map((sources) {
+        return sources
+            .map((source) => EntityMapper.bookSourceToEntity(source))
+            .toList();
+      })
       .asyncExpand((sourceEntities) {
     return repository
         .searchBooks(keyword, sources: sourceEntities)
@@ -230,18 +233,17 @@ final bookSearchProvider =
 /// 书籍详情Provider (使用Repository)
 final bookInfoProvider = FutureProvider.family<Book?, Book>((ref, book) async {
   final repository = ref.read(bookRepositoryProvider);
-  final sourceRepository = ref.read(bookSourceRepositoryProvider);
 
   // 转换为Entity
   final bookEntity = EntityMapper.bookToEntity(book);
 
   // 获取书源
-  final sourceEntities = await sourceRepository.getBookSourceByUrl(book.origin);
-  if (sourceEntities == null) return null;
+  final source = await ref.watch(bookSourceProvider(book.origin).future);
+  if (source == null) return null;
+  final sourceEntity = EntityMapper.bookSourceToEntity(source);
 
   // 获取书籍详情
-  final updatedEntity =
-      await repository.getBookInfo(bookEntity, sourceEntities);
+  final updatedEntity = await repository.getBookInfo(bookEntity, sourceEntity);
   return EntityMapper.bookFromEntity(updatedEntity);
 });
 
@@ -249,14 +251,14 @@ final bookInfoProvider = FutureProvider.family<Book?, Book>((ref, book) async {
 final chapterListProvider =
     FutureProvider.family<List<BookChapter>, Book>((ref, book) async {
   final repository = ref.read(bookRepositoryProvider);
-  final sourceRepository = ref.read(bookSourceRepositoryProvider);
 
   // 转换为Entity
   final bookEntity = EntityMapper.bookToEntity(book);
 
   // 获取书源
-  final sourceEntity = await sourceRepository.getBookSourceByUrl(book.origin);
-  if (sourceEntity == null) return [];
+  final source = await ref.watch(bookSourceProvider(book.origin).future);
+  if (source == null) return [];
+  final sourceEntity = EntityMapper.bookSourceToEntity(source);
 
   // 获取章节列表
   final chapterEntities =

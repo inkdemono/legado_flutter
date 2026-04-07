@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:legado_flutter/providers/book_source_provider.dart';
 import '../../../data/models/book_source.dart';
 import '../../../data/models/explore_kind.dart';
-import '../../../services/source/book_source_service.dart';
 import '../../../services/explore_service.dart';
 import '../../../providers/scroll_control_provider.dart';
 import '../book_source/book_source_edit_page.dart';
@@ -70,23 +70,28 @@ class _ExplorePageState extends ConsumerState<ExplorePage>
     });
 
     try {
-      // 加载分组
-      final groups = await readService(AppServices.bookSourceService).getExploreGroups();
+      final groups = await ref.read(exploreBookSourceGroupListProvider.future);
+      final allExploreSources =
+          await ref.read(enabledExploreBookSourceListProvider.future);
+      List<BookSource> sources = allExploreSources;
 
-      // 加载书源
-      List<BookSource> sources;
       if (_searchKeyword != null && _searchKeyword!.isNotEmpty) {
-        // 优先处理搜索
-        sources = await readService(AppServices.bookSourceService)
-            .searchExploreBookSources(_searchKeyword!);
+        final keyword = _searchKeyword!.toLowerCase();
+        sources = sources.where((source) {
+          return source.bookSourceName.toLowerCase().contains(keyword) ||
+              source.bookSourceUrl.toLowerCase().contains(keyword) ||
+              (source.bookSourceGroup?.toLowerCase().contains(keyword) ??
+                  false);
+        }).toList();
       } else if (_selectedGroup != null && _selectedGroup!.isNotEmpty) {
-        // 按分组筛选
-        sources = await readService(AppServices.bookSourceService)
-            .getExploreBookSourcesByGroup(_selectedGroup!);
-      } else {
-        // 全部分组
-        sources =
-            await readService(AppServices.bookSourceService).getEnabledExploreBookSources();
+        final selectedGroup = _selectedGroup!;
+        sources = sources.where((source) {
+          final groups = (source.bookSourceGroup ?? '')
+              .split(',')
+              .map((item) => item.trim())
+              .where((item) => item.isNotEmpty);
+          return groups.contains(selectedGroup);
+        }).toList();
       }
 
       setState(() {

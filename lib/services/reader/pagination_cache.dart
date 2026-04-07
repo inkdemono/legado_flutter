@@ -66,6 +66,29 @@ class PaginationCache {
     return '$maxWidth|$maxHeight|$fontSize|$lineHeight|$letterSpacing|${fontWeight.index}|${fontFamily ?? ''}';
   }
 
+  bool _hasChapterCache({
+    required String chapterUrl,
+    required double maxWidth,
+    required double maxHeight,
+    required double fontSize,
+    required double lineHeight,
+    required double letterSpacing,
+    required FontWeight fontWeight,
+    String? fontFamily,
+  }) {
+    final key = _generateKey(
+      chapterUrl: chapterUrl,
+      maxWidth: maxWidth,
+      maxHeight: maxHeight,
+      fontSize: fontSize,
+      lineHeight: lineHeight,
+      letterSpacing: letterSpacing,
+      fontWeight: fontWeight,
+      fontFamily: fontFamily,
+    );
+    return _cache.containsKey(key);
+  }
+
   /// 检查配置是否变化
   bool _checkConfigChanged({
     required double maxWidth,
@@ -220,16 +243,44 @@ class PaginationCache {
     String? prevChapterUrl,
     String? nextChapterUrl,
     required Future<String?> Function(String url) getContent,
-    required List<PageRange> Function(String content) paginate,
+    required Future<List<PageRange>> Function(String content) paginate,
+    required double maxWidth,
+    required double maxHeight,
+    required double fontSize,
+    required double lineHeight,
+    required double letterSpacing,
+    required FontWeight fontWeight,
+    String? fontFamily,
   }) async {
     // 预读上一章
-    if (prevChapterUrl != null && !_cache.containsKey(prevChapterUrl)) {
+    if (prevChapterUrl != null &&
+        !_hasChapterCache(
+          chapterUrl: prevChapterUrl,
+          maxWidth: maxWidth,
+          maxHeight: maxHeight,
+          fontSize: fontSize,
+          lineHeight: lineHeight,
+          letterSpacing: letterSpacing,
+          fontWeight: fontWeight,
+          fontFamily: fontFamily,
+        )) {
       try {
         final content = await getContent(prevChapterUrl);
         if (content != null && content.isNotEmpty) {
-          final pages = paginate(content);
-          // 注意：这里需要传递完整的配置参数才能正确缓存
-          // 实际使用时应该从外部传入配置
+          final pages = await paginate(content);
+          if (pages.isNotEmpty) {
+            put(
+              chapterUrl: prevChapterUrl,
+              pages: pages,
+              maxWidth: maxWidth,
+              maxHeight: maxHeight,
+              fontSize: fontSize,
+              lineHeight: lineHeight,
+              letterSpacing: letterSpacing,
+              fontWeight: fontWeight,
+              fontFamily: fontFamily,
+            );
+          }
           debugPrint('预读完成: $prevChapterUrl (${pages.length}页)');
         }
       } catch (e) {
@@ -238,11 +289,34 @@ class PaginationCache {
     }
 
     // 预读下一章
-    if (nextChapterUrl != null && !_cache.containsKey(nextChapterUrl)) {
+    if (nextChapterUrl != null &&
+        !_hasChapterCache(
+          chapterUrl: nextChapterUrl,
+          maxWidth: maxWidth,
+          maxHeight: maxHeight,
+          fontSize: fontSize,
+          lineHeight: lineHeight,
+          letterSpacing: letterSpacing,
+          fontWeight: fontWeight,
+          fontFamily: fontFamily,
+        )) {
       try {
         final content = await getContent(nextChapterUrl);
         if (content != null && content.isNotEmpty) {
-          final pages = paginate(content);
+          final pages = await paginate(content);
+          if (pages.isNotEmpty) {
+            put(
+              chapterUrl: nextChapterUrl,
+              pages: pages,
+              maxWidth: maxWidth,
+              maxHeight: maxHeight,
+              fontSize: fontSize,
+              lineHeight: lineHeight,
+              letterSpacing: letterSpacing,
+              fontWeight: fontWeight,
+              fontFamily: fontFamily,
+            );
+          }
           debugPrint('预读完成: $nextChapterUrl (${pages.length}页)');
         }
       } catch (e) {

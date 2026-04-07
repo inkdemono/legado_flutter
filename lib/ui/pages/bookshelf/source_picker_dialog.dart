@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:legado_flutter/providers/book_source_provider.dart';
 import '../../../data/models/book_source.dart';
-import '../../../services/source/book_source_service.dart';
 import '../../widgets/base/base_bottom_sheet_consumer.dart';
 
 /// 书源选择对话框
@@ -49,9 +48,8 @@ class _SourcePickerDialogState
     });
 
     try {
-      final sources =
-          await readService(AppServices.bookSourceService).getAllBookSources(enabledOnly: true);
-      final groups = await readService(AppServices.bookSourceService).getAllGroups();
+      final sources = await ref.read(enabledBookSourceListProvider.future);
+      final groups = await ref.read(bookSourceGroupListProvider.future);
 
       setState(() {
         _allSources = sources;

@@ -84,6 +84,20 @@ class AppLogItem extends StatelessWidget {
                           style: theme.textTheme.bodySmall,
                         ),
                       ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.blueGrey[50],
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          AppLogTag.labelOf(log.tag),
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ),
                       if (duration != null)
                         Text(
                           '${duration.inMilliseconds}ms',

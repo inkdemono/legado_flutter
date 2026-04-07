@@ -125,17 +125,8 @@ class BookshelfSettingsNotifier extends Notifier<BookshelfSettings> {
   }
 
   void updateLayoutType(BookshelfLayoutType layoutType) {
-    final layoutValue = switch (layoutType) {
-      BookshelfLayoutType.list => 0,
-      BookshelfLayoutType.grid2 => 1,
-      BookshelfLayoutType.grid3 => 2,
-      BookshelfLayoutType.grid4 => 3,
-      BookshelfLayoutType.grid5 => 4,
-      BookshelfLayoutType.grid6 => 5,
-    };
-    AppConfig.setBookshelfLayout(layoutValue);
+    ref.read(bookshelfLayoutProvider.notifier).setLayout(layoutType);
     state = state.copyWith(layoutType: layoutType);
-    ref.invalidate(bookshelfLayoutProvider);
   }
 
   void updateGroupingStyle(GroupingStyle style) {
@@ -177,4 +168,3 @@ class BookshelfSettingsNotifier extends Notifier<BookshelfSettings> {
     state = state.copyWith(selectedTag: tag);
   }
 }
-

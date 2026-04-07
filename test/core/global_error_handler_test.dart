@@ -14,6 +14,16 @@ void main() {
       expect(GlobalErrorHandler.extractHttpStatusCode(error), 404);
     });
 
+    test('extracts status code from variant HttpException wording', () {
+      final error = HttpException(
+        'request failed, STATUS CODE = 404',
+        uri: Uri.parse('https://example.com/cover.JPG'),
+      );
+
+      expect(GlobalErrorHandler.extractHttpStatusCode(error), 404);
+      expect(GlobalErrorHandler.isIgnorableMediaHttpError(error), isTrue);
+    });
+
     test('ignores media 404 errors', () {
       final error = HttpException(
         'Invalid statusCode: 404',

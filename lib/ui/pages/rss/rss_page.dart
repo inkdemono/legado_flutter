@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:legado_flutter/providers/service_registry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../data/models/rss_article.dart';
 import '../../../data/models/rss_source.dart';
-import '../../../services/rss_service.dart';
 import '../../../utils/helpers/source/rss_source_extensions.dart';
 import 'rss_source_manage_page.dart';
 import 'rss_articles_page.dart';
@@ -12,13 +10,6 @@ import 'rss_articles_sort_page.dart';
 import 'rss_favorites_page.dart';
 import 'rss_read_page.dart';
 import '../../widgets/home/home_shell.dart';
-
-/// RSS源列表Provider（仅启用的）
-final enabledRssSourceListProvider =
-    FutureProvider<List<RssSource>>((ref) async {
-  final service = readService(AppServices.rssService);
-  return await service.getEnabledRssSources();
-});
 
 /// RSS订阅页面
 class RssPage extends ConsumerWidget {
@@ -82,7 +73,9 @@ class RssPage extends ConsumerWidget {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
-                ref.invalidate(enabledRssSourceListProvider);
+                ref
+                    .read(rssSourceListProvider.notifier)
+                    .reload(showLoading: true);
               },
               child: const Text('重试'),
             ),
@@ -161,10 +154,7 @@ class RssPage extends ConsumerWidget {
                             MaterialPageRoute(
                               builder: (context) => const RssSourceManagePage(),
                             ),
-                          )
-                              .then((_) {
-                            ref.invalidate(enabledRssSourceListProvider);
-                          });
+                          );
                         },
                       ),
                     ),
@@ -203,10 +193,7 @@ class RssPage extends ConsumerWidget {
                                 builder: (context) =>
                                     const RssSourceManagePage(),
                               ),
-                            )
-                                .then((_) {
-                              ref.invalidate(enabledRssSourceListProvider);
-                            });
+                            );
                           },
                           icon: const Icon(Icons.add_rounded),
                           label: const Text('添加 RSS 源'),
@@ -316,12 +303,9 @@ class RssPage extends ConsumerWidget {
                             Switch(
                               value: source.enabled,
                               onChanged: (enabled) async {
-                                await readService(AppServices.rssService)
-                                    .updateRssSourceEnabled(
-                                  source.sourceUrl,
-                                  enabled,
-                                );
-                                ref.invalidate(enabledRssSourceListProvider);
+                                await ref
+                                    .read(rssSourceListProvider.notifier)
+                                    .setEnabled(source.sourceUrl, enabled);
                               },
                             ),
                           ],

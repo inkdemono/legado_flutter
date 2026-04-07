@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../../data/models/rss_source.dart';
-import '../../../services/rss_service.dart';
 import '../../../services/network/network_service.dart';
 import '../../widgets/base/base_bottom_sheet_stateful.dart';
 
@@ -42,7 +41,7 @@ class _RssSourceImportDialogState extends BaseBottomSheetState<RssSourceImportDi
               padding: const EdgeInsets.all(8),
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -137,7 +136,7 @@ class _RssSourceImportDialogState extends BaseBottomSheetState<RssSourceImportDi
       }
 
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context, sources);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('成功导入 $successCount / ${sources.length} 个RSS源')),
         );
@@ -186,7 +185,7 @@ class _RssSourceImportDialogState extends BaseBottomSheetState<RssSourceImportDi
       }
 
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context, sources);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('成功导入 $successCount / ${sources.length} 个RSS源')),
         );
@@ -230,4 +229,3 @@ class _RssSourceImportDialogState extends BaseBottomSheetState<RssSourceImportDi
     }
   }
 }
-

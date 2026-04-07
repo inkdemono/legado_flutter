@@ -4,10 +4,13 @@ import '../../../utils/app_log.dart';
 /// 日志筛选组件
 class AppLogFilterWidget extends StatelessWidget {
   final String searchQuery;
+  final String filterTag;
+  final List<String> availableTags;
   final LogLevel filterLevel;
   final LogCategory filterCategory;
   final bool showErrorsOnly;
   final ValueChanged<String> onSearchChanged;
+  final ValueChanged<String> onFilterTagChanged;
   final ValueChanged<LogLevel> onFilterLevelChanged;
   final ValueChanged<LogCategory> onFilterCategoryChanged;
   final ValueChanged<bool> onShowErrorsOnlyChanged;
@@ -15,10 +18,13 @@ class AppLogFilterWidget extends StatelessWidget {
   const AppLogFilterWidget({
     super.key,
     required this.searchQuery,
+    required this.filterTag,
+    required this.availableTags,
     required this.filterLevel,
     required this.filterCategory,
     required this.showErrorsOnly,
     required this.onSearchChanged,
+    required this.onFilterTagChanged,
     required this.onFilterLevelChanged,
     required this.onFilterCategoryChanged,
     required this.onShowErrorsOnlyChanged,
@@ -55,6 +61,33 @@ class AppLogFilterWidget extends StatelessWidget {
           // 筛选选项
           Row(
             children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: filterTag,
+                  decoration: InputDecoration(
+                    labelText: 'Tag',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  items: availableTags
+                      .map(
+                        (tag) => DropdownMenuItem(
+                          value: tag,
+                          child: Text(AppLogTag.labelOf(tag)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      onFilterTagChanged(value);
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
               // 级别筛选
               Expanded(
                 child: DropdownButtonFormField<LogLevel>(

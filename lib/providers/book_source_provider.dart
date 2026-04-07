@@ -17,44 +17,64 @@ final bookSourceListProvider = FutureProvider<List<BookSource>>((ref) async {
   return entities.map((e) => EntityMapper.bookSourceFromEntity(e)).toList();
 });
 
-/// 启用的书源列表Provider (使用Repository)
+/// 启用的书源列表Provider（基于共享书源列表派生，避免重复查询）
 final enabledBookSourceListProvider =
     FutureProvider<List<BookSource>>((ref) async {
-  ref.listen(bookSourceEventProvider, (_, next) {
-    if (next.hasValue) {
-      ref.invalidateSelf();
-    }
-  });
-  final repository = ref.read(bookSourceRepositoryProvider);
-  final entities = await repository.getEnabledBookSources();
-  return entities.map((e) => EntityMapper.bookSourceFromEntity(e)).toList();
+  final sources = await ref.watch(bookSourceListProvider.future);
+  return sources.where((source) => source.enabled).toList();
 });
 
-/// 书源分组列表Provider (使用Repository)
+/// 启用发现书源列表Provider（基于共享书源列表派生，避免重复查询）
+final enabledExploreBookSourceListProvider =
+    FutureProvider<List<BookSource>>((ref) async {
+  final sources = await ref.watch(bookSourceListProvider.future);
+  return sources
+      .where((source) =>
+          source.enabledExplore &&
+          (source.exploreUrl?.trim().isNotEmpty ?? false))
+      .toList();
+});
+
+/// 书源分组列表Provider（基于共享书源列表派生，避免重复查询）
 final bookSourceGroupListProvider = FutureProvider<List<String>>((ref) async {
-  ref.listen(bookSourceEventProvider, (_, next) {
-    if (next.hasValue) {
-      ref.invalidateSelf();
-    }
-  });
-  final repository = ref.read(bookSourceRepositoryProvider);
-  return await repository.getAllGroups();
+  final sources = await ref.watch(bookSourceListProvider.future);
+  final groups = sources
+      .map((source) => source.bookSourceGroup?.trim() ?? '')
+      .where((group) => group.isNotEmpty)
+      .expand((group) => group.split(','))
+      .map((group) => group.trim())
+      .where((group) => group.isNotEmpty)
+      .toSet()
+      .toList()
+    ..sort();
+  return groups;
 });
 
-/// 单个书源Provider (使用Repository)
+/// 发现分组列表Provider（基于共享发现书源列表派生）
+final exploreBookSourceGroupListProvider = FutureProvider<List<String>>((ref) async {
+  final sources = await ref.watch(enabledExploreBookSourceListProvider.future);
+  final groups = sources
+      .map((source) => source.bookSourceGroup?.trim() ?? '')
+      .where((group) => group.isNotEmpty)
+      .expand((group) => group.split(','))
+      .map((group) => group.trim())
+      .where((group) => group.isNotEmpty)
+      .toSet()
+      .toList()
+    ..sort();
+  return groups;
+});
+
+/// 单个书源Provider（基于共享书源列表派生，避免重复查询）
 final bookSourceProvider =
     FutureProvider.family<BookSource?, String>((ref, url) async {
-  final repository = ref.read(bookSourceRepositoryProvider);
-  final entity = await repository.getBookSourceByUrl(url);
-  return entity != null ? EntityMapper.bookSourceFromEntity(entity) : null;
-});
-
-/// 刷新书源列表的Provider (使用Repository)
-final refreshBookSourceListProvider =
-    FutureProvider.family<List<BookSource>, void>((ref, _) async {
-  final repository = ref.read(bookSourceRepositoryProvider);
-  final entities = await repository.getAllBookSources();
-  return entities.map((e) => EntityMapper.bookSourceFromEntity(e)).toList();
+  final sources = await ref.watch(bookSourceListProvider.future);
+  for (final source in sources) {
+    if (source.bookSourceUrl == url) {
+      return source;
+    }
+  }
+  return null;
 });
 
 /// 书源操作Provider
@@ -73,7 +93,6 @@ class BookSourceOperations {
             sourceUrl: bookSource.bookSourceUrl,
           ),
         );
-    ref.invalidate(refreshBookSourceListProvider);
   }
 
   /// 更新书源
@@ -87,7 +106,6 @@ class BookSourceOperations {
             sourceUrl: bookSource.bookSourceUrl,
           ),
         );
-    ref.invalidate(refreshBookSourceListProvider);
   }
 
   /// 删除书源
@@ -100,7 +118,6 @@ class BookSourceOperations {
             sourceUrl: url,
           ),
         );
-    ref.invalidate(refreshBookSourceListProvider);
   }
 
   /// 启用/禁用书源
@@ -113,7 +130,6 @@ class BookSourceOperations {
             sourceUrl: url,
           ),
         );
-    ref.invalidate(refreshBookSourceListProvider);
   }
 
   /// 批量导入书源
@@ -127,7 +143,6 @@ class BookSourceOperations {
     ref.read(eventBusProvider).fire(
           const BookSourceChangedEvent(reason: 'source_imported'),
         );
-    ref.invalidate(refreshBookSourceListProvider);
     // 返回统计信息
     return {'success': bookSources.length, 'failed': 0, 'exists': 0};
   }

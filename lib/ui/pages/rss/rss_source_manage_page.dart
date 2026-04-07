@@ -10,10 +10,256 @@ import 'rss_source_edit_page.dart';
 import 'rss_source_import_dialog.dart';
 import 'rss_source_item_widget.dart';
 
-/// RSS源列表Provider
-final rssSourceListProvider = FutureProvider<List<RssSource>>((ref) async {
-  final service = readService(AppServices.rssService);
-  return await service.getAllRssSources();
+class RssSourceListNotifier extends AsyncNotifier<List<RssSource>> {
+  RssService get _service => readService(AppServices.rssService);
+
+  @override
+  Future<List<RssSource>> build() => _service.getAllRssSources();
+
+  Future<void> reload({bool showLoading = false}) async {
+    if (showLoading || !state.hasValue) {
+      state = const AsyncValue.loading();
+    }
+    state = await AsyncValue.guard(_service.getAllRssSources);
+  }
+
+  Future<void> addOrUpdate(RssSource source) async {
+    final success = await _service.addOrUpdateRssSource(source);
+    if (!success) {
+      throw Exception('保存 RSS 源失败');
+    }
+
+    final current = state.asData?.value;
+    if (current == null) {
+      await reload();
+      return;
+    }
+
+    final index = current.indexWhere((item) => item.sourceUrl == source.sourceUrl);
+    final next = index >= 0
+        ? [
+            ...current.sublist(0, index),
+            source,
+            ...current.sublist(index + 1),
+          ]
+        : [...current, source];
+    next.sort(_compareSources);
+    state = AsyncValue.data(next);
+  }
+
+  Future<void> mergeImported(List<RssSource> sources) async {
+    if (sources.isEmpty) {
+      return;
+    }
+
+    final current = state.asData?.value;
+    if (current == null) {
+      await reload();
+      return;
+    }
+
+    final merged = {
+      for (final source in current) source.sourceUrl: source,
+      for (final source in sources) source.sourceUrl: source,
+    }.values.toList()
+      ..sort(_compareSources);
+    state = AsyncValue.data(merged);
+  }
+
+  Future<void> delete(String sourceUrl) async {
+    final success = await _service.deleteRssSource(sourceUrl);
+    if (!success) {
+      throw Exception('删除 RSS 源失败');
+    }
+
+    final current = state.asData?.value;
+    if (current == null) {
+      await reload();
+      return;
+    }
+
+    state = AsyncValue.data(
+      current.where((item) => item.sourceUrl != sourceUrl).toList(),
+    );
+  }
+
+  Future<void> setEnabled(String sourceUrl, bool enabled) async {
+    final success = await _service.updateRssSourceEnabled(sourceUrl, enabled);
+    if (!success) {
+      throw Exception(enabled ? '启用 RSS 源失败' : '禁用 RSS 源失败');
+    }
+
+    final current = state.asData?.value;
+    if (current == null) {
+      await reload();
+      return;
+    }
+
+    state = AsyncValue.data(
+      current
+          .map((item) => item.sourceUrl == sourceUrl
+              ? item.copyWith(enabled: enabled)
+              : item)
+          .toList(),
+    );
+  }
+
+  Future<void> setEnabledMany(List<String> sourceUrls, bool enabled) async {
+    if (sourceUrls.isEmpty) {
+      return;
+    }
+
+    for (final sourceUrl in sourceUrls) {
+      final success = await _service.updateRssSourceEnabled(sourceUrl, enabled);
+      if (!success) {
+        throw Exception(enabled ? '批量启用 RSS 源失败' : '批量禁用 RSS 源失败');
+      }
+    }
+
+    final urlSet = sourceUrls.toSet();
+    final current = state.asData?.value;
+    if (current == null) {
+      await reload();
+      return;
+    }
+
+    state = AsyncValue.data(
+      current
+          .map((item) =>
+              urlSet.contains(item.sourceUrl) ? item.copyWith(enabled: enabled) : item)
+          .toList(),
+    );
+  }
+
+  Future<void> deleteMany(List<String> sourceUrls) async {
+    if (sourceUrls.isEmpty) {
+      return;
+    }
+
+    for (final sourceUrl in sourceUrls) {
+      final success = await _service.deleteRssSource(sourceUrl);
+      if (!success) {
+        throw Exception('批量删除 RSS 源失败');
+      }
+    }
+
+    final urlSet = sourceUrls.toSet();
+    final current = state.asData?.value;
+    if (current == null) {
+      await reload();
+      return;
+    }
+
+    state = AsyncValue.data(
+      current.where((item) => !urlSet.contains(item.sourceUrl)).toList(),
+    );
+  }
+
+  Future<void> reorder(List<RssSource> reorderedSources) async {
+    final normalized = <RssSource>[];
+    for (var i = 0; i < reorderedSources.length; i++) {
+      final updated = reorderedSources[i].copyWith(customOrder: i);
+      final success = await _service.addOrUpdateRssSource(updated);
+      if (!success) {
+        throw Exception('更新 RSS 源排序失败');
+      }
+      normalized.add(updated);
+    }
+
+    final current = state.asData?.value;
+    if (current == null) {
+      state = AsyncValue.data(normalized);
+      return;
+    }
+
+    final normalizedMap = {
+      for (final source in normalized) source.sourceUrl: source,
+    };
+    final remaining = current
+        .where((item) => !normalizedMap.containsKey(item.sourceUrl))
+        .toList();
+    final next = [...normalized, ...remaining]..sort(_compareSources);
+    state = AsyncValue.data(next);
+  }
+
+  Future<void> renameGroup(String oldGroup, String newGroup) async {
+    final current = state.asData?.value;
+    if (current == null) {
+      await reload();
+      return;
+    }
+
+    final next = <RssSource>[];
+    for (final source in current) {
+      if (source.sourceGroup == oldGroup) {
+        final updated = source.copyWith(sourceGroup: newGroup);
+        final success = await _service.addOrUpdateRssSource(updated);
+        if (!success) {
+          throw Exception('更新分组名称失败');
+        }
+        next.add(updated);
+      } else {
+        next.add(source);
+      }
+    }
+    state = AsyncValue.data(next..sort(_compareSources));
+  }
+
+  Future<void> clearGroup(String group) async {
+    final current = state.asData?.value;
+    if (current == null) {
+      await reload();
+      return;
+    }
+
+    final next = <RssSource>[];
+    for (final source in current) {
+      if (source.sourceGroup == group) {
+        final updated = source.copyWith(sourceGroup: null);
+        final success = await _service.addOrUpdateRssSource(updated);
+        if (!success) {
+          throw Exception('删除分组失败');
+        }
+        next.add(updated);
+      } else {
+        next.add(source);
+      }
+    }
+    state = AsyncValue.data(next..sort(_compareSources));
+  }
+
+  static int _compareSources(RssSource a, RssSource b) {
+    final orderCompare = a.customOrder.compareTo(b.customOrder);
+    if (orderCompare != 0) {
+      return orderCompare;
+    }
+    return a.sourceName.compareTo(b.sourceName);
+  }
+}
+
+final rssSourceListProvider =
+    AsyncNotifierProvider<RssSourceListNotifier, List<RssSource>>(
+  RssSourceListNotifier.new,
+);
+
+final enabledRssSourceListProvider = Provider<AsyncValue<List<RssSource>>>((ref) {
+  final allSources = ref.watch(rssSourceListProvider);
+  return allSources.whenData(
+    (sources) => sources.where((source) => source.enabled).toList(),
+  );
+});
+
+final rssGroupListProvider = Provider<AsyncValue<List<String>>>((ref) {
+  final allSources = ref.watch(rssSourceListProvider);
+  return allSources.whenData((sources) {
+    final groups = sources
+        .map((source) => (source.sourceGroup ?? '').trim())
+        .where((group) => group.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    return groups;
+  });
 });
 
 /// RSS源管理页面
@@ -95,8 +341,9 @@ class _RssSourceManagePageState extends ConsumerState<RssSourceManagePage> {
                             ),
                             const SizedBox(height: 16),
                             FilledButton(
-                              onPressed: () =>
-                                  ref.invalidate(rssSourceListProvider),
+                              onPressed: () => ref
+                                  .read(rssSourceListProvider.notifier)
+                                  .reload(showLoading: true),
                               child: const Text('重试'),
                             ),
                             const SizedBox(height: 20),
@@ -351,12 +598,12 @@ class _RssSourceManagePageState extends ConsumerState<RssSourceManagePage> {
                 allowReorder: canReorder,
                 reorderIndex: index,
                 onTap: () async {
-                  await Navigator.of(context).push(
+                  final result = await Navigator.of(context).push<RssSourceEditResult>(
                     MaterialPageRoute(
                       builder: (context) => RssSourceEditPage(source: source),
                     ),
                   );
-                  ref.invalidate(rssSourceListProvider);
+                  await _applyEditResult(result);
                 },
                 onLongPress: () {
                   setState(() {
@@ -365,11 +612,9 @@ class _RssSourceManagePageState extends ConsumerState<RssSourceManagePage> {
                   });
                 },
                 onToggleEnabled: (enabled) async {
-                  await readService(AppServices.rssService).updateRssSourceEnabled(
-                    source.sourceUrl,
-                    enabled,
-                  );
-                  ref.invalidate(rssSourceListProvider);
+                  await ref
+                      .read(rssSourceListProvider.notifier)
+                      .setEnabled(source.sourceUrl, enabled);
                 },
               );
             },
@@ -688,20 +933,22 @@ class _RssSourceManagePageState extends ConsumerState<RssSourceManagePage> {
   }
 
   Future<void> _openCreatePage() async {
-    await Navigator.of(context).push(
+    final result = await Navigator.of(context).push<RssSourceEditResult>(
       MaterialPageRoute(
         builder: (context) => const RssSourceEditPage(),
       ),
     );
-    ref.invalidate(rssSourceListProvider);
+    await _applyEditResult(result);
   }
 
   void _showImportDialog() {
     showDialog(
       context: context,
       builder: (context) => const RssSourceImportDialog(),
-    ).then((_) {
-      ref.invalidate(rssSourceListProvider);
+    ).then((result) async {
+      if (result is List<RssSource>) {
+        await ref.read(rssSourceListProvider.notifier).mergeImported(result);
+      }
     });
   }
 
@@ -713,25 +960,23 @@ class _RssSourceManagePageState extends ConsumerState<RssSourceManagePage> {
   }
 
   Future<void> _enableSelected() async {
-    for (final url in _selectedUrls) {
-      await readService(AppServices.rssService).updateRssSourceEnabled(url, true);
-    }
+    await ref
+        .read(rssSourceListProvider.notifier)
+        .setEnabledMany(_selectedUrls.toList(), true);
     setState(() {
       _selectedUrls.clear();
       _isBatchMode = false;
     });
-    ref.invalidate(rssSourceListProvider);
   }
 
   Future<void> _disableSelected() async {
-    for (final url in _selectedUrls) {
-      await readService(AppServices.rssService).updateRssSourceEnabled(url, false);
-    }
+    await ref
+        .read(rssSourceListProvider.notifier)
+        .setEnabledMany(_selectedUrls.toList(), false);
     setState(() {
       _selectedUrls.clear();
       _isBatchMode = false;
     });
-    ref.invalidate(rssSourceListProvider);
   }
 
   Future<void> _handleReorder(
@@ -746,11 +991,7 @@ class _RssSourceManagePageState extends ConsumerState<RssSourceManagePage> {
     reorderedSources.insert(newIndex, source);
 
     try {
-      for (int i = 0; i < reorderedSources.length; i++) {
-        final updatedSource = reorderedSources[i].copyWith(customOrder: i);
-        await readService(AppServices.rssService).addOrUpdateRssSource(updatedSource);
-      }
-      ref.invalidate(rssSourceListProvider);
+      await ref.read(rssSourceListProvider.notifier).reorder(reorderedSources);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -780,13 +1021,23 @@ class _RssSourceManagePageState extends ConsumerState<RssSourceManagePage> {
 
     if (confirmed != true) return;
 
-    for (final url in _selectedUrls) {
-      await readService(AppServices.rssService).deleteRssSource(url);
-    }
+    await ref.read(rssSourceListProvider.notifier).deleteMany(_selectedUrls.toList());
     setState(() {
       _selectedUrls.clear();
       _isBatchMode = false;
     });
-    ref.invalidate(rssSourceListProvider);
+  }
+
+  Future<void> _applyEditResult(RssSourceEditResult? result) async {
+    if (result == null) {
+      return;
+    }
+    if (result.deletedUrl != null) {
+      await ref.read(rssSourceListProvider.notifier).delete(result.deletedUrl!);
+      return;
+    }
+    if (result.source != null) {
+      await ref.read(rssSourceListProvider.notifier).addOrUpdate(result.source!);
+    }
   }
 }

@@ -9,7 +9,12 @@ import 'app_log_filter_widget.dart';
 
 /// 应用日志查看页面
 class AppLogPage extends ConsumerStatefulWidget {
-  const AppLogPage({super.key});
+  const AppLogPage({
+    super.key,
+    this.initialTag = AppLogTag.all,
+  });
+
+  final String initialTag;
 
   @override
   ConsumerState<AppLogPage> createState() => _AppLogPageState();
@@ -17,9 +22,16 @@ class AppLogPage extends ConsumerStatefulWidget {
 
 class _AppLogPageState extends ConsumerState<AppLogPage> {
   String _searchQuery = '';
+  late String _filterTag;
   LogLevel _filterLevel = LogLevel.all;
   LogCategory _filterCategory = LogCategory.all;
   bool _showErrorsOnly = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _filterTag = widget.initialTag;
+  }
 
   List<LogEntry> _getFilteredLogs(List<LogEntry> sourceLogs) {
     var logs = List<LogEntry>.from(sourceLogs);
@@ -40,6 +52,10 @@ class _AppLogPageState extends ConsumerState<AppLogPage> {
       logs = logs.where((log) => log.category == _filterCategory).toList();
     }
 
+    if (_filterTag != AppLogTag.all) {
+      logs = logs.where((log) => log.tag == _filterTag).toList();
+    }
+
     // 按搜索关键词筛选
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
@@ -50,6 +66,14 @@ class _AppLogPageState extends ConsumerState<AppLogPage> {
     }
 
     return logs;
+  }
+
+  List<String> _getAvailableTags(List<LogEntry> logs) {
+    final tags = logs.map((log) => log.tag).toSet().toList()..sort();
+    return [
+      AppLogTag.all,
+      ...tags,
+    ];
   }
 
   Future<void> _exportLogs() async {
@@ -70,7 +94,7 @@ class _AppLogPageState extends ConsumerState<AppLogPage> {
       buffer.writeln();
 
       for (final log in filteredLogs) {
-        buffer.writeln('[${log.formattedTime}] ${log.message}');
+        buffer.writeln('[${log.formattedTime}] [${log.tag}] ${log.message}');
         if (log.error != null) {
           buffer.writeln('错误: ${log.error}');
         }
@@ -105,7 +129,7 @@ class _AppLogPageState extends ConsumerState<AppLogPage> {
     try {
       final buffer = StringBuffer();
       for (final log in filteredLogs) {
-        buffer.writeln('[${log.formattedTime}] ${log.message}');
+        buffer.writeln('[${log.formattedTime}] [${log.tag}] ${log.message}');
         if (log.error != null) {
           buffer.writeln('错误: ${log.error}');
         }
@@ -164,6 +188,7 @@ class _AppLogPageState extends ConsumerState<AppLogPage> {
     final logs = ref.watch(appLogEntriesProvider).asData?.value ??
         ref.watch(appLogProvider).logs;
     final summary = ref.watch(appLogSummaryProvider);
+    final availableTags = _getAvailableTags(logs);
     final filteredLogs = _getFilteredLogs(logs);
 
     return Scaffold(
@@ -206,12 +231,19 @@ class _AppLogPageState extends ConsumerState<AppLogPage> {
           // 筛选和搜索栏
           AppLogFilterWidget(
             searchQuery: _searchQuery,
+            filterTag: _filterTag,
+            availableTags: availableTags,
             filterLevel: _filterLevel,
             filterCategory: _filterCategory,
             showErrorsOnly: _showErrorsOnly,
             onSearchChanged: (query) {
               setState(() {
                 _searchQuery = query;
+              });
+            },
+            onFilterTagChanged: (tag) {
+              setState(() {
+                _filterTag = tag;
               });
             },
             onFilterLevelChanged: (level) {
@@ -242,6 +274,10 @@ class _AppLogPageState extends ConsumerState<AppLogPage> {
                     _buildSummaryChip(
                       label: '总数 ${summary.totalLogs}',
                     ),
+                    for (final entry in summary.tagCounts.entries.take(3))
+                      _buildSummaryChip(
+                        label: '${entry.key} ${entry.value}',
+                      ),
                     for (final entry in summary.categoryCounts.entries.take(5))
                       _buildSummaryChip(
                         label: '${entry.key.label} ${entry.value}',
@@ -258,7 +294,7 @@ class _AppLogPageState extends ConsumerState<AppLogPage> {
                   children: summary.repeatedEntries
                       .map(
                         (entry) => Text(
-                          '${entry.category.label} ×${entry.count} · ${entry.message}',
+                          '${entry.category.label}/${entry.tag} ×${entry.count} · ${entry.message}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodySmall,
@@ -286,6 +322,7 @@ class _AppLogPageState extends ConsumerState<AppLogPage> {
                           _searchQuery.isNotEmpty ||
                                   _filterLevel != LogLevel.all ||
                                   _filterCategory != LogCategory.all ||
+                                  _filterTag != AppLogTag.all ||
                                   _showErrorsOnly
                               ? '没有匹配的日志'
                               : '暂无日志',

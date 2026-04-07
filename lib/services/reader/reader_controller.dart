@@ -1,9 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'models/page_range.dart';
+import 'pagination_service.dart';
 import 'paginator.dart';
 import 'pagination_cache.dart';
 import 'reading_position_manager.dart';
+
+typedef PaginationExecutor = Future<List<PageRange>> Function(
+  String content,
+  ReadingConfig config,
+);
 
 /// 阅读控制器 (整合分页、缓存、位置管理)
 ///
@@ -14,6 +20,8 @@ import 'reading_position_manager.dart';
 /// 4. 后台预读相邻章节
 /// 5. 配置变化时自动重新分页
 class ReaderController extends ValueNotifier<PaginationState> {
+  static const int isolateThreshold = 50000;
+
   /// 当前章节URL
   String? _currentChapterUrl;
 
@@ -36,11 +44,19 @@ class ReaderController extends ValueNotifier<PaginationState> {
   /// 是否启用预读
   final bool enablePreload;
 
+  final PaginationExecutor _paginationExecutor;
+
   ReaderController({
     required ReadingConfig config,
     this.enableCache = true,
     this.enablePreload = true,
+    PaginationExecutor? paginationExecutor,
   })  : _config = config,
+        _paginationExecutor = paginationExecutor ??
+            ((content, cfg) => PaginationService.computePages(
+                  content: content,
+                  config: cfg,
+                )),
         super(const PaginationState());
 
   /// 加载章节并分页
@@ -128,8 +144,10 @@ class ReaderController extends ValueNotifier<PaginationState> {
 
   /// 执行分页(在后台执行)
   Future<List<PageRange>> _paginateContent(String content) async {
-    // 可以在Isolate中执行,避免阻塞UI
-    // 这里简化实现,直接调用
+    if (content.length > isolateThreshold) {
+      return _paginationExecutor(content, _config);
+    }
+
     return Paginator.paginate(
       content: content,
       maxWidth: _config.visibleWidth,
@@ -268,14 +286,14 @@ class ReaderController extends ValueNotifier<PaginationState> {
       prevChapterUrl: prevChapterUrl,
       nextChapterUrl: nextChapterUrl,
       getContent: getContent,
-      paginate: (content) {
-        return Paginator.paginate(
-          content: content,
-          maxWidth: _config.visibleWidth,
-          maxHeight: _config.visibleHeight,
-          style: _config.textStyle,
-        );
-      },
+      paginate: _paginateContent,
+      maxWidth: _config.visibleWidth,
+      maxHeight: _config.visibleHeight,
+      fontSize: _config.fontSize,
+      lineHeight: _config.lineHeight,
+      letterSpacing: _config.letterSpacing,
+      fontWeight: _config.fontWeight,
+      fontFamily: _config.fontFamily,
     );
   }
 

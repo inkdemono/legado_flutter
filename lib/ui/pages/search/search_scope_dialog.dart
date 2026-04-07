@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:legado_flutter/providers/service_registry.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:legado_flutter/providers/book_source_provider.dart';
 import '../../../data/models/book_source.dart';
-import '../../../services/source/book_source_service.dart';
 import '../../widgets/base/base_bottom_sheet_stateful.dart';
 
 /// 搜索范围选择对话框
@@ -54,9 +54,9 @@ class _SearchScopeDialogState extends BaseBottomSheetState<SearchScopeDialog> {
     });
 
     try {
-      final sources =
-          await readService(AppServices.bookSourceService).getAllBookSources(enabledOnly: true);
-      final groups = await readService(AppServices.bookSourceService).getAllGroups();
+      final container = ProviderScope.containerOf(context, listen: false);
+      final sources = await container.read(enabledBookSourceListProvider.future);
+      final groups = await container.read(bookSourceGroupListProvider.future);
 
       setState(() {
         _allSources = sources;

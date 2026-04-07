@@ -6,40 +6,69 @@ import '../ui/theme/td_theme_adapter.dart';
 import '../ui/theme/eink_td_theme.dart';
 
 /// 主题模式 Provider
-final themeModeProvider = Provider<ThemeMode>((ref) {
-  final mode = AppConfig.getString('theme_mode', defaultValue: 'system');
-  switch (mode) {
-    case 'light':
-      return ThemeMode.light;
-    case 'dark':
-      return ThemeMode.dark;
-    default:
-      return ThemeMode.system;
+class ThemeModeNotifier extends Notifier<ThemeMode> {
+  @override
+  ThemeMode build() {
+    final mode = AppConfig.getString('theme_mode', defaultValue: 'system');
+    switch (mode) {
+      case 'light':
+        return ThemeMode.light;
+      case 'dark':
+        return ThemeMode.dark;
+      default:
+        return ThemeMode.system;
+    }
   }
-});
+
+  void setMode(ThemeMode mode) {
+    AppConfig.setString('theme_mode', mode.name);
+    state = mode;
+  }
+}
+
+final themeModeProvider = NotifierProvider<ThemeModeNotifier, ThemeMode>(
+  ThemeModeNotifier.new,
+);
 
 /// 设置主题模式
 void setThemeMode(WidgetRef ref, ThemeMode mode) {
-  AppConfig.setString('theme_mode', mode.name);
-  // 刷新provider
-  ref.invalidate(themeModeProvider);
+  ref.read(themeModeProvider.notifier).setMode(mode);
 }
 
 /// 是否启用 EInk 模式 Provider
-final einkModeProvider = Provider<bool>((ref) {
-  return AppConfig.getBool('eink_mode', defaultValue: false);
-});
+class EinkModeNotifier extends Notifier<bool> {
+  @override
+  bool build() => AppConfig.getBool('eink_mode', defaultValue: false);
+
+  void setEnabled(bool enabled) {
+    AppConfig.setBool('eink_mode', enabled);
+    state = enabled;
+  }
+}
+
+final einkModeProvider = NotifierProvider<EinkModeNotifier, bool>(
+  EinkModeNotifier.new,
+);
+
+final themeRevisionProvider = NotifierProvider<ThemeRevisionNotifier, int>(
+  ThemeRevisionNotifier.new,
+);
+
+class ThemeRevisionNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void bump() => state++;
+}
 
 /// 设置 EInk 模式
 void setEinkMode(WidgetRef ref, bool enabled) {
-  AppConfig.setBool('eink_mode', enabled);
-  ref.invalidate(einkModeProvider);
-  ref.invalidate(tdThemeProvider);
-  ref.invalidate(appThemeProvider);
+  ref.read(einkModeProvider.notifier).setEnabled(enabled);
 }
 
 /// TDesign 主题 Provider
 final tdThemeProvider = Provider<TDThemeData>((ref) {
+  ref.watch(themeRevisionProvider);
   final isEink = ref.watch(einkModeProvider);
 
   // EInk 模式使用专用主题
@@ -64,6 +93,7 @@ final tdThemeProvider = Provider<TDThemeData>((ref) {
 
 /// TDesign 深色主题 Provider
 final tdDarkThemeProvider = Provider<TDThemeData>((ref) {
+  ref.watch(themeRevisionProvider);
   final isEink = ref.watch(einkModeProvider);
 
   // EInk 模式使用专用主题
@@ -88,6 +118,7 @@ final tdDarkThemeProvider = Provider<TDThemeData>((ref) {
 
 /// 应用主题 Provider
 final appThemeProvider = Provider<AppTheme>((ref) {
+  ref.watch(themeRevisionProvider);
   final tdTheme = ref.watch(tdThemeProvider);
   final tdDarkTheme = ref.watch(tdDarkThemeProvider);
   final isEink = ref.watch(einkModeProvider);

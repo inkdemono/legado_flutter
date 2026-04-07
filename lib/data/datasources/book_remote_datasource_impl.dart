@@ -25,7 +25,12 @@ class BookRemoteDataSourceImpl implements BookRemoteDataSource {
     if (!source.enabled ||
         source.searchUrl == null ||
         source.ruleSearch == null) {
-      AppLog.instance.put('书源无效或未启用: ${source.bookSourceName}');
+      AppLog.instance.put(
+        '书源无效或未启用: ${source.bookSourceName}',
+        level: LogLevel.warning,
+        category: LogCategory.network,
+        tag: AppLogTag.network,
+      );
       return;
     }
 
@@ -49,7 +54,12 @@ class BookRemoteDataSourceImpl implements BookRemoteDataSource {
         final html = await NetworkService.getResponseText(response);
 
         if (html.isEmpty) {
-          AppLog.instance.put('搜索响应为空: ${source.bookSourceName}');
+          AppLog.instance.put(
+            '搜索响应为空: ${source.bookSourceName}',
+            level: LogLevel.warning,
+            category: LogCategory.network,
+            tag: AppLogTag.network,
+          );
           return;
         }
 
@@ -98,7 +108,12 @@ class BookRemoteDataSourceImpl implements BookRemoteDataSource {
         }
       });
     } catch (e) {
-      AppLog.instance.put('搜索失败: ${source.bookSourceName}', error: e);
+      AppLog.instance.put(
+        '搜索失败: ${source.bookSourceName}',
+        error: e,
+        category: LogCategory.network,
+        tag: AppLogTag.network,
+      );
     }
 
     // 通过yield逐个返回搜索结果
@@ -110,7 +125,12 @@ class BookRemoteDataSourceImpl implements BookRemoteDataSource {
   @override
   Future<Book> getBookInfo(Book book, BookSource source) async {
     if (source.ruleBookInfo == null) {
-      AppLog.instance.put('获取书籍详情失败: 书籍信息规则为空');
+      AppLog.instance.put(
+        '获取书籍详情失败: 书籍信息规则为空',
+        level: LogLevel.warning,
+        category: LogCategory.reader,
+        tag: AppLogTag.parser,
+      );
       throw Exception('书籍信息规则为空');
     }
 
@@ -154,7 +174,12 @@ class BookRemoteDataSourceImpl implements BookRemoteDataSource {
         canUpdate: true, // 默认允许更新
       );
     } catch (e) {
-      AppLog.instance.put('获取书籍详情失败: ${book.name}', error: e);
+      AppLog.instance.put(
+        '获取书籍详情失败: ${book.name}',
+        error: e,
+        category: LogCategory.reader,
+        tag: AppLogTag.parser,
+      );
       rethrow;
     }
   }
@@ -162,7 +187,12 @@ class BookRemoteDataSourceImpl implements BookRemoteDataSource {
   @override
   Future<List<BookChapter>> getChapterList(Book book, BookSource source) async {
     if (source.ruleToc == null) {
-      AppLog.instance.put('获取章节列表失败: 目录规则为空');
+      AppLog.instance.put(
+        '获取章节列表失败: 目录规则为空',
+        level: LogLevel.warning,
+        category: LogCategory.reader,
+        tag: AppLogTag.parser,
+      );
       throw Exception('目录规则为空');
     }
 
@@ -247,7 +277,12 @@ class BookRemoteDataSourceImpl implements BookRemoteDataSource {
 
       return chapters;
     } catch (e) {
-      AppLog.instance.put('获取章节列表失败: ${book.name}', error: e);
+      AppLog.instance.put(
+        '获取章节列表失败: ${book.name}',
+        error: e,
+        category: LogCategory.reader,
+        tag: AppLogTag.parser,
+      );
       rethrow;
     }
   }
@@ -258,7 +293,12 @@ class BookRemoteDataSourceImpl implements BookRemoteDataSource {
     BookSource source,
   ) async {
     if (source.ruleContent == null) {
-      AppLog.instance.put('获取章节内容失败: 内容规则为空');
+      AppLog.instance.put(
+        '获取章节内容失败: 内容规则为空',
+        level: LogLevel.warning,
+        category: LogCategory.reader,
+        tag: AppLogTag.parser,
+      );
       throw Exception('内容规则为空');
     }
 
@@ -292,7 +332,12 @@ class BookRemoteDataSourceImpl implements BookRemoteDataSource {
 
       return content;
     } catch (e) {
-      AppLog.instance.put('获取章节内容失败: ${chapter.title}', error: e);
+      AppLog.instance.put(
+        '获取章节内容失败: ${chapter.title}',
+        error: e,
+        category: LogCategory.reader,
+        tag: AppLogTag.parser,
+      );
       rethrow;
     }
   }

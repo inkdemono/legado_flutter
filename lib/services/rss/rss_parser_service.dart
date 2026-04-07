@@ -59,7 +59,12 @@ class RssParserService extends BaseService {
         sortName: sortName ?? '',
       );
     } catch (e) {
-      AppLog.instance.put('获取RSS文章失败: ${source.sourceName}', error: e);
+      AppLog.instance.put(
+        '获取RSS文章失败: ${source.sourceName}',
+        error: e,
+        category: LogCategory.network,
+        tag: AppLogTag.network,
+      );
       rethrow;
     }
   }
@@ -141,12 +146,12 @@ class RssParserService extends BaseService {
     required String redirectUrl,
   }) async {
     final articleList = <RssArticle>[];
-    
+
     try {
       final ruleArticles = source.ruleArticles!;
       var actualRuleArticles = ruleArticles;
       var reverse = false;
-      
+
       // 检查是否需要反转
       if (ruleArticles.startsWith('-')) {
         reverse = true;
@@ -174,7 +179,7 @@ class RssParserService extends BaseService {
           baseUrl: sortUrl,
           redirectUrl: redirectUrl,
         );
-        
+
         if (article != null && article.title.isNotEmpty) {
           final finalArticle = article.copyWith(
             sort: sortName,
@@ -190,7 +195,12 @@ class RssParserService extends BaseService {
 
       return articleList;
     } catch (e) {
-      AppLog.instance.put('使用规则解析RSS文章失败', error: e);
+      AppLog.instance.put(
+        '使用规则解析RSS文章失败',
+        error: e,
+        category: LogCategory.reader,
+        tag: AppLogTag.parser,
+      );
       return articleList;
     }
   }
@@ -250,7 +260,8 @@ class RssParserService extends BaseService {
       }
 
       // 解析描述
-      if (source.ruleDescription != null && source.ruleDescription!.isNotEmpty) {
+      if (source.ruleDescription != null &&
+          source.ruleDescription!.isNotEmpty) {
         final descriptionResult = await RuleParser.parseRuleAsync(
           item,
           source.ruleDescription!,
@@ -300,7 +311,12 @@ class RssParserService extends BaseService {
         image: image,
       );
     } catch (e) {
-      AppLog.instance.put('解析RSS文章项失败', error: e);
+      AppLog.instance.put(
+        '解析RSS文章项失败',
+        error: e,
+        category: LogCategory.reader,
+        tag: AppLogTag.parser,
+      );
       return null;
     }
   }
@@ -328,7 +344,12 @@ class RssParserService extends BaseService {
 
       return NetworkUtils.getAbsoluteURL(redirectUrl, result);
     } catch (e) {
-      AppLog.instance.put('解析 RSS 下一页失败', error: e);
+      AppLog.instance.put(
+        '解析 RSS 下一页失败',
+        error: e,
+        category: LogCategory.reader,
+        tag: AppLogTag.parser,
+      );
       return null;
     }
   }
@@ -362,7 +383,12 @@ class RssParserService extends BaseService {
         bookOrigin: null,
       );
     } catch (e) {
-      AppLog.instance.put('预取 RSS 正文失败: $articleUrl', error: e);
+      AppLog.instance.put(
+        '预取 RSS 正文失败: $articleUrl',
+        error: e,
+        category: LogCategory.network,
+        tag: AppLogTag.network,
+      );
       return null;
     }
   }
@@ -427,13 +453,13 @@ class RssParserService extends BaseService {
     required String sortName,
   }) {
     final articleList = <RssArticle>[];
-    
+
     try {
       final document = xml.XmlDocument.parse(xmlContent);
-      
+
       // 查找所有item元素
       final items = document.findAllElements('item');
-      
+
       for (final item in items) {
         String title = '';
         String link = sourceUrl;
@@ -472,7 +498,7 @@ class RssParserService extends BaseService {
         } else if (contentElements.isNotEmpty) {
           content = contentElements.first.innerText.trim();
         }
-        
+
         // 从内容中提取图片
         if (content != null && (image == null || image.isEmpty)) {
           image = _extractImageFromHtml(content);
@@ -520,7 +546,12 @@ class RssParserService extends BaseService {
         }
       }
     } catch (e) {
-      AppLog.instance.put('解析RSS XML失败', error: e);
+      AppLog.instance.put(
+        '解析RSS XML失败',
+        error: e,
+        category: LogCategory.reader,
+        tag: AppLogTag.parser,
+      );
     }
 
     return articleList;

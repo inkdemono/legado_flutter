@@ -12,11 +12,44 @@ import 'rss_read_page.dart';
 import 'rss_read_record_dialog.dart';
 
 /// RSS文章列表Provider
+class RssArticlesNotifier extends AsyncNotifier<List<RssArticle>> {
+  RssArticlesNotifier(this.origin);
+
+  final String origin;
+  RssService get _service => readService(AppServices.rssService);
+
+  @override
+  Future<List<RssArticle>> build() {
+    return _service.getRssArticles(origin: origin, limit: 100);
+  }
+
+  Future<void> reload({bool showLoading = false}) async {
+    if (showLoading || !state.hasValue) {
+      state = const AsyncValue.loading();
+    }
+    state = await AsyncValue.guard(() => _service.getRssArticles(origin: origin, limit: 100));
+  }
+
+  Future<void> markAsRead(String link) async {
+    await _service.markArticleAsRead(origin, link, true);
+    final current = state.asData?.value;
+    if (current == null) {
+      await reload();
+      return;
+    }
+    state = AsyncValue.data(
+      current
+          .map((article) =>
+              article.link == link ? article.copyWith(read: true) : article)
+          .toList(),
+    );
+  }
+}
+
 final rssArticlesProvider =
-    FutureProvider.family<List<RssArticle>, String?>((ref, origin) async {
-  final service = readService(AppServices.rssService);
-  return await service.getRssArticles(origin: origin, limit: 100);
-});
+    AsyncNotifierProvider.family<RssArticlesNotifier, List<RssArticle>, String>(
+  RssArticlesNotifier.new,
+);
 
 enum _RssArticleViewMode {
   latest,
@@ -52,7 +85,7 @@ class _RssArticlesPageState extends ConsumerState<RssArticlesPage> {
 
     try {
       final count = await readService(AppServices.rssService).refreshRssArticles(widget.source);
-      ref.invalidate(rssArticlesProvider(widget.source.sourceUrl));
+      await ref.read(rssArticlesProvider(widget.source.sourceUrl).notifier).reload();
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -102,8 +135,9 @@ class _RssArticlesPageState extends ConsumerState<RssArticlesPage> {
         ),
       ),
     );
-
-    ref.invalidate(rssArticlesProvider(widget.source.sourceUrl));
+    await ref
+        .read(rssArticlesProvider(widget.source.sourceUrl).notifier)
+        .markAsRead(article.link);
   }
 
   List<RssArticle> _resolveArticles(List<RssArticle> articles) {
@@ -193,12 +227,9 @@ class _RssArticlesPageState extends ConsumerState<RssArticlesPage> {
                               ),
                               const SizedBox(height: 16),
                               FilledButton(
-                                onPressed: () {
-                                  ref.invalidate(
-                                    rssArticlesProvider(
-                                        widget.source.sourceUrl),
-                                  );
-                                },
+                                onPressed: () => ref
+                                    .read(rssArticlesProvider(widget.source.sourceUrl).notifier)
+                                    .reload(showLoading: true),
                                 child: const Text('重试'),
                               ),
                               const SizedBox(height: 20),

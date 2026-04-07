@@ -5,16 +5,55 @@ import '../../../data/models/rss_star.dart';
 import '../../../services/rss_service.dart';
 import 'rss_read_page.dart';
 
-/// RSS收藏列表Provider
-final rssFavoritesListProvider = FutureProvider.family<List<RssStar>, String?>((ref, group) async {
-  final service = readService(AppServices.rssService);
-  return await service.getRssStars(group: group);
-});
+class RssFavoritesNotifier extends AsyncNotifier<List<RssStar>> {
+  RssService get _service => readService(AppServices.rssService);
+
+  @override
+  Future<List<RssStar>> build() => _service.getRssStars(limit: 100);
+
+  Future<void> reload({bool showLoading = false}) async {
+    if (showLoading || !state.hasValue) {
+      state = const AsyncValue.loading();
+    }
+    state = await AsyncValue.guard(() => _service.getRssStars(limit: 100));
+  }
+
+  Future<void> delete(RssStar star) async {
+    final success = await _service.deleteRssStar(star.origin, star.link);
+    if (!success) {
+      throw Exception('删除收藏失败');
+    }
+    final current = state.asData?.value;
+    if (current == null) {
+      await reload();
+      return;
+    }
+    state = AsyncValue.data(
+      current
+          .where((item) =>
+              !(item.origin == star.origin && item.link == star.link))
+          .toList(),
+    );
+  }
+}
+
+final rssFavoritesListProvider =
+    AsyncNotifierProvider<RssFavoritesNotifier, List<RssStar>>(
+  RssFavoritesNotifier.new,
+);
 
 /// RSS收藏分组列表Provider
-final rssFavoritesGroupsProvider = FutureProvider<List<String>>((ref) async {
-  final service = readService(AppServices.rssService);
-  return await service.getStarGroups();
+final rssFavoritesGroupsProvider = Provider<AsyncValue<List<String>>>((ref) {
+  final favorites = ref.watch(rssFavoritesListProvider);
+  return favorites.whenData((stars) {
+    final groups = stars
+        .map((star) => star.group.trim())
+        .where((group) => group.isNotEmpty && group != '默认分组')
+        .toSet()
+        .toList()
+      ..sort();
+    return groups;
+  });
 });
 
 /// RSS收藏页面
@@ -57,9 +96,8 @@ class _RssFavoritesPageState extends ConsumerState<RssFavoritesPage> {
     );
 
     if (confirmed == true) {
-      await readService(AppServices.rssService).deleteRssStar(star.origin, star.link);
+      await ref.read(rssFavoritesListProvider.notifier).delete(star);
       if (mounted) {
-        ref.invalidate(rssFavoritesListProvider(_selectedGroup));
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('已删除')),
         );
@@ -87,7 +125,7 @@ class _RssFavoritesPageState extends ConsumerState<RssFavoritesPage> {
   @override
   Widget build(BuildContext context) {
     final groupsAsync = ref.watch(rssFavoritesGroupsProvider);
-    final favoritesAsync = ref.watch(rssFavoritesListProvider(_selectedGroup));
+    final favoritesAsync = ref.watch(rssFavoritesListProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -104,7 +142,6 @@ class _RssFavoritesPageState extends ConsumerState<RssFavoritesPage> {
                   setState(() {
                     _selectedGroup = group;
                   });
-                  ref.invalidate(rssFavoritesListProvider(_selectedGroup));
                 },
                 itemBuilder: (context) => [
                   const PopupMenuItem(
@@ -161,10 +198,14 @@ class _RssFavoritesPageState extends ConsumerState<RssFavoritesPage> {
               data: (stars) {
                 // 过滤搜索结果
                 final filteredStars = _searchKey.isEmpty
-                    ? stars
+                    ? (_selectedGroup == null
+                        ? stars
+                        : stars.where((star) => star.group == _selectedGroup).toList())
                     : stars.where((star) {
-                        return star.title.toLowerCase().contains(_searchKey.toLowerCase()) ||
-                            (star.description?.toLowerCase().contains(_searchKey.toLowerCase()) ?? false);
+                        final matchesGroup = _selectedGroup == null || star.group == _selectedGroup;
+                        return matchesGroup &&
+                            (star.title.toLowerCase().contains(_searchKey.toLowerCase()) ||
+                                (star.description?.toLowerCase().contains(_searchKey.toLowerCase()) ?? false));
                       }).toList();
 
                 if (filteredStars.isEmpty) {
@@ -177,9 +218,7 @@ class _RssFavoritesPageState extends ConsumerState<RssFavoritesPage> {
                 }
 
                 return RefreshIndicator(
-                  onRefresh: () async {
-                    ref.invalidate(rssFavoritesListProvider(_selectedGroup));
-                  },
+                  onRefresh: () => ref.read(rssFavoritesListProvider.notifier).reload(),
                   child: ListView.builder(
                     itemCount: filteredStars.length,
                     itemBuilder: (context, index) {
@@ -239,9 +278,9 @@ class _RssFavoritesPageState extends ConsumerState<RssFavoritesPage> {
                     Text('加载失败: $error'),
                     const SizedBox(height: 16),
                     ElevatedButton(
-                      onPressed: () {
-                        ref.invalidate(rssFavoritesListProvider(_selectedGroup));
-                      },
+                      onPressed: () => ref
+                          .read(rssFavoritesListProvider.notifier)
+                          .reload(showLoading: true),
                       child: const Text('重试'),
                     ),
                   ],
@@ -254,4 +293,3 @@ class _RssFavoritesPageState extends ConsumerState<RssFavoritesPage> {
     );
   }
 }
-

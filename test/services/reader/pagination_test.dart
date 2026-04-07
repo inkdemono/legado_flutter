@@ -370,4 +370,93 @@ void main() {
       expect(controller.state.currentPage, targetPage);
     });
   });
+
+  group('ReaderController Pagination Strategy', () {
+    final config = ReadingConfig(
+      maxWidth: 400,
+      maxHeight: 800,
+      fontSize: 18,
+    );
+
+    test('短章节保留主线程分页路径', () async {
+      var isolateCalled = false;
+      final controller = ReaderController(
+        config: config,
+        paginationExecutor: (content, cfg) async {
+          isolateCalled = true;
+          return const [
+            PageRange(start: 0, end: 1, pageIndex: 0),
+          ];
+        },
+      );
+
+      await controller.loadChapter(
+        chapterUrl: 'short',
+        content: '短内容' * 200,
+      );
+
+      expect(isolateCalled, isFalse);
+      expect(controller.state.pages, isNotEmpty);
+    });
+
+    test('长章节超过阈值时走后台分页执行器', () async {
+      var isolateCalled = false;
+      final fakePages = const [
+        PageRange(start: 0, end: 20000, pageIndex: 0),
+        PageRange(start: 20000, end: 40000, pageIndex: 1),
+        PageRange(start: 40000, end: 60000, pageIndex: 2),
+      ];
+      final controller = ReaderController(
+        config: config,
+        paginationExecutor: (content, cfg) async {
+          isolateCalled = true;
+          expect(content.length, greaterThan(ReaderController.isolateThreshold));
+          expect(cfg, same(config));
+          return fakePages;
+        },
+      );
+
+      await controller.loadChapter(
+        chapterUrl: 'long',
+        content: '0123456789' * 6000,
+      );
+
+      expect(isolateCalled, isTrue);
+      expect(controller.state.pages, fakePages);
+      expect(controller.state.isPaginating, isFalse);
+    });
+
+    test('预读长章节时也走后台分页执行器并写入缓存', () async {
+      var isolateCalls = 0;
+      final fakePages = const [
+        PageRange(start: 0, end: 100, pageIndex: 0),
+      ];
+      final controller = ReaderController(
+        config: config,
+        paginationExecutor: (content, cfg) async {
+          isolateCalls++;
+          expect(content.length, greaterThan(ReaderController.isolateThreshold));
+          expect(cfg, same(config));
+          return fakePages;
+        },
+      );
+
+      await controller.loadChapter(
+        chapterUrl: 'current',
+        content: '当前章节' * 100,
+      );
+
+      final longContent = '0123456789' * 6000;
+      await controller.preloadAdjacentChapters(
+        prevChapterUrl: 'prev',
+        nextChapterUrl: 'next',
+        getContent: (url) async => longContent,
+      );
+
+      expect(isolateCalls, 2);
+
+      final stats = controller.getCacheStats();
+      expect(stats['cachedChapters'], greaterThanOrEqualTo(3));
+    });
+  });
 }

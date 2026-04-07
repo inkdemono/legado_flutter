@@ -31,8 +31,9 @@ class _RuleParserMedia {
     try {
       // ── 执行 webJs（如果有）──────────────────────────────────────────────
       if (rule.webJs != null && rule.webJs!.isNotEmpty) {
-        html =
-            await RuleParser._executeJs(html, rule.webJs!, variables: variables) ?? html;
+        html = await RuleParser._executeJs(html, rule.webJs!,
+                variables: variables) ??
+            html;
       }
 
       // ── 优先路径：audioUrl 规则 ─────────────────────────────────────────
@@ -40,15 +41,22 @@ class _RuleParserMedia {
         final audioUrl = await RuleParser.parseRuleAsync(html, rule.audioUrl!,
             variables: variables, baseUrl: baseUrl);
         if (audioUrl != null && audioUrl.isNotEmpty) {
-          AppLog.instance
-              .put('_parseAudioContent: audioUrl规则提取成功 → $audioUrl');
+          AppLog.instance.put(
+            '_parseAudioContent: audioUrl规则提取成功 → $audioUrl',
+            category: LogCategory.media,
+            tag: AppLogTag.audio,
+          );
           // 处理相对 URL
           if (!audioUrl.startsWith('http') && baseUrl != null) {
             return NetworkService.joinUrl(baseUrl, audioUrl);
           }
           return audioUrl;
         }
-        AppLog.instance.put('_parseAudioContent: audioUrl规则提取为空，退回 content 路径');
+        AppLog.instance.put(
+          '_parseAudioContent: audioUrl规则提取为空，退回 content 路径',
+          category: LogCategory.media,
+          tag: AppLogTag.audio,
+        );
       }
 
       // ── 退回路径：content 规则 ──────────────────────────────────────────
@@ -72,27 +80,48 @@ class _RuleParserMedia {
             for (int i = 1; i <= match.groupCount; i++) {
               final g = match.group(i);
               if (g != null && g.isNotEmpty) {
-                AppLog.instance
-                    .put('_parseAudioContent: sourceRegex捕获组[$i] → $g');
+                AppLog.instance.put(
+                  '_parseAudioContent: sourceRegex捕获组[$i] → $g',
+                  category: LogCategory.media,
+                  tag: AppLogTag.audio,
+                );
                 return g;
               }
             }
             final g0 = match.group(0);
             if (g0 != null && g0.isNotEmpty) {
-              AppLog.instance.put('_parseAudioContent: sourceRegex group(0) → $g0');
+              AppLog.instance.put(
+                '_parseAudioContent: sourceRegex group(0) → $g0',
+                category: LogCategory.media,
+                tag: AppLogTag.audio,
+              );
               return g0;
             }
           }
         } catch (e) {
-          AppLog.instance.put('_parseAudioContent: sourceRegex错误', error: e);
+          AppLog.instance.put(
+            '_parseAudioContent: sourceRegex错误',
+            error: e,
+            category: LogCategory.media,
+            tag: AppLogTag.audio,
+          );
         }
       }
 
       // ── 兜底：rawContent 本身就是 URL ────────────────────────────────────
-      AppLog.instance.put('_parseAudioContent: 使用 content 原始结果 → $rawContent');
+      AppLog.instance.put(
+        '_parseAudioContent: 使用 content 原始结果 → $rawContent',
+        category: LogCategory.media,
+        tag: AppLogTag.audio,
+      );
       return rawContent;
     } catch (e) {
-      AppLog.instance.put('_parseAudioContent: 解析失败', error: e);
+      AppLog.instance.put(
+        '_parseAudioContent: 解析失败',
+        error: e,
+        category: LogCategory.media,
+        tag: AppLogTag.audio,
+      );
       return null;
     }
   }
@@ -114,8 +143,9 @@ class _RuleParserMedia {
     try {
       // ── 执行 webJs（如果有）──────────────────────────────────────────────
       if (rule.webJs != null && rule.webJs!.isNotEmpty) {
-        html =
-            await RuleParser._executeJs(html, rule.webJs!, variables: variables) ?? html;
+        html = await RuleParser._executeJs(html, rule.webJs!,
+                variables: variables) ??
+            html;
       }
 
       // ── 优先路径：videoUrl 规则 ─────────────────────────────────────────
@@ -123,14 +153,21 @@ class _RuleParserMedia {
         final videoUrl = await RuleParser.parseRuleAsync(html, rule.videoUrl!,
             variables: variables, baseUrl: baseUrl);
         if (videoUrl != null && videoUrl.isNotEmpty) {
-          AppLog.instance
-              .put('_parseVideoContent: videoUrl规则提取成功 → $videoUrl');
+          AppLog.instance.put(
+            '_parseVideoContent: videoUrl规则提取成功 → $videoUrl',
+            category: LogCategory.media,
+            tag: AppLogTag.video,
+          );
           if (!videoUrl.startsWith('http') && baseUrl != null) {
             return NetworkService.joinUrl(baseUrl, videoUrl);
           }
           return videoUrl;
         }
-        AppLog.instance.put('_parseVideoContent: videoUrl规则提取为空，退回 content 路径');
+        AppLog.instance.put(
+          '_parseVideoContent: videoUrl规则提取为空，退回 content 路径',
+          category: LogCategory.media,
+          tag: AppLogTag.video,
+        );
       }
 
       // ── 退回路径：images 规则（漫画/图片书源）──────────────────────────
@@ -139,7 +176,11 @@ class _RuleParserMedia {
         final imageUrls = await RuleParser.parseRuleAsync(html, rule.images!,
             variables: variables, baseUrl: baseUrl);
         if (imageUrls != null && imageUrls.isNotEmpty) {
-          AppLog.instance.put('_parseVideoContent: images规则提取成功');
+          AppLog.instance.put(
+            '_parseVideoContent: images规则提取成功',
+            category: LogCategory.media,
+            tag: AppLogTag.video,
+          );
           return imageUrls;
         }
       }
@@ -168,13 +209,23 @@ class _RuleParserMedia {
             if (g0 != null && g0.isNotEmpty) return g0;
           }
         } catch (e) {
-          AppLog.instance.put('_parseVideoContent: sourceRegex错误', error: e);
+          AppLog.instance.put(
+            '_parseVideoContent: sourceRegex错误',
+            error: e,
+            category: LogCategory.media,
+            tag: AppLogTag.video,
+          );
         }
       }
 
       return rawContent;
     } catch (e) {
-      AppLog.instance.put('_parseVideoContent: 解析失败', error: e);
+      AppLog.instance.put(
+        '_parseVideoContent: 解析失败',
+        error: e,
+        category: LogCategory.media,
+        tag: AppLogTag.video,
+      );
       return null;
     }
   }
@@ -210,14 +261,22 @@ class _RuleParserMedia {
         final url = await RuleParser.parseRuleAsync(html, rule.lyricsUrl!,
             variables: variables, baseUrl: baseUrl);
         if (url != null && url.isNotEmpty) {
-          result['lyricsUrl'] =
-              (url.startsWith('http') || baseUrl == null)
-                  ? url
-                  : NetworkService.joinUrl(baseUrl, url);
-          AppLog.instance.put('parseAudioExtras: lyricsUrl → ${result['lyricsUrl']}');
+          result['lyricsUrl'] = (url.startsWith('http') || baseUrl == null)
+              ? url
+              : NetworkService.joinUrl(baseUrl, url);
+          AppLog.instance.put(
+            'parseAudioExtras: lyricsUrl → ${result['lyricsUrl']}',
+            category: LogCategory.media,
+            tag: AppLogTag.audio,
+          );
         }
       } catch (e) {
-        AppLog.instance.put('parseAudioExtras: lyricsUrl 解析失败', error: e);
+        AppLog.instance.put(
+          'parseAudioExtras: lyricsUrl 解析失败',
+          error: e,
+          category: LogCategory.media,
+          tag: AppLogTag.audio,
+        );
       }
     }
 
@@ -227,15 +286,22 @@ class _RuleParserMedia {
         final url = await RuleParser.parseRuleAsync(html, rule.subtitleUrl!,
             variables: variables, baseUrl: baseUrl);
         if (url != null && url.isNotEmpty) {
-          result['subtitleUrl'] =
-              (url.startsWith('http') || baseUrl == null)
-                  ? url
-                  : NetworkService.joinUrl(baseUrl, url);
-          AppLog.instance
-              .put('parseAudioExtras: subtitleUrl → ${result['subtitleUrl']}');
+          result['subtitleUrl'] = (url.startsWith('http') || baseUrl == null)
+              ? url
+              : NetworkService.joinUrl(baseUrl, url);
+          AppLog.instance.put(
+            'parseAudioExtras: subtitleUrl → ${result['subtitleUrl']}',
+            category: LogCategory.media,
+            tag: AppLogTag.video,
+          );
         }
       } catch (e) {
-        AppLog.instance.put('parseAudioExtras: subtitleUrl 解析失败', error: e);
+        AppLog.instance.put(
+          'parseAudioExtras: subtitleUrl 解析失败',
+          error: e,
+          category: LogCategory.media,
+          tag: AppLogTag.video,
+        );
       }
     }
 
@@ -250,7 +316,10 @@ class _RuleParserMedia {
           if (trimmed.startsWith('[')) {
             result['qualityOptions'] = trimmed;
             AppLog.instance.put(
-                'parseAudioExtras: qualityOptions 已提取 (${trimmed.length} 字节)');
+              'parseAudioExtras: qualityOptions 已提取 (${trimmed.length} 字节)',
+              category: LogCategory.media,
+              tag: AppLogTag.audio,
+            );
           } else {
             // 若规则返回的是换行分隔的 URL 列表，尝试转为 JSON 数组格式
             final lines = trimmed
@@ -262,17 +331,24 @@ class _RuleParserMedia {
               final jsonArray = lines
                   .asMap()
                   .entries
-                  .map((e) =>
-                      '{"label":"清晰度${e.key + 1}","url":"${e.value}"}')
+                  .map((e) => '{"label":"清晰度${e.key + 1}","url":"${e.value}"}')
                   .join(',');
               result['qualityOptions'] = '[$jsonArray]';
               AppLog.instance.put(
-                  'parseAudioExtras: qualityOptions 从换行列表转换 (${lines.length} 条)');
+                'parseAudioExtras: qualityOptions 从换行列表转换 (${lines.length} 条)',
+                category: LogCategory.media,
+                tag: AppLogTag.audio,
+              );
             }
           }
         }
       } catch (e) {
-        AppLog.instance.put('parseAudioExtras: qualityOptions 解析失败', error: e);
+        AppLog.instance.put(
+          'parseAudioExtras: qualityOptions 解析失败',
+          error: e,
+          category: LogCategory.media,
+          tag: AppLogTag.audio,
+        );
       }
     }
 
@@ -300,7 +376,11 @@ class _RuleParserMedia {
     try {
       if (!payAction.trimLeft().startsWith('http')) {
         // ── 纯 JS：执行并忽略返回值（主要利用副作用，如 cookie 写入）──────
-        AppLog.instance.put('executePayAction: 执行 JS payAction');
+        AppLog.instance.put(
+          'executePayAction: 执行 JS payAction',
+          category: LogCategory.media,
+          tag: AppLogTag.audio,
+        );
         await RuleParser._executeJs(html, payAction,
             variables: variables, source: source, book: book, baseUrl: baseUrl);
         return true;
@@ -315,14 +395,22 @@ class _RuleParserMedia {
             // 同步执行 JS（此处简化：直接替换为空字符串，异步版本太复杂）
             // 实际 payAction URL 型的 JS 内嵌较少见，此处作基础支持
             AppLog.instance.put(
-                'executePayAction: URL 内嵌 JS 暂不支持异步替换，将跳过');
+              'executePayAction: URL 内嵌 JS 暂不支持异步替换，将跳过',
+              level: LogLevel.warning,
+              category: LogCategory.media,
+              tag: AppLogTag.audio,
+            );
             return '';
           });
         }
 
         if (resolvedUrl.isNotEmpty && resolvedUrl.startsWith('http')) {
-          AppLog.instance.put('executePayAction: 发送解锁请求 → $resolvedUrl');
-          await NetworkService.instance.get(
+          AppLog.instance.put(
+            'executePayAction: 发送解锁请求 → $resolvedUrl',
+            category: LogCategory.media,
+            tag: AppLogTag.audio,
+          );
+          await readService(AppServices.networkService).get(
             resolvedUrl,
             headers: NetworkService.parseHeaders(source?.header),
           );
@@ -330,7 +418,12 @@ class _RuleParserMedia {
         }
       }
     } catch (e) {
-      AppLog.instance.put('executePayAction: 执行失败', error: e);
+      AppLog.instance.put(
+        'executePayAction: 执行失败',
+        error: e,
+        category: LogCategory.media,
+        tag: AppLogTag.audio,
+      );
     }
     return false;
   }
