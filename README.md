@@ -8,6 +8,35 @@
 
 Legado Flutter 是一个高度可定制的阅读工具，支持通过自定义规则获取网络资源。它不仅是一个阅读器，更是一个强大的内容聚合平台。
 
+## 🌟 跨平台支持
+
+Legado Flutter 致力于实现全平台覆盖，为用户提供一致的阅读体验：
+
+- **✅ Android**: 完善支持，性能优化
+- **✅ iOS**: 完善支持，遵循 Human Interface Guidelines
+- **🔄 Web**: 适配中，支持 PWA
+- **🔄 Desktop**: Windows/macOS/Linux 适配中
+- **🆕 HarmonyOS**: 基础框架已搭建，持续开发中
+
+### 鸿蒙 (HarmonyOS) 适配
+
+项目采用 **Flutter 统一代码库 + 平台接口抽象** 方案实现鸿蒙支持：
+
+**已完成：**
+- ✅ 平台接口层：存储、数据库接口抽象
+- ✅ 鸿蒙实现类：`HarmonyOSStorageImpl`, `HarmonyOSDatabaseImpl`
+- ✅ 平台分发器：自动检测鸿蒙平台并路由
+- ✅ 原生桥接指南：完整的 ArkTS 通道实现代码
+
+**待完成：**
+- 📋 鸿蒙原生层实现（ArkTS）
+- 📋 DevEco Studio 项目配置
+- 📋 真机测试验证
+
+**技术文档：**
+- [Flutter 鸿蒙适配指南](HARMONYOS_FLUTTER_GUIDE.md) - 完整开发方案
+- [原生层实现指南](HARMONYOS_NATIVE_IMPL.md) - ArkTS 桥接代码
+
 ## ✨ 核心功能
 
 - **高度兼容的书源引擎**：支持自定义书源规则，兼容 Legado 书源格式，具备强大的内容解析能力。
