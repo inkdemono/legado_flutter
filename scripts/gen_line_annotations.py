@@ -90,7 +90,7 @@ NAME_HINTS = {
     'book': '书籍', 'chapter': '章节', 'chapters': '章节列表', 'toc': '目录(TOC)',
     'list': '列表', 'content': '正文内容', 'search': '搜索', 'storage': '存储',
     'update': '更新', 'save': '保存', 'load': '加载', 'get': '获取', 'fetch': '拉取',
-    'parse': '解析', 'rule': '规则', 'source': '书源', 'html': 'HTML', 'url': 'URL',
+    'parse': '解析', 'rule': '规则', 'source': '书源', 'html': '网页标记(HTML)', 'url': '链接(URL)',
     'db': '数据库', 'database': '数据库', 'cache': '缓存', 'local': '本地',
     'remote': '远程', 'page': '页', 'pages': '分页', 'index': '索引',
     'history': '阅读历史', 'bookmark': '书签', 'variable': '变量', 'variables': '变量表',
@@ -105,15 +105,344 @@ NAME_HINTS = {
     'write': '写入', 'read': '读取', 'open': '打开', 'close': '关闭',
     'process': '处理', 'handle': '处理', 'callback': '回调', 'retry': '重试',
     'timeout': '超时', 'limit': '限制', 'rate': '速率', 'concurrent': '并发',
-    'js': 'JS脚本', 'engine': '引擎', 'pattern': '模式', 'regex': '正则',
-    'format': '格式化', 'encode': '编码', 'decode': '解码', 'json': 'JSON',
+    'js': 'JavaScript脚本(JS)', 'engine': '引擎', 'pattern': '模式', 'regex': '正则',
+    'format': '格式化', 'encode': '编码', 'decode': '解码', 'json': 'JSON数据',
     'text': '文本', 'title': '标题', 'author': '作者', 'cover': '封面',
     'intro': '简介', 'kind': '类别', 'wordCount': '字数', 'latestChapter': '最新章节',
-    'num': '编号', 'uuid': 'UUID', 'origin': '来源', 'proxy': '代理',
+    'num': '编号', 'uuid': '通用唯一标识(UUID)', 'origin': '来源', 'proxy': '代理',
     'redirect': '重定向', 'fallback': '回退/降级', 'smart': '智能',
     'analyze': '分析', 'extract': '提取', 'rewrite': '重写', 'normalize': '规范化',
     'sanitize': '净化处理', 'persist': '持久化', 'flush': '刷写', 'batch': '批量',
     'progress': '进度', 'state': '状态', 'status': '状态', 'flag': '标志',
+}
+
+
+# Dart 关键字/内置类型/常用 API —— 在说明文字中统一用中文表述（必要时括注原文）
+KEYWORD_ZH = {
+    'final': '不可重新赋值(final)', 'var': '自动类型推断(var)', 'const': '编译期常量(const)',
+    'late': '延迟初始化(late)', 'if': '如果(if)', 'else': '否则(else)', 'for': '循环(for)',
+    'while': '当型循环(while)', 'switch': '分支判断(switch)', 'case': '分支(case)',
+    'default': '默认(default)', 'try': '尝试(try)', 'catch': '捕获(catch)',
+    'finally': '最终(finally)', 'throw': '抛出(throw)', 'return': '返回(return)',
+    'break': '跳出(break)', 'continue': '继续(continue)', 'await': '等待(await)',
+    'async': '异步(async)', 'yield': '产出(yield)', 'in': '属于(in)', 'is': '是(is)',
+    'as': '作为(as)', 'new': '新建(new)', 'this': '当前实例(this)', 'super': '父类(super)',
+    'null': '空值(null)', 'true': '真(true)', 'false': '假(false)',
+    'import': '导入(import)', 'part': '分部文件(part)', 'mixin': '混入(mixin)',
+    'class': '类(class)', 'get': '读取(getter)', 'set': '写入(setter)',
+    'required': '必填(required)', 'assert': '断言(assert)', 'void': '无返回值(void)',
+}
+
+# 常见标识符的中文全称（用于说明文字中替换裸英文单词）
+IDENT_ZH = {
+    'Future': '异步结果(Future)', 'Stream': '数据流(Stream)', 'List': '列表(List)',
+    'Map': '映射(Map)', 'Set': '集合(Set)', 'String': '字符串(String)',
+    'int': '整数(int)', 'double': '浮点数(double)', 'num': '数值(num)',
+    'bool': '布尔(bool)', 'RegExp': '正则表达式(RegExp)', 'Uri': '统一资源标识(URI)',
+    'URL': '统一资源链接(URL)', 'url': '链接', 'Url': '链接', 'TOC': '目录(TOC)',
+    'toc': '目录', 'HTML': '网页标记文本(HTML)', 'html': '网页内容', 'JSON': 'JSON数据',
+    'DB': '数据库(DB)', 'db': '数据库', 'AppLog': '应用日志(AppLog)',
+    'NetworkService': '网络服务(NetworkService)', 'RuleParser': '规则解析器(RuleParser)',
+    'BookSource': '书源(BookSource)', 'BookChapter': '章节(BookChapter)', 'Book': '书籍(Book)',
+    'chapter': '章节', 'chapters': '章节列表', 'book': '书籍', 'books': '书籍列表',
+    'source': '书源', 'sources': '书源列表', 'rule': '规则', 'results': '结果',
+    'result': '结果', 'response': '响应', 'request': '请求', 'headers': '请求头',
+    'keyword': '关键词', 'index': '索引', 'i': '循环变量 i', 'e': '异常对象 e',
+    'name': '名称', 'title': '标题', 'author': '作者', 'coverUrl': '封面链接',
+    'localPath': '本地存储路径', 'bookUrl': '书籍链接', 'chapterUrl': '章节链接',
+    'nextTocUrl': '下一页目录链接', 'nextContentUrl': '下一页正文链接',
+    'variableReplacement': '变量替换', 'replaceRegex': '正则替换',
+    'put': '写入数据库(put)', 'map': '映射(map)', 'where': '筛选(where)',
+    'firstWhere': '查找首个匹配(firstWhere)', 'indexWhere': '查找索引(indexWhere)',
+    'lastIndex': '末尾索引', 'length': '长度(length)', 'isEmpty': '是否为空',
+    'isNotEmpty': '是否非空', 'contains': '是否包含', 'toString': '转为字符串',
+    'toList': '转为列表', 'toSet': '转为集合', 'addAll': '批量添加',
+    'removeWhere': '按条件删除', 'cast': '类型转换', 'trim': '去除首尾空白',
+    'split': '切分', 'join': '拼接', 'replaceAll': '全部替换', 'replaceFirst': '替换首个',
+    'matchAsPrefix': '前缀匹配', 'hasMatch': '是否匹配', 'firstMatch': '首个匹配',
+    'group': '捕获组', 'add': '添加', 'remove': '移除', 'insert': '插入',
+    'elementAt': '取指定位置元素', 'skip': '跳过', 'take': '截取',
+    'directory': '目录(directory)', 'file': '文件(file)', 'path': '路径',
+    'content': '正文内容', 'text': '文本', 'body': '主体', 'key': '键', 'value': '值',
+    'entry': '条目', 'entries': '条目集合', 'id': '编号(id)', 'uuid': '通用唯一标识(UUID)',
+    'count': '数量', 'size': '大小', 'page': '页码', 'pageSize': '每页数量',
+    'wordCount': '字数', 'latestChapterName': '最新章节名称', 'maxResults': '最大结果数',
+    'precisionSearch': '精确搜索开关', 'caseSensitive': '区分大小写开关',
+    'scope': '范围', 'cacheFile': '缓存文件', 'downloaded': '已下载标记',
+    'useReplaceRule': '是否使用替换规则', 'checkKeyWord': '校验关键词',
+    'js': 'JavaScript脚本(JS)', 'charset': '字符集', 'utf8': 'UTF-8编码',
+    'gbk': 'GBK编码', 'base64': 'Base64编码', 'md5': 'MD5摘要',
+    'http': '超文本传输协议(HTTP)', 'https': '安全超文本传输协议(HTTPS)',
+    'sql': '结构化查询语言(SQL)', 'code': '代码', 'error': '错误', 'message': '信息',
+    'msg': '消息', 'log': '日志', 'timeout': '超时时长', 'retryCount': '重试次数',
+    'concurrency': '并发数', 'proxy': '代理', 'userAgent': '用户代理(UA)',
+    'cookie': 'Cookie', 'header': '请求头', 'params': '参数', 'query': '查询串',
+    'pattern': '模式', 'regex': '正则', 'prefix': '前缀', 'suffix': '后缀',
+    'callback': '回调', 'closure': '闭包', 'lambda': '匿名函数', 'builder': '构建器',
+    'instance': '实例', 'service': '服务', 'provider': '提供者', 'context': '上下文',
+    'state': '状态', 'status': '状态', 'flag': '标志', 'mode': '模式', 'type': '类型',
+    'kind': '类别', 'intro': '简介', 'summary': '概括', 'comment': '注释',
+    'tmp': '临时', 'temp': '临时', 'bak': '备份', 'origin': '来源',
+    'baseUrl': '基础链接', 'searchUrl': '搜索链接', 'bookSourceUrl': '书源链接',
+    'ruleSearch': '搜索规则', 'ruleBookInfo': '书籍详情规则', 'ruleToc': '目录规则',
+    'ruleContent': '正文规则', 'ruleInit': '初始化规则', 'exp': '表达式',
+    'json': 'JSON数据', 'xml': 'XML数据', 'doc': '文档', 'item': '条目',
+    'items': '条目列表', 'obj': '对象', 'str': '字符串', 'sb': '字符串缓冲(sb)',
+    'buf': '缓冲区', 'arr': '数组', 'val': '值', 'ret': '返回值', 'res': '结果',
+    'req': '请求', 'resp': '响应', 'cfg': '配置', 'config': '配置',
+    'dir': '目录', 'env': '环境', 'fn': '函数', 'arg': '实参', 'args': '实参列表',
+    'param': '形参', 'pos': '位置', 'idx': '索引', 'len': '长度',
+    'prev': '上一项', 'cur': '当前项', 'curr': '当前项',
+    'start': '起始', 'begin': '开始', 'offset': '偏移量',
+    'chunks': '数据块列表',
+    'lists': '列表集合', 'dict': '字典',
+    'empty': '空', 'valid': '有效', 'invalid': '无效', 'enabled': '已启用',
+    'disabled': '已禁用', 'visible': '可见', 'hidden': '隐藏', 'selected': '已选中',
+    'loading': '加载中', 'finished': '已完成', 'pending': '待处理', 'failed': '失败',
+    'success': '成功', 'skipped': '已跳过', 'ignored': '已忽略', 'updated': '已更新',
+    'created': '已创建', 'deleted': '已删除', 'exists': '存在', 'missing': '缺失',
+    'fallback': '回退', 'alternative': '备选',
+    'secondary': '次要', 'temporary': '临时', 'permanent': '永久',
+    'online': '在线', 'offline': '离线',
+    'cached': '已缓存', 'uncached': '未缓存', 'stale': '过期', 'fresh': '最新',
+    'partial': '部分', 'single': '单个', 'multi': '多个',
+    'each': '每个',
+    'second': '第二个', 'third': '第三个',
+    'current': '当前', 'previous': '上一个', 'following': '下一个', 'initial': '初始',
+    'intermediate': '中间', 'extra': '额外',
+    'sub': '子', 'parent': '父级', 'child': '子级',
+    'node': '节点', 'leaf': '叶子节点',
+    'version': '版本', 'revision': '修订号',
+    'production': '生产环境',
+    'mock': '模拟', 'stub': '桩', 'fixture': '测试夹具',
+    'setup': '准备', 'teardown': '清理', 'reset': '重置',
+    'reload': '重新加载', 'restart': '重启', 'shutdown': '关闭',
+    'startup': '启动', 'initialize': '初始化', 'destroy': '销毁',
+    'allocate': '分配', 'reserve': '预留', 'acquire': '获取',
+    'lock': '锁', 'unlock': '解锁', 'mutex': '互斥锁',
+    'semaphore': '信号量',
+    'event': '事件', 'signal': '信号', 'notification': '通知', 'broadcast': '广播',
+    'subscribe': '订阅', 'unsubscribe': '取消订阅', 'publish': '发布',
+    'listen': '监听', 'emit': '发出', 'trigger': '触发',
+    'poll': '轮询', 'push': '推送', 'pull': '拉取', 'sync': '同步',
+    'defer': '延迟', 'enqueue': '入队',
+    'dequeue': '出队', 'commit': '提交', 'rollback': '回滚',
+    'transaction': '事务', 'savepoint': '保存点', 'migration': '迁移',
+    'schema': '模式', 'column': '列', 'row': '行', 'field': '字段',
+    'record': '记录', 'statement': '语句', 'cursor': '游标',
+    'binding': '绑定',
+    'procedure': '存储过程', 'function': '函数', 'method': '方法', 'property': '属性',
+    'attribute': '特性', 'annotation': '注解', 'decorator': '装饰器', 'modifier': '修饰符',
+    'operator': '运算符', 'operand': '操作数', 'literal': '字面量', 'constant': '常量',
+    'identifier': '标识符', 'token': '符号',
+    'parser': '解析器', 'lexer': '词法分析器', 'compiler': '编译器', 'interpreter': '解释器',
+    'runtime': '运行时', 'virtualMachine': '虚拟机', 'garbageCollection': '垃圾回收',
+    'memory': '内存',
+    'disk': '磁盘',
+    'socket': '套接字', 'port': '端口', 'host': '主机', 'domain': '域名',
+    'ip': 'IP地址', 'dns': '域名系统(DNS)', 'tls': '传输层安全(TLS)',
+    'ssl': '安全套接层(SSL)', 'certificate': '证书', 'signature': '签名',
+    'encryption': '加密', 'decryption': '解密', 'digest': '摘要',
+    'salt': '盐值', 'credential': '凭证', 'authentication': '认证',
+    'authorization': '授权', 'permission': '权限', 'role': '角色', 'session': '会话',
+    'login': '登录', 'logout': '登出', 'signup': '注册', 'account': '账户',
+    'settings': '设置', 'preferences': '偏好设置',
+    'options': '选项', 'configuration': '配置', 'environment': '环境',
+    'platform': '平台', 'device': '设备', 'screen': '屏幕',
+    'view': '视图', 'widget': '组件', 'layout': '布局',
+    'theme': '主题', 'color': '颜色',
+    'icon': '图标', 'image': '图片', 'media': '媒体', 'audio': '音频',
+    'video': '视频', 'animation': '动画', 'transition': '过渡', 'gesture': '手势',
+    'tap': '点击', 'swipe': '滑动', 'drag': '拖拽', 'scroll': '滚动',
+    'click': '单击', 'press': '按压', 'hover': '悬停',
+    'focus': '焦点', 'blur': '失焦', 'selection': '选区', 'clipboard': '剪贴板',
+    'keyboard': '键盘', 'input': '输入', 'output': '输出',
+    'pipeline': '流水线',
+    'coroutine': '协程', 'task': '任务', 'job': '作业', 'worker': '工作单元',
+    'pool': '池', 'singleton': '单例', 'prototype': '原型',
+    'adapter': '适配器', 'bridge': '桥接', 'composite': '组合',
+    'facade': '外观', 'flyweight': '享元', 'observer': '观察者', 'strategy': '策略',
+    'template': '模板', 'visitor': '访问者', 'iterator': '迭代器', 'enumerable': '可枚举',
+    'generator': '生成器', 'consumer': '消费者', 'producer': '生产者',
+    'listener': '监听器', 'receiver': '接收方', 'sender': '发送方', 'client': '客户端',
+    'server': '服务端', 'agent': '代理端', 'daemon': '守护进程',
+    'console': '控制台', 'terminal': '终端', 'logger': '日志器', 'monitor': '监视器',
+    'metrics': '指标', 'trace': '追踪',
+    'benchmark': '基准测试', 'threshold': '阈值', 'quota': '配额', 'budget': '预算',
+    'cap': '封顶',
+    'spacing': '间距',
+    'indent': '缩进', 'newline': '换行符', 'delimiter': '分隔符', 'separator': '分隔线',
+    'terminator': '终止符', 'escape': '转义', 'quote': '引号', 'bracket': '括号',
+    'brace': '花括号', 'parenthesis': '圆括号', 'comma': '逗号', 'semicolon': '分号',
+    'colon': '冒号', 'dot': '点号', 'dash': '短横线', 'underscore': '下划线',
+    'asterisk': '星号', 'slash': '斜杠', 'backslash': '反斜杠',
+    'tilde': '波浪号', 'caret': '脱字符', 'dollar': '美元符',
+    'percent': '百分号', 'ampersand': '与号', 'exclamation': '感叹号',
+    'multiply': '乘号', 'divide': '除号', 'modulo': '取余',
+    'sqrt': '平方根', 'clamp': '钳制范围',
+    'average': '平均值', 'median': '中位数',
+    'variance': '方差', 'standardDeviation': '标准差',
+    'scale': '缩放', 'translate': '平移', 'rotate': '旋转',
+    'vector': '向量', 'scalar': '标量', 'tensor': '张量',
+    'velocity': '速度', 'acceleration': '加速度',
+    'direction': '方向', 'orientation': '朝向', 'angle': '角度', 'radian': '弧度',
+    'radius': '半径', 'diameter': '直径', 'circumference': '周长',
+    'volume': '体积', 'density': '密度', 'mass': '质量',
+    'energy': '能量',
+    'frequency': '频率', 'amplitude': '振幅', 'phase': '相位',
+    'wavelength': '波长', 'spectrum': '频谱', 'bandwidth': '带宽', 'throughput': '吞吐量',
+    'latency': '延迟', 'jitter': '抖动', 'packet': '数据包',
+    'byte': '字节', 'nibble': '半字节',
+    'octet': '八位组',
+    'encoding': '编码方式', 'decoding': '解码方式', 'compression': '压缩',
+    'decompression': '解压', 'serialization': '序列化', 'deserialization': '反序列化',
+    'marshal': '编组', 'unmarshal': '解组',
+    'encrypt': '加密', 'decrypt': '解密', 'verify': '验证',
+    'stringify': '字符串化', 'prettify': '美化',
+    'minify': '压缩', 'obfuscate': '混淆', 'beautify': '美化', 'pretty': '美观格式',
+    'raw': '原始', 'plain': '明文', 'binary': '二进制', 'hex': '十六进制',
+    'decimal': '十进制', 'octal': '八进制', 'base32': 'Base32编码', 'base58': 'Base58编码',
+    'bigEndian': '大端序', 'littleEndian': '小端序', 'endianness': '字节序',
+    'timezone': '时区', 'timestamp': '时间戳', 'epoch': '纪元', 'duration': '时长',
+    'interval': '间隔', 'instant': '时刻', 'moment': '瞬间', 'date': '日期',
+    'timer': '计时器',
+    'stopwatch': '秒表', 'countdown': '倒计时', 'deadline': '截止时间',
+    'expiration': '过期时间', 'ttl': '生存时间(TTL)', 'lease': '租约',
+    'renew': '续期', 'expire': '过期', 'elapsed': '已耗时', 'remaining': '剩余',
+    'scheduled': '已调度', 'delayed': '已延迟', 'immediate': '立即',
+    'periodic': '周期性', 'oneShot': '一次性', 'continuous': '持续',
+    'incremental': '增量', 'delta': '差量',
+    'diff': '差异',
+    'upgrade': '升级',
+    'downgrade': '降级', 'uninstall': '卸载',
+    'deactivate': '停用', 'enable': '启用', 'disable': '禁用',
+    'resume': '恢复',
+    'suspend': '挂起', 'interrupt': '中断',
+    'terminate': '终止', 'reopen': '重新打开', 'connect': '连接', 'disconnect': '断开',
+    'attach': '附加', 'detach': '分离', 'unbind': '解绑',
+    'unlink': '解除链接', 'mount': '挂载', 'unmount': '卸载',
+    'register': '注册', 'unregister': '注销',
+    'send': '发送', 'receive': '接收', 'forward': '转发',
+    'route': '路由', 'navigate': '导航', 'jump': '跳转', 'seek': '定位',
+    'rewind': '回卷', 'fastForward': '快进', 'step': '步进',
+    'repeat': '重复', 'iterate': '迭代', 'traverse': '遍历',
+    'visit': '访问', 'crawl': '爬取', 'scan': '扫描',
+    'lookup': '查表', 'probe': '探测',
+    'inspect': '检查', 'examine': '审查', 'review': '评审', 'audit': '审计',
+    'deny': '拒绝',
+    'prevent': '防止', 'avoid': '避免', 'manage': '管理',
+    'execute': '执行',
+    'invoke': '调用', 'utilize': '利用', 'employ': '采用', 'adopt': '采纳',
+    'specify': '指定',
+    'construct': '构造', 'generate': '生成', 'produce': '生产',
+    'render': '渲染', 'draw': '绘制', 'paint': '绘画', 'display': '显示',
+    'reveal': '揭示', 'conceal': '隐藏',
+    'print': '打印', 'append': '追加',
+    'prepend': '前置', 'erase': '擦除',
+    'purge': '清除', 'wipe': '抹除', 'truncate': '截断', 'crop': '裁剪',
+    'cut': '剪切', 'copy': '复制', 'paste': '粘贴', 'duplicate': '重复副本',
+    'clone': '克隆', 'deepCopy': '深拷贝', 'shallowCopy': '浅拷贝', 'reference': '引用',
+    'pointer': '指针', 'address': '地址', 'location': '位置',
+    'vertex': '顶点',
+    'cell': '单元格', 'grid': '网格',
+    'mesh': '网格', 'surface': '表面', 'wireframe': '线框',
+    'polygon': '多边形', 'polyline': '折线', 'bezier': '贝塞尔曲线',
+    'curve': '曲线', 'shape': '形状', 'form': '形态',
+    'figure': '图形', 'diagram': '图表', 'chart': '图表',
+    'axis': '轴', 'legend': '图例', 'label': '标签',
+    'tooltip': '提示信息', 'placeholder': '占位符', 'prompt': '提示',
+    'hint': '暗示', 'note': '笔记', 'warning': '警告',
+    'verbose': '详细', 'quiet': '静默',
+    'silent': '无声', 'noise': '噪声', 'sound': '声音',
+    'voice': '语音', 'speech': '语音', 'language': '语言', 'locale': '区域设置',
+    'culture': '文化',
+    'phone': '电话', 'email': '电子邮件',
+    'website': '网站', 'webpage': '网页', 'browser': '浏览器',
+    'kernel': '内核', 'driver': '驱动', 'firmware': '固件',
+    'hardware': '硬件', 'software': '软件', 'middleware': '中间件',
+    'sdk': '软件开发工具包(SDK)',
+    'api': '应用程序接口(API)', 'rest': '表述性状态转移(REST)', 'graphql': 'GraphQL查询语言',
+    'grpc': 'gRPC远程过程调用', 'websocket': 'WebSocket协议', 'sse': '服务器发送事件(SSE)',
+    'markdown': 'Markdown轻量标记',
+    'section': '节',
+    'subsection': '小节', 'paragraph': '段落', 'sentence': '句子', 'phrase': '短语',
+    'word': '单词', 'character': '字符', 'glyph': '字形',
+    'serif': '衬线体', 'mono': '等宽字体',
+    'slant': '倾斜', 'italic': '斜体',
+    'bold': '粗体', 'regular': '常规', 'medium': '中等',
+    'condensed': '窄体', 'expanded': '宽体',
+    'normal': '正常', 'standard': '标准', 'custom': '自定义',
+    'preset': '预设', 'user': '用户', 'admin': '管理员', 'owner': '所有者',
+    'member': '成员', 'guest': '访客', 'anonymous': '匿名',
+    'internal': '内部', 'external': '外部',
+    'global': '全局',
+    'module': '模块',
+    'namespace': '命名空间',
+    'priority': '优先级', 'order': '顺序', 'sequence': '序列', 'series': '系列',
+    'chain': '链', 'linked': '已链接', 'array': '数组', 'typedArray': '类型化数组',
+    'mapper': '映射器', 'reducer': '归约器', 'catalog': '目录册',
+    'archive': '归档', 'bundle': '捆绑包',
+    'partition': '分区', 'shard': '分片', 'replica': '副本', 'mirror': '镜像',
+    'snapshot': '快照', 'backup': '备份', 'restore': '恢复', 'recover': '恢复',
+    'repair': '修复',
+    'hotfix': '热修复',
+    'bugfix': '缺陷修复', 'enhancement': '增强', 'improvement': '改进',
+    'optimization': '优化', 'refactor': '重构', 'redesign': '重新设计',
+    'rework': '返工', 'revise': '修订', 'amend': '修正', 'adjust': '调整',
+    'calibrate': '校准', 'harmonize': '协调', 'synchronize': '同步',
+    'communicate': '通信', 'interact': '交互', 'negotiate': '协商', 'handshake': '握手',
+    'contract': '契约',
+    'abstraction': '抽象', 'encapsulation': '封装', 'inheritance': '继承',
+    'polymorphism': '多态',
+    'aggregation': '聚合',
+    'dependency': '依赖', 'coupling': '耦合', 'cohesion': '内聚',
+    'modularity': '模块化', 'scalability': '可扩展性', 'maintainability': '可维护性',
+    'reliability': '可靠性', 'availability': '可用性', 'performance': '性能',
+    'efficiency': '效率', 'effectiveness': '有效性', 'accuracy': '准确性',
+    'precision': '精确度', 'recall': '召回率',
+    'engineering': '工程', 'architecture': '架构', 'design': '设计',
+    'practice': '实践', 'principle': '原则', 'guideline': '指南',
+    'convention': '约定', 'idiom': '惯用法',
+    'guide': '指南', 'manual': '手册', 'tutorial': '教程', 'example': '示例',
+    'demo': '演示', 'showcase': '展示', 'portfolio': '作品集',
+    'gallery': '画廊', 'collection': '集合', 'repository': '仓库',
+    'registry': '注册表',
+    'warehouse': '数据仓库', 'mart': '数据集市', 'cube': '多维立方体',
+    'workflow': '工作流',
+    'orchestration': '编排', 'automation': '自动化', 'integration': '集成',
+    'deployment': '部署', 'distribution': '分发',
+    'provisioning': '供给', 'scaling': '扩缩容', 'loadbalancing': '负载均衡',
+    'failover': '故障转移', 'redundancy': '冗余', 'resilience': '弹性',
+    'consistency': '一致性', 'isolation': '隔离性',
+    'atomicity': '原子性', 'locking': '锁定',
+    'contention': '争用', 'deadlock': '死锁', 'livelock': '活锁', 'starvation': '饥饿',
+    'raceCondition': '竞态条件',
+    'defect': '瑕疵', 'issue': '问题', 'problem': '难题', 'challenge': '挑战',
+    'obstacle': '障碍', 'blocker': '阻塞项', 'bottleneck': '瓶颈',
+    'restriction': '约束', 'limitation': '局限',
+    'caveat': '注意事项', 'pitfall': '陷阱', 'gotcha': '易错点', 'quirk': '怪癖',
+    'hack': '临时方案', 'workaround': '变通方法',
+    'quickfix': '快速修复', 'hotpatch': '热补丁', 'emergency': '紧急', 'urgent': '急迫',
+    'critical': '关键', 'important': '重要', 'minor': '次要', 'trivial': '微小',
+    'major': '重大', 'severe': '严重', 'fatal': '致命',
+    'exception': '异常', 'failure': '失败', 'fault': '故障', 'crash': '崩溃',
+    'halt': '停机',
+    'stuck': '卡住', 'busy': '忙碌',
+    'idle': '空闲', 'waiting': '等待', 'ready': '就绪',
+    'completed': '已完成', 'done': '完毕',
+    'cancelled': '已取消', 'canceled': '已取消',
+    'filtered': '已过滤', 'denied': '被拒绝',
+    'verified': '已验证', 'validated': '已校验', 'authenticated': '已认证',
+    'authorized': '已授权',
+    'revoked': '被撤销', 'renewed': '已续期',
+    'extended': '已延长', 'shortened': '已缩短', 'increased': '已增加',
+    'decreased': '已减少', 'raised': '已提升', 'lowered': '已降低', 'boosted': '已增强',
+    'reduced': '已削减', 'improved': '已改进',
+    'enhanced': '已增强', 'downgraded': '已降级',
+    'migrated': '已迁移', 'translated': '已翻译', 'localized': '已本地化',
+    'internationalized': '已国际化', 'globalized': '已全球化', 'regionalized': '已区域化',
+    'customized': '已定制化', 'personalized': '已个性化', 'initialized': '已初始化',
+    'populated': '已填充', 'seeded': '已播种', 'warmed': '已预热',
 }
 
 
@@ -126,10 +455,96 @@ def zh_name(name):
     out = []
     for w in words:
         lw = w.lower()
-        out.append(NAME_HINTS.get(w, NAME_HINTS.get(lw, w)))
+        out.append(NAME_HINTS.get(w, NAME_HINTS.get(lw, IDENT_ZH.get(w, IDENT_ZH.get(lw, w)))))
     s = ' '.join(out)
     # 若全是英文原词直译效果差，保留原名并附中文提示
     return s.strip()
+
+
+RE_WORD = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
+
+# 括号内已是中文时，不再翻译括号中的英文原文（避免 (final) → (不可重新赋值(final))）
+RE_ZH_PAREN = re.compile(r"\((?=[^()]*[\u4e00-\u9fff])[^()]*\)")
+
+
+def localize_note(text):
+    """将说明文字中残留的裸英文标识符/关键字替换为中文（反引号内的代码保持原样）。"""
+    if not text:
+        return text
+    parts = re.split(r'(`[^`]*`)', text)
+    out = []
+    for i, seg in enumerate(parts):
+        if i % 2 == 1:  # 反引号内源代码，保持原样
+            out.append(seg)
+            continue
+
+        # 先把"含中文的括号段"用占位符保护起来
+        placeholders = []
+
+        def protect(m):
+            placeholders.append(m.group(0))
+            return f"\x00{len(placeholders) - 1}\x00"
+
+        seg2 = RE_ZH_PAREN.sub(protect, seg)
+
+        def repl(m):
+            w = m.group(0)
+            zh = translate_word(w)
+            return zh if zh else w
+
+        seg2 = RE_WORD.sub(repl, seg2)
+        for j, ph in enumerate(placeholders):
+            seg2 = seg2.replace(f"\x00{j}\x00", ph)
+        out.append(seg2)
+    return ''.join(out)
+
+
+def translate_word(w):
+    """单个英文单词 → 中文表述；词典无收录时尝试驼峰分词翻译。"""
+    if w in KEYWORD_ZH:
+        return KEYWORD_ZH[w]
+    if w in IDENT_ZH:
+        return IDENT_ZH[w]
+    lw = w.lower()
+    if lw in IDENT_ZH:
+        return IDENT_ZH[lw]
+    # 未收录的驼峰标识符：逐词翻译，全部可译才整体替换
+    words = re.findall(r"[A-Z]?[a-z0-9\$]+|[A-Z]+(?![a-z])", w)
+    if len(words) > 1:
+        trans = []
+        for sub in words:
+            t = NAME_HINTS.get(sub) or NAME_HINTS.get(sub.lower()) \
+                or IDENT_ZH.get(sub) or IDENT_ZH.get(sub.lower())
+            if not t:
+                return None
+            trans.append(t)
+        return ' '.join(trans)
+    return None
+
+
+RE_GENERIC_TYPE = re.compile(r"\b(?:Future|Stream|List|Map|Set)(?:<[^<>]*(?:<[^<>]*>[^<>]*)*>|\?)")
+
+
+def zh_type(ty):
+    """把类型表达式中的泛型容器/异步类型译为中文，保留内部具体类型名。"""
+    ty = ty.strip()
+    if not ty:
+        return ty
+    mapping = {'Future': '异步结果', 'Stream': '数据流', 'List': '列表',
+               'Map': '映射', 'Set': '集合'}
+    seen = set()
+    changed = True
+    while changed:
+        changed = False
+        for en, zhcn in mapping.items():
+            pat = re.compile(r"(\?|<(?:[^<>]|<[^<>]*>)*>|\b)" + en + r"\b")
+            m = pat.search(ty)
+            if m and (en, m.start()) not in seen:
+                seen.add((en, m.start()))
+                prefix = m.group(1) if m.group(1) != '<' else ''
+                ty = ty[:m.start(1)] + prefix + zhcn + ty[m.end():]
+                changed = True
+    return ty
 
 
 def strip_trailing_comment(line):
@@ -330,7 +745,7 @@ def describe(code, ctx):
         if '=' in s:
             rhs = s.split('=', 1)[1].strip()
             extra = value_hint(rhs, ctx)
-        return f"{kw_zh(kw)} {ty.strip()} 类型变量 {name}{('：' + extra) if extra else ''}" + (f"（{zh}）" if zh and zh != name else "")
+        return f"{kw_zh(kw)} {zh_type(ty.strip())} 类型变量 {name}{('：' + extra) if extra else ''}" + (f"（{zh}）" if zh and zh != name else "")
     m = RE_VAR_SIMPLE.match(s)
     if m:
         kw, name, op = m.groups()
@@ -461,8 +876,8 @@ def describe(code, ctx):
 
 
 def kw_zh(kw):
-    return {'final': '声明不可重新赋值的(final)', 'var': '声明自动类型推断(var)',
-            'const': '声明编译期常量(const)', 'late': '声明延迟初始化(late)'}.get(kw, kw)
+    return {'final': '声明不可重新赋值的', 'var': '声明自动类型推断的',
+            'const': '声明编译期常量', 'late': '声明延迟初始化的'}.get(kw, kw)
 
 
 def trim_paren(txt):
@@ -730,6 +1145,8 @@ def gen_for_file(rel_path):
         src_disp = raw.replace('|', '\\|')
         if src_disp.strip() == '':
             src_disp = '&nbsp;'
+        # 全中文化：将说明文字中残留的裸英文单词替换为中文表述
+        note = localize_note(note)
         note = note.replace('|', '\\|')
         rows.append(f"| {idx} | `{src_disp}` | {note} |")
 
